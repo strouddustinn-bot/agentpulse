@@ -1,0 +1,9 @@
+title: AgentPulse
+description: AI server monitoring that doesn't just alert — it auto-remediates
+url: "https://strouddustinn-bot.github.io"
+baseurl: "/agentpulse"
+markdown: kramdown
+theme: jekyll-theme-slate
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
