@@ -13,6 +13,7 @@ Choosing a monitoring tool? See how AgentPulse compares to the most popular opti
 - [AgentPulse vs Better Stack](vs-better-stack) — Monitoring vs. monitoring + auto-fix
 - [AgentPulse vs Datadog](vs-datadog) — Auto-remediation without the bill shock
 - [AgentPulse vs Uptime Kuma](vs-uptime-kuma) — When free monitoring isn't enough
+- [AgentPulse vs New Relic](vs-new-relic) — Deep observability vs. built-in remediation
 
 ## The TL;DR
 
