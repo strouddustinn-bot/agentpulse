@@ -1,32 +1,19 @@
 ---
 layout: default
-title: AgentPulse — AI Server Monitoring That Fixes Itself
+title: AgentPulse Comparisons — How We Stack Up
 ---
 
-# AgentPulse
+# AgentPulse vs The Competition
 
-AI-powered Linux server monitoring that doesn't just alert — it fixes the problem.
+Choosing a monitoring tool? See how AgentPulse compares to the most popular options.
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
-
-60 seconds from install to protected.
-
-## Learn More
-
-- [Features](features) — What AgentPulse does and how it works
-- [Pricing](pricing) — Simple plans, no per-GB billing, no sales calls
-- [Blog](blog) — Guides on server monitoring, auto-remediation, and DevOps
-
-## How We Compare
+## Comparisons
 
 - [AgentPulse vs Netdata](vs-netdata) — Pretty charts vs. auto-remediation
 - [AgentPulse vs Better Stack](vs-better-stack) — Monitoring vs. monitoring + auto-fix
 - [AgentPulse vs Datadog](vs-datadog) — Auto-remediation without the bill shock
 - [AgentPulse vs Uptime Kuma](vs-uptime-kuma) — When free monitoring isn't enough
 - [AgentPulse vs New Relic](vs-new-relic) — Deep observability vs. built-in remediation
-- [AgentPulse vs Grafana](vs-grafana) — Dashboards vs. self-healing
 
 ## The TL;DR
 
