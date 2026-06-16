@@ -10,6 +10,7 @@ Practical guides, comparisons, and insights on server monitoring and auto-remedi
 
 ## Latest Posts
 
+- [How AgentPulse Decides Before It Acts](blog/how-agentpulse-decides) — The six-stage decision loop that runs before anything touches your server
 - [The Real Cost of Server Monitoring in 2026](blog/server-monitoring-cost-guide) — What Datadog, Grafana, and self-hosting actually cost when you do the math
 - [Server Monitoring in 2026: Why Alerts Aren't Enough](blog/alerts-not-enough) — The evolution from passive monitoring to active remediation
 - [Auto-Remediation for Indie Devs: A Practical Guide](blog/auto-remediation-guide) — How to set up automated server healing without enterprise budgets
