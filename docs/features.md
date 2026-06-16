@@ -180,15 +180,23 @@ The agent footprint is minimal: under 50MB RAM, under 1% CPU in steady state.
 
 ## How It Works
 
-AgentPulse is a lightweight daemon written for minimal resource overhead. Here's the architecture in plain terms:
+AgentPulse doesn't just match metrics against thresholds. Every potential remediation goes through a six-stage decision loop before anything runs on your server.
 
-**The agent** runs on your server as a systemd service. It collects metrics, watches logs, tracks processes, and evaluates remediation rules. All the decision logic runs locally on your server — there's no latency waiting for cloud round-trips before it can act.
+**Remember** — Before reasoning about an anomaly, the agent queries its baseline memory: what's normal CPU, RAM, disk, and process behavior for *this specific server*? A process spiking at 3 AM might be the nightly backup. The agent knows the difference.
 
-**The platform** receives metrics and events from the agent over an encrypted outbound connection. It stores historical data, runs the dashboard, manages your alert routing, and provides the API for approval-gate responses.
+**Reason** — Given the anomaly and its baseline context, the agent identifies candidate responses. Disk full: log rotation, temp file cleanup, or alert-only? Runaway process: kill, throttle, or escalate? Multiple options are weighed, not just the first rule that matches.
 
-**The intelligence layer** handles baseline modeling and anomaly detection. It runs in the platform, not on your server, so baseline computation doesn't eat your server's resources.
+**Simulate** — Each candidate response is evaluated for consequences before it runs. Would killing this process break a dependent service? Is the process owned by a system account that warrants escalation instead? Lightweight consequence modeling prevents remediation that makes things worse.
 
-When remediation fires, the decision happens on the agent (for auto-fix actions) or the platform (for ask-first actions that need your input). The agent has a pre-authorized action set — it doesn't receive arbitrary commands from the cloud. This means a compromised platform can't be used to execute arbitrary code on your servers.
+**Gate** — Every proposed action is checked against your configured policies before it executes. Auto-fix actions run immediately. Ask-first actions pause for your approval. Alert-only actions stop here and notify you. Nothing runs against your policy.
+
+**Act** — The validated action runs locally on your server — no cloud round-trip required. The agent records the outcome (what ran, what changed, whether it worked) and feeds that back into its memory for the next cycle.
+
+**Share** *(roadmap)* — When AgentPulse runs across a fleet, agents share anonymized patterns. A novel attack signature detected on one server propagates as a defensive rule across all of them. Each agent is sovereign; the intelligence is collective.
+
+The loop closes: act outcomes update the baseline, sharpening what the agent knows about your server. It gets more accurate over time.
+
+The agent runs as a systemd service with minimal footprint (under 50MB RAM, under 1% CPU). Decision logic runs locally; baseline computation runs in the platform so it doesn't eat your server's resources. The agent holds a pre-authorized action set — a compromised platform cannot issue arbitrary commands to your servers.
 
 ---
 
