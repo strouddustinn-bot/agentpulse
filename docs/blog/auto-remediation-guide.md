@@ -71,9 +71,7 @@ For $99/month ($1,188/year), AgentPulse Pro handles those incidents automaticall
 
 ## Getting Started
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 60 seconds to install. 2-3 days to learn your baseline. Then you start getting your nights back.
 

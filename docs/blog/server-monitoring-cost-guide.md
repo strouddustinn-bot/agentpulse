@@ -144,8 +144,6 @@ The auto-remediation piece is what makes the cost math different. If AgentPulse 
 
 For a lot of small teams, that math is pretty easy.
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 [See pricing and start a free trial →](https://agentpulse.dustinnstroud.com)

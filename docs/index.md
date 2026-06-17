@@ -7,9 +7,7 @@ title: AgentPulse — AI Server Monitoring That Fixes Itself
 
 AI-powered Linux server monitoring that doesn't just alert — it fixes the problem.
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 60 seconds from install to protected.
 

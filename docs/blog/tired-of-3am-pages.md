@@ -50,9 +50,7 @@ So I rebuilt it properly:
 
 I hate tools that take an afternoon to configure. AgentPulse installs with one command:
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 Zero config to start monitoring. The agent discovers your services, starts collecting metrics, and begins learning your baseline within minutes.
 
@@ -70,8 +68,6 @@ I haven't been paged for a fixable issue in weeks. AgentPulse handles disk clean
 
 If you're running Linux servers and tired of being the remediation layer, give it a try:
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 [Try AgentPulse →](https://agentpulse.dustinnstroud.com)

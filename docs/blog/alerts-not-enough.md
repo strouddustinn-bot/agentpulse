@@ -47,9 +47,7 @@ AgentPulse brings auto-remediation to solo devs, indie hackers, and small teams:
 
 Starting at **$29/mo for monitoring** and **$99/mo for auto-remediation** — no sales calls, no per-GB billing.
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 ## The Bottom Line
 

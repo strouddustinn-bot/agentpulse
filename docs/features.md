@@ -161,9 +161,7 @@ AgentPulse groups related alerts and suppresses duplicates. If disk is at 91% an
 
 ## 60-Second Install
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 That's it. The installer:
 
@@ -222,13 +220,9 @@ If you need any of those things, we'll point you toward tools that do them well.
 
 ## Pricing
 
-| Plan | Price | Servers | What You Get |
-|------|-------|---------|-------------|
-| **Starter** | $29/mo | 1 | Real-time monitoring, Telegram/email alerts, dashboard |
-| **Pro** | $99/mo | 5 | Everything + auto-remediation, baseline learning, webhooks |
-| **Business** | $299/mo | Unlimited | Everything + API access, priority remediation, dedicated support |
+Plans start at $29/mo, with auto-remediation included from the Pro tier up. No per-host overages, no per-GB billing, no sales call required. Cancel anytime.
 
-No per-host overages. No per-GB billing. No sales call required. Cancel anytime.
+For the full plan breakdown, per-tier feature comparison, and FAQ, see the [pricing page](pricing).
 
 ---
 
