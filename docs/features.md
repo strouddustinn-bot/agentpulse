@@ -194,7 +194,7 @@ AgentPulse doesn't just match metrics against thresholds. Every potential remedi
 
 The loop closes: act outcomes update the baseline, sharpening what the agent knows about your server. It gets more accurate over time.
 
-The agent runs as a systemd service with minimal footprint (under 50MB RAM, under 1% CPU). Decision logic runs locally; baseline computation runs in the platform so it doesn't eat your server's resources. The agent holds a pre-authorized action set — a compromised platform cannot issue arbitrary commands to your servers.
+Decision logic runs locally; baseline computation runs in the platform so it doesn't eat your server's resources. The agent holds a pre-authorized action set — a compromised platform cannot issue arbitrary commands to your servers.
 
 ---
 

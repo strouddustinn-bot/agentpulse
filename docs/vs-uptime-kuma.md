@@ -1,7 +1,7 @@
 ---
+layout: default
 title: "AgentPulse vs Uptime Kuma (2026) — When Free Monitoring Isn't Enough"
 description: "Uptime Kuma is a great free uptime monitor. But it can't auto-fix your servers. AgentPulse monitors AND remediates."
-slug: uptime-kuma
 ---
 
 # AgentPulse vs Uptime Kuma

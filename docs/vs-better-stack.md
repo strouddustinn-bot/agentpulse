@@ -1,7 +1,7 @@
 ---
+layout: default
 title: "AgentPulse vs Better Stack (2026) — Monitoring + Auto-Remediation vs Monitoring Alone"
 description: "Better Stack gives you great uptime monitoring and incident management. AgentPulse adds auto-remediation — so your servers fix themselves."
-slug: better-stack
 ---
 
 # AgentPulse vs Better Stack

@@ -1,7 +1,7 @@
 ---
+layout: default
 title: "AgentPulse vs Grafana (2026) — Auto-Remediation vs. Beautiful Dashboards"
 description: "Grafana is the gold standard for observability dashboards. AgentPulse skips the dashboard and fixes the problem automatically. Honest comparison for solo devs and small teams."
-slug: grafana
 ---
 
 # AgentPulse vs Grafana

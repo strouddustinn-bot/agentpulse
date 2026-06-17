@@ -1,7 +1,7 @@
 ---
+layout: default
 title: "AgentPulse vs New Relic (2026) — Observability vs Auto-Remediation"
 description: "New Relic gives broad observability. AgentPulse focuses on Linux server health and fixing common failures automatically."
-slug: new-relic
 ---
 
 # AgentPulse vs New Relic
