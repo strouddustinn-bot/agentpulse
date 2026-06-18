@@ -104,3 +104,7 @@ Every policy is visible, reversible, and scoped to the server it runs on.
 
 For urgent setup, email
 [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com).
+
+---
+
+<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.dustinnstroud.com</sub>

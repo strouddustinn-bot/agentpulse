@@ -85,3 +85,7 @@ A server is one Linux machine or VPS running the AgentPulse agent. Containers on
 ## Need something custom?
 
 Email [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20Business%20Beta) with the number of servers, the stack you run, and the incidents you want remediated.
+
+---
+
+<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.dustinnstroud.com</sub>

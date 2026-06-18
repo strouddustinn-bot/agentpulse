@@ -69,3 +69,7 @@ AgentPulse is designed to start conservative. Beta onboarding begins in alert-on
 ## Ready to stop being the remediation layer?
 
 [Join the paid beta](signup) and we will help you protect the first server.
+
+---
+
+<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.dustinnstroud.com</sub>
