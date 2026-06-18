@@ -2,6 +2,7 @@
 title: "AgentPulse vs Datadog for Small Teams (2026) — Auto-Remediation Without the Bill Shock"
 description: "Datadog is powerful but expensive. AgentPulse delivers auto-remediation at indie pricing — no sales calls, no complex billing, no surprises."
 slug: datadog
+layout: default
 ---
 
 # AgentPulse vs Datadog for Small Teams
@@ -36,7 +37,7 @@ AgentPulse? **$99/month for 5 servers with auto-remediation included.** No per-G
 | Integrations | Telegram, email, webhooks | 800+ |
 | Security monitoring | ✅ | ✅ (separate product, extra cost) |
 | Pricing complexity | 3 plans | 20+ products, per-host + per-GB |
-| Setup time | 60 seconds | Hours to days |
+| Setup time | Paid beta onboarding | Hours to days |
 | Sales call required | ❌ | For most features, yes |
 
 ## Where Datadog Wins
@@ -50,7 +51,7 @@ AgentPulse? **$99/month for 5 servers with auto-remediation included.** No per-G
 ## Where AgentPulse Wins
 
 - **Price** — $99/mo for 5 servers with auto-remediation vs. $300-500+ for comparable Datadog setup
-- **Simplicity** — install in 60 seconds. No agent configuration, no dashboard setup, no "getting started" guide needed.
+- **Simplicity** — guided first-server onboarding, alert-only by default, and remediation policies you can promote when ready.
 - **Auto-remediation included** — not an upsell, not a separate product. Core feature.
 - **No bill shock** — fixed pricing. Your bill is the same every month whether your logs spike or not.
 - **Built for small teams** — no enterprise bloat, no features you'll never use.
@@ -75,4 +76,4 @@ AgentPulse is designed to avoid that trap. Simple pricing from day one. No honey
 
 **Datadog is a Swiss Army knife. AgentPulse is a scalpel.** Pick the tool that matches your problem.
 
-[Try AgentPulse free →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)

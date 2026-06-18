@@ -48,13 +48,13 @@ So I rebuilt it properly:
 
 ## The Install Experience I Wanted
 
-I hate tools that take an afternoon to configure. AgentPulse installs with one command:
+I hate tools that take an afternoon to configure. AgentPulse beta setup starts with one command after you request access:
 
 ```bash
 curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
 ```
 
-Zero config to start monitoring. The agent discovers your services, starts collecting metrics, and begins learning your baseline within minutes.
+Start in alert-only mode, review what the agent discovers, then promote safe remediation policies once the first server looks right.
 
 ## The Pricing I Wanted
 
@@ -68,10 +68,10 @@ No "contact sales." No per-GB billing that balloons unpredictably. No 14-page pr
 
 I haven't been paged for a fixable issue in weeks. AgentPulse handles disk cleanup, service restarts, and process management automatically. I still get alerts for things that actually need my attention — but those are rare.
 
-If you're running Linux servers and tired of being the remediation layer, give it a try:
+If you're running Linux servers and tired of being the remediation layer, join the paid beta:
 
 ```bash
 curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
 ```
 
-[Try AgentPulse →](https://agentpulse.dustinnstroud.com)
+[Join the AgentPulse paid beta →](https://agentpulse.dustinnstroud.com/signup)

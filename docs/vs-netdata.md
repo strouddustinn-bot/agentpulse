@@ -2,6 +2,7 @@
 title: "AgentPulse vs Netdata (2026) — Why Auto-Remediation Beats Pretty Charts"
 description: "Comparing AgentPulse and Netdata for server monitoring. Netdata shows you the problem. AgentPulse fixes it."
 slug: netdata
+layout: default
 ---
 
 # AgentPulse vs Netdata
@@ -18,7 +19,7 @@ But here's the thing: **showing you the problem isn't the same as fixing it.**
 | Auto-remediation | ✅ | ❌ |
 | Baseline learning | ✅ | ✅ (ML in paid tier) |
 | Pricing model | Per plan ($29-299/mo) | Per node ($4.50/node/mo Business) |
-| Free tier | 14-day trial | 5 nodes free |
+| Beta access | Paid beta | 5 nodes free |
 | Install | `curl \| bash` | `curl \| bash` |
 | Alert integrations | Telegram, email, webhooks | Limited on free tier |
 | Auto-fix processes | ✅ | ❌ |
@@ -49,4 +50,4 @@ If you want your servers to **heal themselves** — kill runaway processes, rest
 
 **Netdata shows you the fire. AgentPulse puts it out.**
 
-[Try AgentPulse free →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)

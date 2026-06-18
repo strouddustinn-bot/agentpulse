@@ -7,8 +7,8 @@
 *Alerts are for humans. Guardians act.*
 
 [![Website](https://img.shields.io/badge/Website-agentpulse.dustinnstroud.com-blue?style=for-the-badge)](https://agentpulse.dustinnstroud.com)
-[![Install](https://img.shields.io/badge/Install-curl%20%7C%20bash-green?style=for-the-badge)](https://agentpulse.dustinnstroud.com)
-[![Pricing](https://img.shields.io/badge/From-%2429%2Fmo-orange?style=for-the-badge)](https://agentpulse.dustinnstroud.com)
+[![Install](https://img.shields.io/badge/Install-curl%20%7C%20bash-green?style=for-the-badge)](https://agentpulse.dustinnstroud.com/install)
+[![Pricing](https://img.shields.io/badge/From-%2429%2Fmo-orange?style=for-the-badge)](https://agentpulse.dustinnstroud.com/pricing)
 
 </div>
 
@@ -52,7 +52,7 @@ You're not giving a bot unchecked root access. Set policies per action:
 curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
 ```
 
-60 seconds from install to protected. Thin agent, zero config, works on any Linux server.
+AgentPulse is onboarding paid beta users. The installer currently routes new users into beta setup so remediation policies can be configured safely before auto-fix actions are enabled.
 
 ## How It Compares
 
@@ -103,6 +103,8 @@ No "contact sales." No per-GB billing that balloons unpredictably. No 14-page pr
 ## Links
 
 - 🌐 **Website:** [agentpulse.dustinnstroud.com](https://agentpulse.dustinnstroud.com)
+- 💳 **Pricing:** [agentpulse.dustinnstroud.com/pricing](https://agentpulse.dustinnstroud.com/pricing)
+- 🚀 **Paid Beta:** [agentpulse.dustinnstroud.com/signup](https://agentpulse.dustinnstroud.com/signup)
 - 📦 **Install:** `curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash`
 - 💬 **Discord:** [Join our community](https://discord.gg/vCaXFWuc)
 - 📧 **Email:** support@agentpulse.dustinnstroud.com
@@ -117,6 +119,6 @@ The AgentPulse agent is open source (see [LICENSE](LICENSE)). The cloud platform
 
 **Stop firefighting. Start sleeping.** 🛡️
 
-[Get Started →](https://agentpulse.dustinnstroud.com/signup)
+[Join the Paid Beta →](https://agentpulse.dustinnstroud.com/signup)
 
 </div>

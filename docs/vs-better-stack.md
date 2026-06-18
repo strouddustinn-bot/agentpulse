@@ -2,6 +2,7 @@
 title: "AgentPulse vs Better Stack (2026) — Monitoring + Auto-Remediation vs Monitoring Alone"
 description: "Better Stack gives you great uptime monitoring and incident management. AgentPulse adds auto-remediation — so your servers fix themselves."
 slug: better-stack
+layout: default
 ---
 
 # AgentPulse vs Better Stack
@@ -54,4 +55,4 @@ Better Stack is excellent at **observing**. AgentPulse is built for **acting**.
 
 If you're tired of getting paged for problems that always have the same fix, AgentPulse automates that fix so you can sleep.
 
-[Try AgentPulse free →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)
