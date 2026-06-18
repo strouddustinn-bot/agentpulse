@@ -41,8 +41,7 @@ plan that includes hands-on setup of the first remediation policies.
     <div style="font-weight:700;font-size:1.1em;">Starter</div>
     <div style="font-size:1.6em;font-weight:700;margin:4px 0;">$29<span style="font-size:0.5em;color:#666;">/mo</span></div>
     <div style="color:#666;font-size:0.9em;margin-bottom:12px;">1 server · alerts + approval-gated fixes</div>
-    <!-- STARTER_LINK: replace href with your $29/mo Stripe Payment Link -->
-    <a href="mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20Starter%20-%20%2429%2Fmo&body=I%20want%20the%20Starter%20plan%20(%2429%2Fmo%2C%201%20server).%0A%0AName%3A%0AServer%20provider%3A%0AStack%3A%0AThe%20recurring%20incident%20I%20want%20gone%3A"
+    <a href="https://buy.stripe.com/6oU28rbSBgPS8Qa5CB7N600"
        style="display:block;text-align:center;padding:11px;background:#0b5fff;color:#fff;border-radius:7px;text-decoration:none;font-weight:600;">Choose Starter</a>
   </div>
 
@@ -51,8 +50,7 @@ plan that includes hands-on setup of the first remediation policies.
     <div style="font-weight:700;font-size:1.1em;">Pro Beta</div>
     <div style="font-size:1.6em;font-weight:700;margin:4px 0;">$99<span style="font-size:0.5em;color:#666;">/mo</span></div>
     <div style="color:#666;font-size:0.9em;margin-bottom:12px;">up to 5 servers · all fix classes · onboarding help</div>
-    <!-- PRO_LINK: replace href with your $99/mo Stripe Payment Link -->
-    <a href="mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20Pro%20Beta%20-%20%2499%2Fmo&body=I%20want%20the%20Pro%20Beta%20(%2499%2Fmo%2C%20up%20to%205%20servers).%0A%0AName%3A%0ACompany%2Fproduct%3A%0A%23%20of%20servers%3A%0AProvider%3A%0AStack%3A%0AThe%20recurring%20incident%20I%20want%20gone%3A"
+    <a href="https://buy.stripe.com/8x228r1dXdDG7M67KJ7N601"
        style="display:block;text-align:center;padding:11px;background:#0b5fff;color:#fff;border-radius:7px;text-decoration:none;font-weight:700;">Choose Pro Beta</a>
   </div>
 
@@ -60,8 +58,7 @@ plan that includes hands-on setup of the first remediation policies.
     <div style="font-weight:700;font-size:1.1em;">Business Beta</div>
     <div style="font-size:1.6em;font-weight:700;margin:4px 0;">$299<span style="font-size:0.5em;color:#666;">/mo</span></div>
     <div style="color:#666;font-size:0.9em;margin-bottom:12px;">small fleet · custom policies · priority support</div>
-    <!-- BUSINESS_LINK: replace href with your $299/mo Stripe Payment Link -->
-    <a href="mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20Business%20Beta%20-%20%24299%2Fmo&body=I%20want%20the%20Business%20Beta%20(%24299%2Fmo%2C%20small%20fleet).%0A%0AName%3A%0ACompany%3A%0A%23%20of%20servers%3A%0AProvider(s)%3A%0AStack%3A%0AThe%20incidents%20I%20want%20remediated%3A"
+    <a href="https://buy.stripe.com/bJe14ncWFgPSc2m8ON7N602"
        style="display:block;text-align:center;padding:11px;background:#1a1a1a;color:#fff;border-radius:7px;text-decoration:none;font-weight:600;">Choose Business</a>
   </div>
 

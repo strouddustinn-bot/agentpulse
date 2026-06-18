@@ -29,12 +29,11 @@ incidents — disk pressure, crashed services, runaway processes — instead of
 just paging you about them.
 
 <p>
-  <!-- STRIPE_PAYMENT_LINK: replace the href below with your Stripe Payment Link to enable checkout -->
   <a id="checkout-cta"
      class="btn"
-     href="mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20Pro%20Beta%20-%20reserve%20my%20slot&body=I%20want%20the%20Pro%20Beta%20(%2499%2Fmo%2C%20up%20to%205%20servers).%0A%0AName%3A%0ACompany%2Fproduct%3A%0A%23%20of%20Linux%20servers%3A%0AHosting%20provider%20(Hetzner%2FDO%2FLinode%2FVultr%2FAWS)%3A%0AStack%20(web%20server%2C%20process%20manager%2C%20db)%3A%0AThe%20recurring%20incident%20I%20want%20gone%3A%0APreferred%20start%20mode%3A%20alert-only%20%2F%20ask-first%20%2F%20auto-fix"
+     href="https://buy.stripe.com/8x228r1dXdDG7M67KJ7N601"
      style="display:inline-block;padding:14px 26px;background:#0b5fff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:1.05em;">
-     Reserve your Pro Beta slot — $99/mo
+     Start Pro Beta — $99/mo
   </a>
 </p>
 
