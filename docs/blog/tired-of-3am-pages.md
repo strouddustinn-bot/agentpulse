@@ -50,9 +50,7 @@ So I rebuilt it properly:
 
 I hate tools that take an afternoon to configure. AgentPulse beta setup starts with one command after you request access:
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 Start in alert-only mode, review what the agent discovers, then promote safe remediation policies once the first server looks right.
 
@@ -70,8 +68,6 @@ I haven't been paged for a fixable issue in weeks. AgentPulse handles disk clean
 
 If you're running Linux servers and tired of being the remediation layer, join the paid beta:
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 [Join the AgentPulse paid beta →](https://agentpulse.dustinnstroud.com/signup)

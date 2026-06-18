@@ -71,9 +71,7 @@ For $99/month ($1,188/year), AgentPulse Pro handles those incidents automaticall
 
 ## Getting Started
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 Start with one beta server in alert-only mode. Spend 2-3 days learning the baseline, then promote safe fixes as you build trust.
 

@@ -1,8 +1,7 @@
 ---
+layout: default
 title: "AgentPulse vs Netdata (2026) — Why Auto-Remediation Beats Pretty Charts"
 description: "Comparing AgentPulse and Netdata for server monitoring. Netdata shows you the problem. AgentPulse fixes it."
-slug: netdata
-layout: default
 ---
 
 # AgentPulse vs Netdata

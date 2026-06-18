@@ -1,8 +1,7 @@
 ---
+layout: default
 title: "AgentPulse vs Datadog for Small Teams (2026) — Auto-Remediation Without the Bill Shock"
 description: "Datadog is powerful but expensive. AgentPulse delivers auto-remediation at indie pricing — no sales calls, no complex billing, no surprises."
-slug: datadog
-layout: default
 ---
 
 # AgentPulse vs Datadog for Small Teams

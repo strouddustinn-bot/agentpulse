@@ -1,8 +1,7 @@
 ---
+layout: default
 title: "AgentPulse vs New Relic (2026) — Observability vs Auto-Remediation"
 description: "New Relic gives broad observability. AgentPulse focuses on Linux server health and fixing common failures automatically."
-slug: new-relic
-layout: default
 ---
 
 # AgentPulse vs New Relic
@@ -60,9 +59,7 @@ Broad observability platforms give you a lot of power, but they also ask more fr
 
 AgentPulse is much more opinionated. Install it, connect a server, and start watching health signals immediately:
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 That is a better trade for operators who want fewer knobs and faster protection.
 
@@ -116,8 +113,6 @@ AgentPulse is better at handling the repetitive infrastructure problems that wak
 
 If you are tired of being the remediation layer yourself, AgentPulse is the more relevant product.
 
-```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
-```
+{% include install.html %}
 
 [Join the paid beta](https://agentpulse.dustinnstroud.com/signup)
