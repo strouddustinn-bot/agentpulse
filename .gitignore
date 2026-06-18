@@ -4,3 +4,7 @@ _site/
 .jekyll-metadata
 Gemfile
 Gemfile.lock
+__pycache__/
+*.pyc
+*.pyo
+/tmp/agentpulse/
