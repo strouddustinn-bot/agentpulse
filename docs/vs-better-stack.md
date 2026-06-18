@@ -54,4 +54,4 @@ Better Stack is excellent at **observing**. AgentPulse is built for **acting**.
 
 If you're tired of getting paged for problems that always have the same fix, AgentPulse automates that fix so you can sleep.
 
-[Try AgentPulse free →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)

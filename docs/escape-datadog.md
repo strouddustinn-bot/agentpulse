@@ -25,7 +25,7 @@ If you're a small team running Datadog, you know the feeling:
 | **Auto-remediation** | Bits AI SRE ($12/host/mo extra) | **Included in Pro** |
 | **Pricing model** | Per-host + per-GB + per-custom-metric | Simple per-plan |
 | **Bill predictability** | 🔴 Unpredictable | 🟢 Fixed monthly |
-| **Setup time** | Hours to days | 60 seconds |
+| **Setup time** | Hours to days | Paid beta onboarding |
 | **Sales call required** | For most features | Never |
 
 ## What You Get with AgentPulse
@@ -43,8 +43,8 @@ The same feature set on Datadog? **$300-500+/month.**
 
 ## How to Switch
 
-1. **Sign up** for AgentPulse (free trial, no credit card)
-2. **Install the agent** — one curl command on each server
+1. **Join the paid beta** for AgentPulse
+2. **Install the agent** with guided first-server setup
 3. **Configure remediation policies** — auto-fix, ask-first, or alert-only per action
 4. **Turn off Datadog** when you're ready
 
@@ -60,4 +60,4 @@ AgentPulse is built for teams that want their servers to **heal themselves** wit
 
 **$99/mo for 5 servers with auto-remediation.** No per-GB billing. No surprise charges. No sales calls.
 
-[Start Free Trial →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)

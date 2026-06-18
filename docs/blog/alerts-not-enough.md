@@ -47,10 +47,10 @@ AgentPulse brings auto-remediation to solo devs, indie hackers, and small teams:
 
 Starting at **$29/mo for monitoring** and **$99/mo for auto-remediation** — no sales calls, no per-GB billing.
 
-{% include install.html %}
+Paid beta onboarding starts with one Linux server in alert-only mode, then promotes safe actions to ask-first or auto-fix after review.
 
 ## The Bottom Line
 
 If you're still getting paged at 3AM to run the same fix, you don't have a monitoring problem — you have a remediation problem. And in 2026, that problem has an affordable solution.
 
-[Get started with AgentPulse →](https://agentpulse.dustinnstroud.com)
+[Join the AgentPulse paid beta →](https://agentpulse.dustinnstroud.com/signup)

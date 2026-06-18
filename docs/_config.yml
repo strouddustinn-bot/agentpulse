@@ -2,7 +2,6 @@ title: AgentPulse
 description: AI server monitoring that doesn't just alert - it auto-remediates
 url: "https://agentpulse.dustinnstroud.com"
 baseurl: ""
-install_url: "https://agentpulse.dustinnstroud.com/install.sh"
 markdown: kramdown
 theme: jekyll-theme-slate
 plugins:
