@@ -10,10 +10,18 @@ Simple beta pricing for Linux server monitoring with policy-based remediation.
 | Plan | Price | Servers | Best for | Includes |
 | --- | --- | --- | --- | --- |
 | Starter | $29/mo | 1 | Solo developers | Visibility and approval-gated remediation before you trust automation |
-| Pro Beta | $99/mo | 5 | Indie SaaS founders | Recommended: onboarding help, baseline review, and first remediation policies |
+| **Pro Beta — recommended** | **$99/mo** | 5 | Indie SaaS founders | Onboarding help, baseline review, and your first remediation policies |
 | Business Beta | $299/mo | Unlimited during beta | Small teams | Direct setup help, custom policies, priority support, and API access |
 
-[Reserve a paid beta slot](signup)
+**Most founders start on Pro Beta.** One bad night, one churn-causing outage, or
+one oversized monitoring bill already costs more than $99 — and it's the only
+plan that includes hands-on setup of the first remediation policies.
+
+[Reserve your Pro Beta slot](signup)
+
+After you sign up, we reply within a few hours during the launch window with your
+recommended first-server setup and the payment link for your plan. No charge
+until your first server is monitoring in alert-only mode.
 
 ## Beta guarantee
 

@@ -9,6 +9,8 @@ AgentPulse is for founders and small teams running 1-10 Linux servers. Start in 
 
 [Join the paid beta](signup) | [See pricing](pricing) | [Install guide](install)
 
+*Best for founders running 1–10 Linux servers on Hetzner, DigitalOcean, Linode, Vultr, or AWS Lightsail.*
+
 ## What you get tonight
 
 - **Stop being the remediation layer:** cover disk pressure, crashed services, runaway processes, and other repeat Linux incidents.
@@ -34,10 +36,10 @@ We are onboarding the first users as a paid beta so the remediation policies can
 | Plan | Price | Best for | Includes |
 | --- | --- | --- | --- |
 | Starter | $29/mo | 1 production VPS | Monitoring, alerts, manual remediation approvals |
-| Pro Beta | $99/mo | Up to 5 servers | Recommended: auto-remediation policies, baseline learning, onboarding help |
+| **Pro Beta — recommended** | **$99/mo** | Up to 5 servers | Auto-remediation policies, baseline learning, hands-on onboarding |
 | Business Beta | $299/mo | Small teams | Unlimited servers during beta, priority setup, custom policies |
 
-[Reserve a paid beta slot](signup)
+[Reserve your Pro Beta slot](signup) — we reply within a few hours during the launch window.
 
 ## How onboarding works
 
