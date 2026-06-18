@@ -220,7 +220,7 @@ If you need any of those things, we'll point you toward tools that do them well.
 
 ## Pricing
 
-Plans start at $29/mo, with auto-remediation included from the Pro tier up. No per-host overages, no per-GB billing, no sales call required. Cancel anytime.
+Plans start at an indie-friendly monthly price, with auto-remediation included from the Pro tier up. No per-host overages, no per-GB billing, no sales call required. Cancel anytime.
 
 For the full plan breakdown, per-tier feature comparison, and FAQ, see the [pricing page](pricing).
 
