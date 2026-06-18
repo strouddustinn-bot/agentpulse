@@ -1,0 +1,168 @@
+"""The run loop: gather -> decide -> act / queue / alert -> notify -> persist."""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Callable, List, Optional
+
+from . import checks, ouroboros, policy, remediation
+from .config import Config
+from .models import Decision, Observation
+from .notify import Notifier
+from .state import State
+
+
+def mode_for(cfg: Config, check: str) -> str:
+    return {
+        "disk": cfg.disk.mode,
+        "service": cfg.service.mode,
+        "process": cfg.process.mode,
+    }.get(check, "off")
+
+
+def make_verify(cfg: Config, run_fn=None):
+    """Build the Ouroboros 'tail' verifier: re-measure after acting."""
+
+    def verify(decision: Decision) -> bool:
+        if decision.action == "disk_cleanup":
+            for obs in checks.check_disk(cfg.disk):
+                if obs.target == decision.target:
+                    return not obs.breached
+            return True
+        if decision.action == "service_restart":
+            svc_cfg = cfg.service
+            obs_list = (
+                checks.check_services(svc_cfg, run_fn=run_fn)
+                if run_fn
+                else checks.check_services(svc_cfg)
+            )
+            for obs in obs_list:
+                if obs.target == decision.target:
+                    return not obs.breached
+            return True
+        return True
+
+    return verify
+
+
+@dataclass
+class CycleSummary:
+    observations: int = 0
+    breaches: int = 0
+    actions_taken: List[str] = field(default_factory=list)
+    queued: List[str] = field(default_factory=list)
+    alerts: List[str] = field(default_factory=list)
+    escalations: List[str] = field(default_factory=list)
+    blocked: List[str] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+
+
+def run_once(
+    cfg: Config,
+    state: State,
+    notifier: Notifier,
+    dry_run: bool = False,
+    gather_fn: Callable[[Config], List[Observation]] = checks.gather,
+    run_fn=None,
+) -> CycleSummary:
+    summary = CycleSummary()
+    observations = gather_fn(cfg)
+    summary.observations = len(observations)
+
+    for obs in observations:
+        decision = policy.decide(obs.check, mode_for(cfg, obs.check), obs)
+        if decision is None:
+            continue
+        summary.breaches += 1
+
+        if decision.requires_approval:
+            if not state.has_pending(decision):
+                pid = state.queue_pending(decision)
+                notifier.send(
+                    f"approval needed: {decision.action}",
+                    f"id {pid} — {decision.reason}\n"
+                    f"approve with: agentpulse approve <config> {pid}",
+                )
+            summary.queued.append(f"{decision.action}:{decision.target}")
+        elif decision.execute:
+            # Run the full Ouroboros cycle: simulate -> validate -> execute ->
+            # verify -> record. Never a blind destructive action.
+            rec = ouroboros.run_cycle(
+                decision,
+                verify_fn=make_verify(cfg, run_fn=run_fn),
+                run_fn=run_fn,
+                force_dry_run=dry_run,
+            )
+            label = f"{decision.action}:{decision.target}"
+            details = "\n".join(
+                [rec.expectation]
+                + (rec.execution.details if rec.execution else (rec.simulation.details if rec.simulation else []))
+                + rec.notes
+            )
+            if rec.outcome in ("succeeded", "executed_unverified", "simulated_only"):
+                summary.actions_taken.append(label)
+                notifier.send(
+                    f"{'(dry-run) ' if dry_run else ''}ouroboros {rec.outcome}: {decision.action}",
+                    details,
+                )
+            elif rec.outcome == "escalated":
+                summary.escalations.append(label)
+                notifier.send(
+                    f"ESCALATION: {decision.action} ran but did not clear",
+                    details + "\n→ needs a human; the agent will not retry automatically.",
+                )
+            elif rec.outcome == "blocked":
+                summary.blocked.append(label)
+                notifier.send(
+                    f"safety gate blocked: {decision.action}",
+                    "; ".join(rec.ethics_reasons),
+                )
+            else:  # failed
+                err = rec.execution.error if rec.execution else "unknown error"
+                summary.errors.append(f"{label}: {err}")
+                notifier.send(f"auto-fix FAILED: {decision.action}", err or "unknown error")
+        else:
+            summary.alerts.append(f"{obs.check}:{obs.target}")
+            notifier.send(f"alert: {obs.check}", obs.detail)
+
+    state.mark_run()
+    state.save()
+    return summary
+
+
+def approve(
+    cfg: Config, state: State, pending_id: str, dry_run: bool = False, run_fn=None
+) -> Optional[remediation.RemediationResult]:
+    """Execute a previously queued ask-first action after human approval."""
+    entry = state.pop_pending(pending_id)
+    if entry is None:
+        return None
+    obs = Observation(
+        check=entry.get("check", ""),
+        target=entry["target"],
+        breached=True,
+        metadata=entry.get("metadata", {}),
+    )
+    decision = Decision(
+        action=entry["action"],
+        target=entry["target"],
+        mode_effective="approved",
+        execute=True,
+        requires_approval=False,
+        reason="approved by operator",
+        observation=obs,
+    )
+    result = remediation.execute(decision, dry_run=dry_run, run_fn=run_fn)
+    state.save()
+    return result
+
+
+def run_loop(cfg: Config, state: State, notifier: Notifier, dry_run: bool = False, max_cycles: Optional[int] = None) -> None:  # pragma: no cover - long running
+    cycles = 0
+    while True:
+        run_once(cfg, state, notifier, dry_run=dry_run)
+        cycles += 1
+        if max_cycles is not None and cycles >= max_cycles:
+            return
+        time.sleep(cfg.interval_seconds)

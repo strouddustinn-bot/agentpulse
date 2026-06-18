@@ -1,0 +1,19 @@
+[Unit]
+Description=AgentPulse monitoring + policy-gated remediation agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/agentpulse run /etc/agentpulse/config.json
+Restart=on-failure
+RestartSec=10
+# Hardening: the agent needs to read /proc and act on configured paths/services,
+# but does not need broad write access to the system.
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

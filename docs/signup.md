@@ -39,7 +39,7 @@ just paging you about them.
 </p>
 
 <p style="font-size:0.95em;color:#555;margin-top:-6px;">
-  Up to 5 servers · hands-on onboarding for the first server ·
+  Up to 5 servers · self-serve agent + optional onboarding help ·
   <strong>30-day guarantee:</strong> if it doesn't catch or reduce one repeat
   incident, the next month is free.
 </p>
@@ -85,8 +85,8 @@ first-server setup and the payment link for your plan.
 1. **Within a few hours (launch window):** we reply with your recommended
    first-server setup and the safest starting policies.
 2. **Day 0:** install the agent on one non-critical server in alert-only mode.
-3. **Day 1–3:** we review the first real alerts together and identify your top
-   repeat incident classes.
+3. **Day 1–3:** review the first real alerts and identify your top repeat
+   incident classes (onboarding help included if you want it).
 4. **When you're ready:** promote one safe action to ask-first, then to
    auto-fix only after you've seen it behave.
 

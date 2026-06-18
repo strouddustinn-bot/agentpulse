@@ -5,9 +5,11 @@ title: AgentPulse - AI Server Monitoring That Fixes Incidents
 
 # AI server monitoring that fixes repeat incidents before they page you
 
-AgentPulse is for founders and small teams running 1-10 Linux servers. Start in alert-only mode, approve the first safe fixes, then let AgentPulse handle the incidents you already know how to resolve.
+AgentPulse is a self-serve Linux agent for founders and small teams running 1-10 servers. Install it on one box, start in alert-only mode, then promote the incidents you already know how to resolve to ask-first or auto-fix.
 
-[Join the paid beta](signup) | [See pricing](pricing) | [Install guide](install)
+> **Self-serve agent, alert-only by default.** You install it; it watches and (when you allow it) acts. Every auto-fix runs the Ouroboros loop — simulate, validate, execute, then **verify**, and escalate to you if the fix didn't hold. It never blind-retries a destructive action. [How it works →](install)
+
+[Install the agent](install) | [See pricing](pricing) | [Request beta access](signup)
 
 *Best for founders running 1–10 Linux servers on Hetzner, DigitalOcean, Linode, Vultr, or AWS Lightsail.*
 
@@ -24,10 +26,12 @@ Most monitoring products stop at alerts. AgentPulse focuses on the repeat incide
 
 | Pain | Standard monitoring | AgentPulse |
 | --- | --- | --- |
-| Disk fills at 3 AM | Sends an alert | Applies approved cleanup and reports what changed |
-| Worker crashes | Tells you it is down | Restarts the service and watches for repeat failure |
-| CPU runaway | Shows a spike | Flags the process and follows your policy |
-| Noisy cron jobs | Pages repeatedly | Learns expected baselines over time |
+| Disk fills at 3 AM | Sends an alert | Removes old files inside the cleanup paths you configure, then reports what changed |
+| Worker crashes | Tells you it is down | Restarts the systemd service from your allowlist, then verifies it came back |
+| Memory runaway | Shows a spike | Flags the largest offender (never auto-kills in v1) |
+| Fix didn't hold | — | Re-checks after acting and escalates to you instead of retrying |
+
+*Everything ships alert-only. You choose what AgentPulse may auto-fix, and every auto-fix is simulated and verified before and after it runs. Baseline learning and a fleet dashboard are on the roadmap.*
 
 ## Paid beta offer
 
@@ -43,10 +47,10 @@ We are onboarding the first users as a paid beta so the remediation policies can
 
 ## How onboarding works
 
-1. Tell us what you run and what incidents keep repeating.
-2. Install the Linux agent on one server.
-3. Start in alert-only mode.
-4. Promote safe fixes to ask-first, then auto-fix once you trust the policy.
+1. Install the agent on one non-critical server (`curl … | review | sudo bash`).
+2. It starts in alert-only mode — nothing changes automatically.
+3. Run `agentpulse run-once` to see the repeat incidents it detects.
+4. Promote safe fixes to ask-first, then auto-fix once you trust the policy. Need a hand? Beta access includes optional onboarding help.
 
 You stay in control. AgentPulse does not need unchecked root access to be useful, and every risky action should begin behind an approval gate.
 

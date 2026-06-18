@@ -7,6 +7,11 @@ title: AgentPulse Pricing
 
 Simple beta pricing for Linux server monitoring with policy-based remediation.
 
+> **What you're paying for:** the AgentPulse agent — self-serve software you
+> install on your own server. It ships alert-only and only auto-fixes what you
+> allow, verifying every action. Beta plans include optional onboarding help.
+> [How it works →](install)
+
 | Plan | Price | Servers | Best for | Includes |
 | --- | --- | --- | --- | --- |
 | Starter | $29/mo | 1 | Solo developers | Visibility and approval-gated remediation before you trust automation |
