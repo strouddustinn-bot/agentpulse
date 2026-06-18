@@ -6,6 +6,7 @@
 
 *Alerts wake you. AgentPulse acts, verifies, and escalates if the fix didn't hold.*
 
+[![Tests](https://github.com/strouddustinn-bot/agentpulse/actions/workflows/test.yml/badge.svg)](https://github.com/strouddustinn-bot/agentpulse/actions/workflows/test.yml)
 [![Website](https://img.shields.io/badge/Website-agentpulse.dustinnstroud.com-blue?style=for-the-badge)](https://agentpulse.dustinnstroud.com)
 [![Paid Beta](https://img.shields.io/badge/Paid%20Beta-Request%20access-green?style=for-the-badge)](https://agentpulse.dustinnstroud.com/signup)
 [![Pricing](https://img.shields.io/badge/From-%2429%2Fmo-orange?style=for-the-badge)](https://agentpulse.dustinnstroud.com/pricing)
@@ -69,7 +70,20 @@ asserting the safety invariants: never sweep a system path, never delete new
 files / directories / symlinks, never auto-kill a process, refuse injection in
 service names. Run it: `cd agent && python3 tools/run_tests.py`.
 
-## Install
+## Try it locally (no root, no install)
+
+```bash
+git clone https://github.com/strouddustinn-bot/agentpulse
+cd agentpulse/agent
+python3 -m agentpulse run-once --dry-run agentpulse.config.local.json
+```
+
+Reads your actual disk/process state, prints what it found, makes zero changes.
+
+See **[agent/README.md](agent/README.md)** for the full local quickstart and
+**[agent/CONFIGURATION.md](agent/CONFIGURATION.md)** for all config fields.
+
+## Install on a server
 
 ```bash
 curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh

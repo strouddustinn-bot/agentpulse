@@ -1,0 +1,39 @@
+{
+  "_note": "Local dev config — uses /tmp paths so it runs without root.",
+  "hostname": "auto",
+  "interval_seconds": 60,
+  "state_file": "/tmp/agentpulse/state.json",
+  "log_file": "/tmp/agentpulse/agentpulse.log",
+
+  "notify": {
+    "type": "stdout",
+    "webhook_url": ""
+  },
+
+  "baseline": {
+    "enabled": true,
+    "min_samples": 20,
+    "z_threshold": 3.0,
+    "min_abs_deviation": 2.0
+  },
+
+  "checks": {
+    "disk": {
+      "mode": "alert",
+      "threshold_percent": 90,
+      "paths": ["/"],
+      "cleanup_globs": ["/tmp/*", "/var/tmp/*"],
+      "cleanup_older_than_days": 3
+    },
+
+    "service": {
+      "mode": "alert",
+      "services": []
+    },
+
+    "process": {
+      "mode": "alert",
+      "mem_percent_threshold": 85
+    }
+  }
+}
