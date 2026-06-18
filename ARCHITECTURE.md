@@ -1,116 +1,139 @@
 # AgentPulse Internal Architecture
 
-This document is the canonical internal reference connecting AgentPulse's decision engine to the Ouroboros 6-pillar framework. It defines shared vocabulary for engineers, product, and writers, and tracks implementation status per pillar.
+This document is the canonical internal reference connecting AgentPulse's v1
+remediation engine to the Ouroboros pillar framework (from the
+[Sovereign-Ouroboros-OS](https://github.com/strouddustinn-bot/Sovereign-Ouroboros-OS)
+research project). It is the **north-star architecture**, with an honest,
+code-checked status per pillar.
 
-Not a docs site page. Lives alongside README.md and SECURITY.md.
+**Rule for this document:** a stage is only marked `SHIPPED` if it exists in the
+`agent/agentpulse/` code and is covered by the test suite. Everything else is
+`ROADMAP`, even if the Ouroboros research repo prototypes it. Do not mark a
+stage shipped because the vision describes it.
+
+Lives alongside `README.md` and `SECURITY.md`. Not a docs-site page.
 
 ---
 
-## Decision Loop
+## Implemented loop (v1 agent, as built)
 
-The agent does not execute a linear chain. Each cycle is a closed loop — execution outcomes feed back into Recall, updating the baseline for the next run.
+What the shipped agent actually does on every auto-fix, in `agentpulse/ouroboros.py`:
 
 ```
-  +----------------------------------------------------------+
-  |                                                          |
-  v                                                          |
-[RECALL] --> [IMAGINE] --> [SIMULATE] --> [VALIDATE] --> [EXECUTE/EVOLVE] --> [EXPAND]
-                                                                                  |
-                                            feedback to RECALL <------------------+
+[IMAGINE] --> [SIMULATE] --> [VALIDATE] --> [EXECUTE] --> [VERIFY] --> [RECORD]
+ expected      dry-run        ethos gate     real fix     re-measure   cycle log
+ state                                                        |
+                                              escalate to human if not cleared
 ```
 
-Read left to right for a single cycle. The rightmost arrow wrapping back to RECALL is what makes this an ouroboros rather than a pipeline.
+The loop "eats its tail" through **VERIFY**: after acting, the agent re-measures
+the same signal and, if the condition did not clear, **escalates to a human
+instead of retrying**. There is no automatic re-loop on a failed fix — that is a
+deliberate safety property, verified by `tests/test_ouroboros.py`.
+
+The full closed feedback loop (writing outcomes back into a learned baseline) is
+ROADMAP, not v1 — see Recall and Expand below.
 
 ---
 
-## Stages
+## Pillars: status checked against the code
 
-### 1. Recall
-**Ouroboros pillar:** `ouroboros/knowledge/`
-**AgentPulse component:** Baseline learning engine
-**Status:** SHIPPED
-
-Before reasoning begins, the agent queries the hybrid RAG knowledge base (BM25 + dense CharNGram retrieval, fused via Reciprocal Rank Fusion) to retrieve grounding context from ingested documents. In AgentPulse terms, this is the accumulated operational history of a monitored environment: past incidents, remediation outcomes, drift events, and anomaly patterns. Every new task starts with this grounding step, not a blank slate.
-
----
-
-### 2. Imagine
-**Ouroboros pillar:** `ouroboros/neurosynth/`
-**AgentPulse component:** Remediation candidate planning
-**Status:** SHIPPED (discrete ruleset today; ML-ranked candidates on roadmap)
-
-Takes the current task and recalled context and produces a set of candidate remediation approaches. Today this is driven by a discrete ruleset that enumerates known fix strategies per issue type. The architecture slot is reserved for the full neurosynth model, which synthesizes k distinct prototypes by fusing per-modality latent vectors across multiple conceptual framings (direct, analogical, decompositional). The interface contract between Imagine and Simulate is stable; the underlying generator is swappable.
+| # | Ouroboros pillar | AgentPulse role | Status | Real module |
+|---|------------------|-----------------|--------|-------------|
+| — | Recall (knowledge) | Baseline learning / history | **ROADMAP** | none yet |
+| 1 | NeuroSynth (Imagine) | Name the expected end-state | **SHIPPED (minimal)** | `ouroboros._imagine` |
+| 2 | ChronoWeave (Simulate) | Dry-run the fix first | **SHIPPED (as dry-run)** | `remediation.execute(dry_run=True)` |
+| 3 | EthosCompiler (Validate) | Executable safety gate | **SHIPPED** | `ouroboros.ethos_gate`, `policy`, `remediation` guards |
+| 4 | MetaMorph (Execute) | Run the validated fix | **SHIPPED (fixed actions)** | `remediation.disk_cleanup`, `service_restart` |
+| — | Verify (the tail) | Re-measure, escalate | **SHIPPED** | `ouroboros.run_cycle` + `runner.make_verify` |
+| 5 | MetaMorph (Evolve) | Skill synthesis/composition | **ROADMAP** | none yet |
+| 6 | HiveMind (Expand) | Multi-server federation | **ROADMAP** | none yet |
 
 ---
 
-### 3. Simulate
-**Ouroboros pillar:** `ouroboros/chronoweave/`
-**AgentPulse component:** Consequence modeling
-**Status:** IN PROGRESS
+## Stages (honest detail)
 
-For each candidate produced by Imagine, Simulate spawns counterfactual timelines — optimistic, cautious, and reckless projections — scores them by alignment + confidence minus risk penalty, and collapses to the single best proposed action. In AgentPulse terms, this is the layer that answers "if we run this auto-fix, what probably happens next?" before anything touches a production system. The scoring function and timeline collapse logic are under active development.
+### Recall — ROADMAP
+A learned baseline of a host's normal behavior and incident history. **Not in
+v1.** The agent today is stateless about "normal": each cycle measures current
+disk/service/memory against operator-set thresholds. The only persisted state is
+the ask-first approval queue (`state.py`). RAG / BM25+dense retrieval described
+in the research repo is not implemented here.
 
----
+### 1. Imagine — SHIPPED (minimal)
+`ouroboros._imagine()` produces a one-line expected end-state (e.g. "expect disk
+on /var to drop below threshold after removing old files"). It is a single
+expectation, not a set of ranked candidate strategies. ML-ranked candidates are
+ROADMAP; the interface can carry them later without changing callers.
 
-### 4. Validate
-**Ouroboros pillar:** `ouroboros/ethos_compiler/`
-**AgentPulse component:** Approval gates (auto-fix / ask-first / alert-only)
-**Status:** SHIPPED
+### 2. Simulate — SHIPPED (as dry-run)
+Before any real change, `remediation.execute(dry_run=True)` produces the exact
+plan — which files would be removed, which service would be restarted — without
+touching the system. This is a deterministic dry-run, **not** multi-timeline
+counterfactual scoring. Timeline diversity/scoring is ROADMAP.
 
-Compiles natural-language ethical and operational principles into executable Python predicates at boot time, then gates every proposed action before it runs. In AgentPulse terms, this enforces the per-server, per-action-class approval policy configured by the operator. An action that would auto-fix a low-risk disk issue on a dev server may require human confirmation on a production database node — Validate is where that policy is evaluated, not at the UI layer.
+### 3. Validate — SHIPPED
+`ouroboros.ethos_gate()` plus the guards in `policy.py` and `remediation.py`
+enforce hard, code-level safety predicates before execution: no system-path
+sweeps, no auto process-kill, allowlisted services only, no action without a
+successful dry-run. Per-action operator policy (off/alert/ask/auto) is evaluated
+in `policy.decide()`. Covered by `test_policy.py`, `test_remediation.py`, and the
+4,100-iteration fuzz suite in `test_fuzz.py`.
 
----
+### 4. Execute — SHIPPED (fixed action set)
+`remediation.execute()` runs the validated action from a **fixed** set:
+`disk_cleanup` (age-bounded, glob-guarded file removal) and `service_restart`
+(allowlisted systemd restart). There is **no** dynamic skill registry, synthesis,
+or cosine-similarity composition in v1 — that is the Evolve roadmap item.
 
-### 5. Execute / Evolve
-**Ouroboros pillar:** `ouroboros/metamorph/`
-**AgentPulse component:** Auto-remediation engine + custom skill registry
-**Status:** SHIPPED (core engine); ROADMAP (on-demand skill synthesis, skill composition)
+### Verify — SHIPPED
+After execution, `runner.make_verify()` re-runs the relevant check. If the
+condition cleared → `succeeded`. If not → `escalated` (notify a human; do not
+retry). This is the safety backbone of autonomous operation and is explicitly
+tested.
 
-Runs the validated action using a registered skill. If no skill matches the required action, the engine synthesizes one on-demand and hot-swaps it into the bounded registry. When two existing skills are sufficiently similar (cosine similarity > 0.35), the engine composes them rather than generating from scratch. In AgentPulse terms, the shipped surface is the auto-remediation engine with a fixed skill library. The Evolve capability — dynamic synthesis and composition — is the primary near-term engineering roadmap item.
+### 5. Evolve — ROADMAP
+On-demand skill synthesis and composition within a bounded registry. **No
+production code exists.** When built, the bounded-registry + LRU-eviction cap is
+a required safety property.
 
----
-
-### 6. Expand
-**Ouroboros pillar:** `ouroboros/hivemind/`
-**AgentPulse component:** Multi-server federated intelligence
-**Status:** ROADMAP
-
-Distributes the completed task and its outcome across sovereign peer nodes using GF(256) XOR secret sharing; results are aggregated as federated consensus. In AgentPulse terms, this enables a fleet of AgentPulse instances — each with its own Recall — to share learned patterns without centralizing raw telemetry. No single node holds the full picture; the federation holds it collectively.
-
----
-
-## Vocabulary
-
-Public-facing documentation uses simplified names. Internal code and this document use Ouroboros names. The mapping:
-
-| Public term | Ouroboros pillar | Internal module |
-|-------------|-----------------|-----------------|
-| Remember    | Recall          | `ouroboros/knowledge/` |
-| Reason      | Imagine         | `ouroboros/neurosynth/` |
-| Simulate    | Simulate        | `ouroboros/chronoweave/` |
-| Gate        | Validate        | `ouroboros/ethos_compiler/` |
-| Act         | Execute/Evolve  | `ouroboros/metamorph/` |
-| Share       | Expand          | `ouroboros/hivemind/` |
-
-When writing user-facing copy, use the public terms. When writing code, ADRs, or internal specs, use the Ouroboros names. Do not use both in the same sentence.
-
----
-
-## Roadmap Alignment
-
-Three pillars drive the active engineering roadmap:
-
-**Simulate depth (`ouroboros/chronoweave/`)**
-The consequence modeling layer is partially implemented. Expanding timeline diversity, improving the scoring function, and validating collapse accuracy against historical incident data are the primary work items. This is the highest-leverage investment: better simulation directly reduces false-positive auto-fixes.
-
-**Expand / hivemind (`ouroboros/hivemind/`)**
-Multi-server federated intelligence is the largest architectural addition on the roadmap. It requires finalized node identity, the GF(256) secret-sharing transport, and a consensus aggregation protocol that degrades gracefully when nodes are offline. No production code exists yet.
-
-**Evolve / custom skills (`ouroboros/metamorph/`)**
-On-demand skill synthesis and skill composition within the metamorph registry are scoped for the cycle after Simulate stabilizes. The shipped auto-remediation engine uses a static skill library; Evolve replaces that static library with a dynamic, self-extending registry. The bounded registry constraint (hard cap on registered skills, LRU eviction) is a deliberate safety property and must be preserved through the Evolve implementation.
+### 6. Expand — ROADMAP
+Multi-server federation (e.g. GF(256) secret-shared pattern sharing across
+nodes). **No production code exists.** This is where anonymized, consenting
+production telemetry would later feed a shared baseline — the legitimate ML data
+path, distinct from the test suite.
 
 ---
 
-## Feedback Loop
+## Public vocabulary
 
-Execution outcomes — what ran, what changed, whether the remediation succeeded or was rolled back — are written back into the Recall layer at the end of each cycle. This updates the baseline used by the next Recall query. The loop is closed by design. AgentPulse does not treat each incident as an isolated event; it treats the history of all incidents as the training signal for handling the next one.
+User-facing copy uses plain words; this doc and code use the loop's stage names.
+Keep them consistent with the **shipped** loop:
+
+| Public term (site/copy) | Loop stage | Status |
+|-------------------------|-----------|--------|
+| (plan) | Imagine | shipped (minimal) |
+| Simulate / dry-run | Simulate | shipped |
+| Safety gate | Validate | shipped |
+| Fix / act | Execute | shipped |
+| Verify / escalate | Verify | shipped |
+| Learn across servers | Expand | roadmap |
+| Remember normal | Recall | roadmap |
+
+Do not describe Recall, Evolve, or Expand as available in user-facing copy until
+they ship. Current site copy (README, `docs/index.md`, `docs/install.md`) is
+aligned to the shipped loop only.
+
+---
+
+## Roadmap priority
+
+1. **Recall / baseline** — gives the agent a notion of "normal" so detection
+   isn't purely threshold-based. Highest product leverage.
+2. **Simulate depth** — richer consequence modeling to cut false-positive
+   auto-fixes.
+3. **Evolve / Expand** — dynamic skills and fleet federation; largest builds,
+   sequenced last.
+
+Until those ship, v1 stands on its own as an honest, tested, single-host agent:
+fixed actions, hard safety guards, dry-run + verify on every change.
