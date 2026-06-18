@@ -40,7 +40,7 @@ ROADMAP, not v1 — see Recall and Expand below.
 
 | # | Ouroboros pillar | AgentPulse role | Status | Real module |
 |---|------------------|-----------------|--------|-------------|
-| — | Recall (knowledge) | Baseline learning / history | **ROADMAP** | none yet |
+| — | Recall (knowledge) | Baseline learning / anomaly detection | **SHIPPED (statistical)** | `baseline.py` |
 | 1 | NeuroSynth (Imagine) | Name the expected end-state | **SHIPPED (minimal)** | `ouroboros._imagine` |
 | 2 | ChronoWeave (Simulate) | Dry-run the fix first | **SHIPPED (as dry-run)** | `remediation.execute(dry_run=True)` |
 | 3 | EthosCompiler (Validate) | Executable safety gate | **SHIPPED** | `ouroboros.ethos_gate`, `policy`, `remediation` guards |
@@ -53,12 +53,20 @@ ROADMAP, not v1 — see Recall and Expand below.
 
 ## Stages (honest detail)
 
-### Recall — ROADMAP
-A learned baseline of a host's normal behavior and incident history. **Not in
-v1.** The agent today is stateless about "normal": each cycle measures current
-disk/service/memory against operator-set thresholds. The only persisted state is
-the ask-first approval queue (`state.py`). RAG / BM25+dense retrieval described
-in the research repo is not implemented here.
+### Recall — SHIPPED (statistical), ML ROADMAP
+The agent learns each metric's normal behavior over time and flags deviations.
+`baseline.py` maintains an online mean/variance (Welford) per metric — disk
+percent per path and host memory percent — persisted in `state.py` under
+`baselines`. After a warmup window it raises an **advisory anomaly alert** when a
+value deviates beyond a z-score threshold (with an absolute floor so
+near-constant metrics don't flap). This catches "this host is behaving
+abnormally" *before* a hard threshold is crossed, and it lowers false alerts on
+hosts whose normal is naturally high.
+
+It is **statistical, deterministic, dependency-free — not a neural model**.
+Anomalies never trigger remediation; they are alert-only. Covered by
+`test_baseline.py` and the fuzz suite. The richer vision — RAG over incident
+history, BM25+dense retrieval, ML-learned baselines — remains ROADMAP.
 
 ### 1. Imagine — SHIPPED (minimal)
 `ouroboros._imagine()` produces a one-line expected end-state (e.g. "expect disk
@@ -118,7 +126,7 @@ Keep them consistent with the **shipped** loop:
 | Fix / act | Execute | shipped |
 | Verify / escalate | Verify | shipped |
 | Learn across servers | Expand | roadmap |
-| Remember normal | Recall | roadmap |
+| Remember normal | Recall | shipped (statistical) |
 
 Do not describe Recall, Evolve, or Expand as available in user-facing copy until
 they ship. Current site copy (README, `docs/index.md`, `docs/install.md`) is

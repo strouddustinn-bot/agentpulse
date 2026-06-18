@@ -26,6 +26,7 @@ ITER_POLICY = 1400
 ITER_GLOB = 1200
 ITER_FS = 700
 ITER_SERVICE = 800
+ITER_BASELINE = 1000
 
 MODES = ["off", "alert", "ask", "auto"]
 CHECKS = ["disk", "service", "process"]
@@ -164,5 +165,30 @@ def test_I5_service_name_injection_refused():
     assert count == ITER_SERVICE
 
 
+def test_I6_baseline_never_raises_or_flags_in_warmup():
+    from agentpulse import baseline
+    from agentpulse.config import BaselineConfig
+
+    random.seed(6)
+    count = 0
+    for _ in range(ITER_BASELINE):
+        count += 1
+        cfg = BaselineConfig(
+            min_samples=random.randint(5, 40),
+            z_threshold=random.choice([2.0, 3.0, 4.0]),
+            min_abs_deviation=random.choice([1.0, 2.0, 5.0]),
+        )
+        store = {}
+        n = random.randint(0, cfg.min_samples - 1)  # always still in warmup
+        flagged = False
+        for _ in range(n):
+            val = random.uniform(0, 100)  # arbitrary, even wild
+            a, _r = baseline.observe(store, "k", val, cfg)
+            flagged = flagged or a
+        # Within warmup, nothing may be flagged regardless of values.
+        assert flagged is False
+    assert count == ITER_BASELINE
+
+
 def test_total_iterations_exceed_3000():
-    assert ITER_POLICY + ITER_GLOB + ITER_FS + ITER_SERVICE >= 3000
+    assert ITER_POLICY + ITER_GLOB + ITER_FS + ITER_SERVICE + ITER_BASELINE >= 3000

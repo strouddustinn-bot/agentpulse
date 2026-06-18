@@ -135,6 +135,31 @@ def _iter_proc_rss(proc_root: str):
         yield int(entry), name, rss_kb
 
 
+def host_memory_percent(proc_root: str = "/proc") -> Optional[float]:
+    """Return host memory used percent, or None if unreadable.
+
+    used% = (1 - MemAvailable/MemTotal) * 100, falling back to MemFree.
+    """
+    total = avail = free = None
+    try:
+        with open(os.path.join(proc_root, "meminfo"), "r", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("MemTotal:"):
+                    total = int(line.split()[1])
+                elif line.startswith("MemAvailable:"):
+                    avail = int(line.split()[1])
+                elif line.startswith("MemFree:"):
+                    free = int(line.split()[1])
+    except (OSError, ValueError):  # pragma: no cover - env dependent
+        return None
+    if not total:
+        return None
+    usable = avail if avail is not None else free
+    if usable is None:
+        return None
+    return round((1.0 - usable / total) * 100.0, 1)
+
+
 def check_processes(
     cfg: ProcessCheckConfig, proc_root: str = "/proc"
 ) -> List[Observation]:

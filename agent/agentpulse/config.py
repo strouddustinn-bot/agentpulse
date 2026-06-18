@@ -47,12 +47,26 @@ class NotifyConfig:
 
 
 @dataclass
+class BaselineConfig:
+    """Statistical baseline learning (per-metric mean/variance, z-score anomalies).
+
+    Advisory only: anomalies raise alerts, never trigger auto-fix.
+    """
+
+    enabled: bool = True
+    min_samples: int = 20          # warmup before any anomaly can fire
+    z_threshold: float = 3.0       # std-devs from the learned mean
+    min_abs_deviation: float = 2.0  # floor (pct points) so near-constant metrics don't flap
+
+
+@dataclass
 class Config:
     hostname: str = "auto"
     interval_seconds: int = 60
     state_file: str = "/var/lib/agentpulse/state.json"
     log_file: str = "/var/log/agentpulse/agentpulse.log"
     notify: NotifyConfig = field(default_factory=NotifyConfig)
+    baseline: BaselineConfig = field(default_factory=BaselineConfig)
     disk: DiskCheckConfig = field(default_factory=DiskCheckConfig)
     service: ServiceCheckConfig = field(default_factory=ServiceCheckConfig)
     process: ProcessCheckConfig = field(default_factory=ProcessCheckConfig)
@@ -112,6 +126,18 @@ def from_dict(data: Dict[str, Any]) -> Config:
         if ntype == "webhook" and not url:
             raise ConfigError("notify.webhook_url is required when notify.type is 'webhook'")
         cfg.notify = NotifyConfig(type=ntype, webhook_url=str(url))
+
+    b = data.get("baseline", {})
+    if b:
+        enabled = b.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ConfigError("baseline.enabled must be true/false")
+        cfg.baseline = BaselineConfig(
+            enabled=enabled,
+            min_samples=int(_positive_number("baseline.min_samples", b.get("min_samples", 20))),
+            z_threshold=_positive_number("baseline.z_threshold", b.get("z_threshold", 3.0)),
+            min_abs_deviation=_positive_number("baseline.min_abs_deviation", b.get("min_abs_deviation", 2.0)),
+        )
 
     checks = data.get("checks", {})
     if not isinstance(checks, dict):

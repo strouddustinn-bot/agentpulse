@@ -65,7 +65,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(
             f"observations={summary.observations} breaches={summary.breaches} "
             f"actions={len(summary.actions_taken)} queued={len(summary.queued)} "
-            f"alerts={len(summary.alerts)} escalations={len(summary.escalations)} "
+            f"alerts={len(summary.alerts)} anomalies={len(summary.anomalies)} "
+            f"escalations={len(summary.escalations)} "
             f"blocked={len(summary.blocked)} errors={len(summary.errors)}"
         )
         return 1 if summary.errors else 0

@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
-from . import checks, ouroboros, policy, remediation
+from . import baseline, checks, ouroboros, policy, remediation
 from .config import Config
 from .models import Decision, Observation
 from .notify import Notifier
@@ -53,9 +53,36 @@ class CycleSummary:
     actions_taken: List[str] = field(default_factory=list)
     queued: List[str] = field(default_factory=list)
     alerts: List[str] = field(default_factory=list)
+    anomalies: List[str] = field(default_factory=list)
     escalations: List[str] = field(default_factory=list)
     blocked: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
+
+
+def learn_baselines(
+    cfg: Config,
+    state: State,
+    observations: List[Observation],
+    notifier: Notifier,
+    summary: "CycleSummary",
+    mem_fn=checks.host_memory_percent,
+) -> None:
+    """Recall pillar: update per-metric baselines and raise advisory anomaly
+    alerts. Never triggers remediation."""
+    if not cfg.baseline.enabled:
+        return
+    samples = {}
+    for obs in observations:
+        if obs.check == "disk":
+            samples[f"disk:{obs.target}"] = obs.value
+    mem = mem_fn()
+    if mem is not None:
+        samples["mem"] = mem
+    for key, value in samples.items():
+        anomalous, reason = baseline.observe(state.baselines, key, value, cfg.baseline)
+        if anomalous:
+            summary.anomalies.append(key)
+            notifier.send(f"baseline anomaly: {key}", reason)
 
 
 def run_once(
@@ -69,6 +96,9 @@ def run_once(
     summary = CycleSummary()
     observations = gather_fn(cfg)
     summary.observations = len(observations)
+
+    # Recall pillar: learn normal + flag anomalies (advisory, before remediation).
+    learn_baselines(cfg, state, observations, notifier, summary)
 
     for obs in observations:
         decision = policy.decide(obs.check, mode_for(cfg, obs.check), obs)

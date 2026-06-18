@@ -23,7 +23,7 @@ def _pending_id(decision: Decision) -> str:
 class State:
     def __init__(self, path: str):
         self.path = path
-        self.data: Dict[str, Any] = {"pending": {}, "last_run": None}
+        self.data: Dict[str, Any] = {"pending": {}, "last_run": None, "baselines": {}}
 
     @classmethod
     def load(cls, path: str) -> "State":
@@ -33,9 +33,14 @@ class State:
                 with open(path, "r", encoding="utf-8") as fh:
                     st.data = json.load(fh)
             except (OSError, json.JSONDecodeError):
-                st.data = {"pending": {}, "last_run": None}
+                st.data = {"pending": {}, "last_run": None, "baselines": {}}
         st.data.setdefault("pending", {})
+        st.data.setdefault("baselines", {})
         return st
+
+    @property
+    def baselines(self) -> Dict[str, Any]:
+        return self.data["baselines"]
 
     def save(self) -> None:
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)

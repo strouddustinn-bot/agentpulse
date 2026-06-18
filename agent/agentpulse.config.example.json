@@ -9,6 +9,13 @@
     "webhook_url": ""
   },
 
+  "baseline": {
+    "enabled": true,
+    "min_samples": 20,
+    "z_threshold": 3.0,
+    "min_abs_deviation": 2.0
+  },
+
   "checks": {
     "disk": {
       "mode": "alert",
