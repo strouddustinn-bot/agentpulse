@@ -1,21 +1,46 @@
-MIT License
+Copyright (c) 2026 Dustinn Stroud. All rights reserved.
 
-Copyright (c) 2026 Dustinn Stroud
+AGENTPULSE PROPRIETARY LICENSE
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and all associated documentation, source code, configuration
+files, and other materials (collectively, the "Software") are the exclusive
+property of Dustinn Stroud ("Author") and are protected by copyright law and
+international treaties.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+NO PERMISSION IS GRANTED to any person or entity to use, copy, modify, merge,
+publish, distribute, sublicense, sell, or otherwise exploit the Software, in
+whole or in part, without a valid commercial license agreement executed in
+writing with the Author.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+RESTRICTIONS
+
+1. You may not use the Software for any purpose without purchasing a license
+   at https://agentpulse.dustinnstroud.com/pricing
+
+2. You may not copy, reproduce, or distribute the Software or any portion
+   thereof.
+
+3. You may not modify, adapt, translate, reverse engineer, decompile,
+   disassemble, or create derivative works based on the Software.
+
+4. You may not sublicense, rent, lease, or lend the Software to any third
+   party.
+
+5. A valid paid subscription grants a non-exclusive, non-transferable,
+   revocable license to install and run the agent binary on the number of
+   servers covered by your active plan. This license terminates immediately
+   upon cancellation or non-payment.
+
+ENFORCEMENT
+
+Unauthorized use, copying, modification, or distribution of this Software
+constitutes copyright infringement and will be prosecuted to the fullest
+extent permitted by law.
+
+DISCLAIMER
+
+THE SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+THE AUTHOR SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM USE OF THE
 SOFTWARE.
+
+For licensing inquiries: support@agentpulse.dustinnstroud.com
