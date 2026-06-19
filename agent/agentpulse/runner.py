@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
-from . import baseline, checks, ouroboros, policy, remediation
+from . import baseline, checks, decision_loop, policy, remediation
 from .config import Config
 from .models import Decision, Observation
 from .notify import Notifier
@@ -22,7 +22,7 @@ def mode_for(cfg: Config, check: str) -> str:
 
 
 def make_verify(cfg: Config, run_fn=None):
-    """Build the Ouroboros 'tail' verifier: re-measure after acting."""
+    """Build the verify step: re-measure after acting."""
 
     def verify(decision: Decision) -> bool:
         if decision.action == "disk_cleanup":
@@ -116,9 +116,9 @@ def run_once(
                 )
             summary.queued.append(f"{decision.action}:{decision.target}")
         elif decision.execute:
-            # Run the full Ouroboros cycle: simulate -> validate -> execute ->
+            # Run the full decision loop: simulate -> validate -> execute ->
             # verify -> record. Never a blind destructive action.
-            rec = ouroboros.run_cycle(
+            rec = decision_loop.run_cycle(
                 decision,
                 verify_fn=make_verify(cfg, run_fn=run_fn),
                 run_fn=run_fn,
@@ -133,7 +133,7 @@ def run_once(
             if rec.outcome in ("succeeded", "executed_unverified", "simulated_only"):
                 summary.actions_taken.append(label)
                 notifier.send(
-                    f"{'(dry-run) ' if dry_run else ''}ouroboros {rec.outcome}: {decision.action}",
+                    f"{'(dry-run) ' if dry_run else ''}decision loop {rec.outcome}: {decision.action}",
                     details,
                 )
             elif rec.outcome == "escalated":
@@ -146,7 +146,7 @@ def run_once(
                 summary.blocked.append(label)
                 notifier.send(
                     f"safety gate blocked: {decision.action}",
-                    "; ".join(rec.ethics_reasons),
+                    "; ".join(rec.gate_reasons),
                 )
             else:  # failed
                 err = rec.execution.error if rec.execution else "unknown error"

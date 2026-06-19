@@ -30,7 +30,7 @@ alert-only mode.
 
 ## What "auto" actually does
 
-Every auto-fix runs the full Ouroboros loop before and after acting:
+Every auto-fix runs the full decision loop before and after acting:
 
 1. **Simulate** the fix as a dry-run.
 2. **Validate** it against hard safety predicates (no system-path sweeps, no

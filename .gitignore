@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 *.pyo
 /tmp/agentpulse/
+.pytest_cache/

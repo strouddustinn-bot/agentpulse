@@ -7,7 +7,7 @@ title: AgentPulse - AI Server Monitoring That Fixes Incidents
 
 AgentPulse is a self-serve Linux agent for founders and small teams running 1-10 servers. Install it on one box, start in alert-only mode, then promote the incidents you already know how to resolve to ask-first or auto-fix.
 
-> **Self-serve agent, alert-only by default.** You install it; it watches and (when you allow it) acts. Every auto-fix runs the Ouroboros loop — simulate, validate, execute, then **verify**, and escalate to you if the fix didn't hold. It never blind-retries a destructive action. [How it works →](install)
+> **Self-serve agent, alert-only by default.** You install it; it watches and (when you allow it) acts. Every auto-fix runs a verify-or-escalate loop — simulate, validate, execute, then **verify**, and escalate to you if the fix didn't hold. It never blind-retries a destructive action. [How it works →](install)
 
 [Install the agent](install) | [See pricing](pricing) | [Request beta access](signup)
 
@@ -40,7 +40,7 @@ We are onboarding the first users as a paid beta so the remediation policies can
 | Plan | Price | Best for | Includes |
 | --- | --- | --- | --- |
 | Starter | $29/mo | 1 production VPS | Monitoring, alerts, manual remediation approvals |
-| **Pro Beta — recommended** | **$99/mo** | Up to 5 servers | All three fix classes (disk, service, memory), Ouroboros verify-or-escalate, optional onboarding |
+| **Pro Beta — recommended** | **$99/mo** | Up to 5 servers | All three fix classes (disk, service, memory), verify-or-escalate remediation, optional onboarding |
 | Business Beta | $299/mo | Small teams | Unlimited servers during beta, priority setup, custom policies |
 
 [Reserve your Pro Beta slot](signup) — we reply within a few hours during the launch window.

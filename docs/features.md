@@ -190,7 +190,7 @@ AgentPulse doesn't just match metrics against thresholds. Every potential remedi
 
 **Act** — The validated action runs locally on your server — no cloud round-trip required. The agent records the outcome (what ran, what changed, whether it worked) and feeds that back into its memory for the next cycle.
 
-**Share** *(roadmap)* — When AgentPulse runs across a fleet, agents share anonymized patterns. A novel attack signature detected on one server propagates as a defensive rule across all of them. Each agent is sovereign; the intelligence is collective.
+**Share** *(roadmap)* — When AgentPulse runs across a fleet, agents share anonymized patterns. A novel attack signature detected on one server propagates as a defensive rule across all of them. Each agent runs independently; the intelligence is shared.
 
 The loop closes: act outcomes update the baseline, sharpening what the agent knows about your server. It gets more accurate over time.
 

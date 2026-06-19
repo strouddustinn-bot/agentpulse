@@ -17,7 +17,7 @@ Lives alongside `README.md` and `SECURITY.md`. Not a docs-site page.
 
 ## Implemented loop (v1 agent, as built)
 
-What the shipped agent actually does on every auto-fix, in `agentpulse/ouroboros.py`:
+What the shipped agent actually does on every auto-fix, in `agentpulse/decision_loop.py`:
 
 ```
 [IMAGINE] --> [SIMULATE] --> [VALIDATE] --> [EXECUTE] --> [VERIFY] --> [RECORD]
@@ -29,7 +29,7 @@ What the shipped agent actually does on every auto-fix, in `agentpulse/ouroboros
 The loop "eats its tail" through **VERIFY**: after acting, the agent re-measures
 the same signal and, if the condition did not clear, **escalates to a human
 instead of retrying**. There is no automatic re-loop on a failed fix — that is a
-deliberate safety property, verified by `tests/test_ouroboros.py`.
+deliberate safety property, verified by `tests/test_decision_loop.py`.
 
 The full closed feedback loop (writing outcomes back into a learned baseline) is
 ROADMAP, not v1 — see Recall and Expand below.
@@ -41,11 +41,11 @@ ROADMAP, not v1 — see Recall and Expand below.
 | # | Ouroboros pillar | AgentPulse role | Status | Real module |
 |---|------------------|-----------------|--------|-------------|
 | — | Recall (knowledge) | Baseline learning / anomaly detection | **SHIPPED (statistical)** | `baseline.py` |
-| 1 | NeuroSynth (Imagine) | Name the expected end-state | **SHIPPED (minimal)** | `ouroboros._imagine` |
+| 1 | NeuroSynth (Imagine) | Name the expected end-state | **SHIPPED (minimal)** | `decision_loop._expected_state` |
 | 2 | ChronoWeave (Simulate) | Dry-run the fix first | **SHIPPED (as dry-run)** | `remediation.execute(dry_run=True)` |
-| 3 | EthosCompiler (Validate) | Executable safety gate | **SHIPPED** | `ouroboros.ethos_gate`, `policy`, `remediation` guards |
+| 3 | EthosCompiler (Validate) | Executable safety gate | **SHIPPED** | `decision_loop.safety_gate`, `policy`, `remediation` guards |
 | 4 | MetaMorph (Execute) | Run the validated fix | **SHIPPED (fixed actions)** | `remediation.disk_cleanup`, `service_restart` |
-| — | Verify (the tail) | Re-measure, escalate | **SHIPPED** | `ouroboros.run_cycle` + `runner.make_verify` |
+| — | Verify (the tail) | Re-measure, escalate | **SHIPPED** | `decision_loop.run_cycle` + `runner.make_verify` |
 | 5 | MetaMorph (Evolve) | Skill synthesis/composition | **ROADMAP** | none yet |
 | 6 | HiveMind (Expand) | Multi-server federation | **ROADMAP** | none yet |
 
@@ -69,7 +69,7 @@ Anomalies never trigger remediation; they are alert-only. Covered by
 history, BM25+dense retrieval, ML-learned baselines — remains ROADMAP.
 
 ### 1. Imagine — SHIPPED (minimal)
-`ouroboros._imagine()` produces a one-line expected end-state (e.g. "expect disk
+`decision_loop._expected_state()` produces a one-line expected end-state (e.g. "expect disk
 on /var to drop below threshold after removing old files"). It is a single
 expectation, not a set of ranked candidate strategies. ML-ranked candidates are
 ROADMAP; the interface can carry them later without changing callers.
@@ -81,7 +81,7 @@ touching the system. This is a deterministic dry-run, **not** multi-timeline
 counterfactual scoring. Timeline diversity/scoring is ROADMAP.
 
 ### 3. Validate — SHIPPED
-`ouroboros.ethos_gate()` plus the guards in `policy.py` and `remediation.py`
+`decision_loop.safety_gate()` plus the guards in `policy.py` and `remediation.py`
 enforce hard, code-level safety predicates before execution: no system-path
 sweeps, no auto process-kill, allowlisted services only, no action without a
 successful dry-run. Per-action operator policy (off/alert/ask/auto) is evaluated
