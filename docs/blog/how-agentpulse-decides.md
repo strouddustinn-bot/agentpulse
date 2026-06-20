@@ -60,7 +60,7 @@ If the fix works, you wake up to a summary. If it doesn't, the agent escalates r
 
 This stage is on the roadmap, not yet live. The idea: when AgentPulse runs across a fleet of servers, agents share anonymized patterns with each other. A novel log pattern associated with a compromise on one server can become a detection rule on all of them — without any of your server-specific data leaving your infrastructure.
 
-Each agent remains sovereign. The intelligence is collective.
+Each agent runs independently. The intelligence is shared.
 
 ---
 

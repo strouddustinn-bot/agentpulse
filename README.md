@@ -43,12 +43,12 @@ Every check ships in **alert-only** mode. The agent only *watches* until you
 change a check to `ask` (it queues the fix for your approval) or `auto` (it acts
 on its own). Nothing is auto-fixed out of the box.
 
-### Every fix runs the Ouroboros loop
+### Every fix runs the verify-or-escalate loop
 
 No blind destructive actions. Each auto-fix goes through a full cycle:
 
-`Imagine` (expected end-state) → `Simulate` (dry-run first) → `Validate`
-(executable safety gate) → `Execute` → **`Verify`** (re-measure) → `Record`.
+`Reason` (expected end-state) → `Simulate` (dry-run first) → `Gate`
+(executable safety predicates) → `Act` → **`Verify`** (re-measure) → `Record`.
 
 If the verify step shows the condition didn't clear, the agent **escalates to a
 human instead of retrying** — the loop refuses to spiral.

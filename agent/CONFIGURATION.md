@@ -64,7 +64,7 @@ Each check has a `mode` field that controls how AgentPulse responds when a condi
 | `"off"` | Check is disabled entirely. |
 | `"alert"` | Default. Sends a notification; takes no action. |
 | `"ask"` | Queues the fix for your approval. Run `agentpulse list-pending` + `agentpulse approve`. |
-| `"auto"` | Runs the Ouroboros loop automatically (simulate → validate → execute → verify). Escalates if verify fails instead of retrying. |
+| `"auto"` | Runs the decision loop automatically (simulate → validate → execute → verify). Escalates if verify fails instead of retrying. |
 
 ---
 

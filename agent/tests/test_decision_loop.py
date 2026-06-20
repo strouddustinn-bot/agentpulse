@@ -1,7 +1,7 @@
 import os
 import time
 
-from agentpulse import ouroboros
+from agentpulse import decision_loop
 from agentpulse.models import Decision, Observation
 
 
@@ -32,9 +32,9 @@ def test_cycle_simulates_before_executing(tmp_path):
     now = time.time()
     os.utime(f, (now - 10 * 86400, now - 10 * 86400))
     dec = _disk_decision([str(tmp_path / "*.log")])
-    rec = ouroboros.run_cycle(dec, verify_fn=lambda d: True)
+    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True)
     assert rec.simulation is not None and rec.simulation.ok
-    assert rec.ethics_allowed
+    assert rec.gate_allowed
     assert rec.outcome == "succeeded"
     assert not f.exists()
 
@@ -45,22 +45,22 @@ def test_force_dry_run_makes_no_changes(tmp_path):
     now = time.time()
     os.utime(f, (now - 10 * 86400, now - 10 * 86400))
     dec = _disk_decision([str(tmp_path / "*.log")])
-    rec = ouroboros.run_cycle(dec, verify_fn=lambda d: True, force_dry_run=True)
+    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True, force_dry_run=True)
     assert rec.outcome == "simulated_only"
     assert f.exists(), "dry-run cycle must not delete"
 
 
-def test_ethos_blocks_unsafe_glob():
-    dec = _disk_decision(["/etc/*"])  # guard refuses -> simulation error -> ethos blocks
-    rec = ouroboros.run_cycle(dec, verify_fn=lambda d: True)
+def test_gate_blocks_unsafe_glob():
+    dec = _disk_decision(["/etc/*"])  # guard refuses -> simulation error -> gate blocks
+    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True)
     assert rec.outcome == "blocked"
-    assert rec.ethics_allowed is False
+    assert rec.gate_allowed is False
     assert rec.execution is None
 
 
-def test_ethos_blocks_process_action():
+def test_gate_blocks_process_action():
     dec = _process_decision()
-    rec = ouroboros.run_cycle(dec, verify_fn=lambda d: True)
+    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True)
     assert rec.outcome == "blocked"
     assert rec.execution is None
 
@@ -68,7 +68,7 @@ def test_ethos_blocks_process_action():
 def test_failed_verification_escalates():
     # service restart "succeeds" but verification says still down -> escalate.
     dec = _service_decision("nginx")
-    rec = ouroboros.run_cycle(
+    rec = decision_loop.run_cycle(
         dec, verify_fn=lambda d: False, run_fn=lambda argv: (0, "")
     )
     assert rec.execution.performed is True
@@ -79,13 +79,13 @@ def test_failed_verification_escalates():
 
 def test_execution_failure_reported():
     dec = _service_decision("nginx")
-    rec = ouroboros.run_cycle(dec, verify_fn=lambda d: True, run_fn=lambda argv: (1, "boom"))
+    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True, run_fn=lambda argv: (1, "boom"))
     assert rec.outcome == "failed"
 
 
 def test_record_is_serializable():
     dec = _service_decision("nginx")
-    rec = ouroboros.run_cycle(dec, verify_fn=lambda d: True, run_fn=lambda argv: (0, ""))
+    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True, run_fn=lambda argv: (0, ""))
     d = rec.as_dict()
     assert d["action"] == "service_restart"
     assert d["outcome"] in ("succeeded", "executed_unverified")

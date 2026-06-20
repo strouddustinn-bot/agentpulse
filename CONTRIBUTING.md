@@ -12,7 +12,7 @@ python3 tools/run_tests.py   # all 66 tests should pass
 
 ## What we want
 
-- Bug fixes (especially in `ouroboros.py`, `policy.py`, or `remediation.py`)
+- Bug fixes (especially in `decision_loop.py`, `policy.py`, or `remediation.py`)
 - New checks (follow the pattern in `checks.py` + add tests)
 - Documentation improvements
 - More test coverage (fuzz cases are especially welcome)

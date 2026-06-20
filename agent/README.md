@@ -77,10 +77,10 @@ sudo agentpulse approve /etc/agentpulse/config.json <id>
 
 ## How the agent works
 
-Every auto-fix runs the **Ouroboros loop** — no blind destructive actions:
+Every auto-fix runs the **verify-or-escalate loop** — no blind destructive actions:
 
 ```
-Imagine → Simulate (dry-run) → Validate (safety gate) → Execute → Verify → Record
+Reason → Simulate (dry-run) → Gate (safety predicates) → Act → Verify → Record
 ```
 
 If `Verify` shows the condition didn't clear, the agent **escalates to a human**
