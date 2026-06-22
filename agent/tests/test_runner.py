@@ -110,7 +110,7 @@ def test_approve_runs_through_safety_gate(tmp_path):
     assert rec.execution is None
 
 
-def test_approve_dry_run_makes_no_change(tmp_path):
+def test_approve_dry_run_previews_without_consuming(tmp_path):
     old = tmp_path / "old.log"
     old.write_text("x" * 200)
     now = time.time()
@@ -124,8 +124,21 @@ def test_approve_dry_run_makes_no_change(tmp_path):
     )]
     state = make_state(tmp_path)
     runner.run_once(cfg, state, FakeNotifier(), gather_fn=lambda c: obs)
-    pending = state.list_pending()
+    pid = state.list_pending()[0]["id"]
 
-    rec = runner.approve(cfg, state, pending[0]["id"], dry_run=True)
+    # A dry-run approval previews the action but must NOT delete anything or
+    # consume the pending entry.
+    rec = runner.approve(cfg, state, pid, dry_run=True)
     assert rec.outcome == "simulated_only"
     assert old.exists(), "dry-run approval must not delete anything"
+    assert len(state.list_pending()) == 1, "dry-run approval must not consume the pending entry"
+
+    # The entry survives reload from disk too (dry-run did not persist a pop).
+    reloaded = State.load(str(tmp_path / "state.json"))
+    assert len(reloaded.list_pending()) == 1
+
+    # A real approval afterward still finds and consumes the entry.
+    rec2 = runner.approve(cfg, state, pid)
+    assert rec2.outcome in ("succeeded", "escalated")
+    assert not old.exists(), "real approval should execute the cleanup"
+    assert len(state.list_pending()) == 0

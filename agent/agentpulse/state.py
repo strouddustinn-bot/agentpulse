@@ -69,6 +69,10 @@ class State:
     def list_pending(self) -> List[Dict[str, Any]]:
         return list(self.data["pending"].values())
 
+    def get_pending(self, pid: str) -> Optional[Dict[str, Any]]:
+        """Peek at a pending entry without removing it (e.g. for a dry-run preview)."""
+        return self.data["pending"].get(pid)
+
     def pop_pending(self, pid: str) -> Optional[Dict[str, Any]]:
         return self.data["pending"].pop(pid, None)
 
