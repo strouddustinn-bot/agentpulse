@@ -173,6 +173,8 @@ def service_restart(
 def execute(decision: Decision, dry_run: bool = False, run_fn: RunFn = None) -> RemediationResult:
     """Dispatch a decision whose action should actually run."""
     if decision.action == "disk_cleanup":
+        # disk_cleanup does no subprocess work, so run_fn (the subprocess
+        # runner) does not apply; it has its own filesystem-fn injection points.
         return disk_cleanup(decision, dry_run=dry_run)
     if decision.action == "service_restart":
         return service_restart(decision, dry_run=dry_run, run_fn=run_fn)

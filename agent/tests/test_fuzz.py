@@ -10,6 +10,11 @@ Invariants under test:
       configured globs — never new files, never files outside the globs, never
       directories or symlinks — and never raises.
   I5  Service restart refuses any name containing shell/injection characters.
+  I6  Baseline learning never flags an anomaly during warmup.
+  I7  The decision-loop safety gate fails closed: it never allows an action
+      without a successful simulation, and never allows an action outside the
+      executable allowlist (process / unknown actions are always refused), and
+      always returns a non-empty reason.
 
 Total randomized iterations are asserted to exceed 3000.
 """
@@ -19,7 +24,7 @@ import random
 import string
 import time
 
-from agentpulse import policy, remediation
+from agentpulse import decision_loop, policy, remediation
 from agentpulse.models import Decision, Observation
 
 ITER_POLICY = 1400
@@ -27,6 +32,7 @@ ITER_GLOB = 1200
 ITER_FS = 700
 ITER_SERVICE = 800
 ITER_BASELINE = 1000
+ITER_LOOP = 1200
 
 MODES = ["off", "alert", "ask", "auto"]
 CHECKS = ["disk", "service", "process"]
@@ -190,5 +196,56 @@ def test_I6_baseline_never_raises_or_flags_in_warmup():
     assert count == ITER_BASELINE
 
 
+def test_I7_safety_gate_fails_closed():
+    random.seed(7)
+    count = 0
+    actions = ["disk_cleanup", "service_restart", "process_alert", "none", "", _rand_name()]
+    for _ in range(ITER_LOOP):
+        count += 1
+        action = random.choice(actions)
+        sim_ok = random.random() < 0.7
+        sim = remediation.RemediationResult(
+            action=action, target="t", performed=random.random() < 0.5,
+            dry_run=True, error=None if sim_ok else "simulated failure",
+        )
+        obs = Observation(check="x", target="t", breached=True)
+        dec = Decision(action=action, target="t", mode_effective="auto",
+                       execute=True, requires_approval=False, reason="r", observation=obs)
+        allowed, reasons = decision_loop.safety_gate(dec, sim)
+        # Never allow without a successful simulation.
+        if not sim.ok:
+            assert allowed is False, action
+        # Never allow an action outside the executable allowlist, even when the
+        # simulation is clean. process_alert / unknown actions must fail closed.
+        if action not in ("disk_cleanup", "service_restart"):
+            assert allowed is False, action
+        # The runner builds its notification body from these; never empty.
+        assert reasons, action
+    assert count == ITER_LOOP
+
+
+def test_I7_run_cycle_never_executes_blocked_actions():
+    random.seed(8)
+    count = 0
+    # Non-executable actions that must always be blocked before the Act step.
+    blocked_actions = ["process_alert", "none", _rand_name()]
+    for _ in range(ITER_LOOP):
+        count += 1
+        action = random.choice(blocked_actions)
+        obs = Observation(check="process", target="pid:1", breached=True, metadata={"pid": 1})
+        dec = Decision(action=action, target="pid:1", mode_effective="auto",
+                       execute=True, requires_approval=False, reason="r", observation=obs)
+        rec = decision_loop.run_cycle(
+            dec, verify_fn=lambda d: True, run_fn=lambda argv: (0, ""),
+        )
+        assert rec.outcome == "blocked", (action, rec.outcome)
+        assert rec.gate_allowed is False
+        assert rec.execution is None, "a blocked action must never reach the Act step"
+    assert count == ITER_LOOP
+
+
 def test_total_iterations_exceed_3000():
-    assert ITER_POLICY + ITER_GLOB + ITER_FS + ITER_SERVICE + ITER_BASELINE >= 3000
+    total = (
+        ITER_POLICY + ITER_GLOB + ITER_FS + ITER_SERVICE + ITER_BASELINE + 2 * ITER_LOOP
+    )
+    assert total >= 3000
