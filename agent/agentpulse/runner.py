@@ -176,8 +176,12 @@ def approve(
     bypasses the safety gate or the verify-or-escalate guarantee. Conditions
     can change between queueing and approval; the gate re-validates against the
     freshly simulated plan rather than trusting the original queued decision.
+
+    A dry-run approval is a preview: it peeks at the pending entry without
+    consuming it, so a later real approval can still act on it. Only a real
+    approval removes the entry from the queue.
     """
-    entry = state.pop_pending(pending_id)
+    entry = state.get_pending(pending_id) if dry_run else state.pop_pending(pending_id)
     if entry is None:
         return None
     obs = Observation(
@@ -201,7 +205,9 @@ def approve(
         run_fn=run_fn,
         force_dry_run=dry_run,
     )
-    state.save()
+    if not dry_run:
+        # Only a real approval mutates the queue; a dry-run preview leaves it intact.
+        state.save()
     return rec
 
 
