@@ -26,6 +26,11 @@ from .remediation import RemediationResult
 
 VerifyFn = Callable[[Decision], bool]
 
+# Actions the gate may green-light for real execution. Anything not in this set
+# is denied by default: a new action type must be deliberately reviewed and
+# added here before the loop will ever run it. This is fail-closed on purpose.
+_EXECUTABLE_ACTIONS = frozenset({"disk_cleanup", "service_restart"})
+
 
 @dataclass
 class CycleRecord:
@@ -72,19 +77,24 @@ def safety_gate(decision: Decision, simulation: RemediationResult) -> "tuple[boo
     """
     reasons: List[str] = []
 
-    # Rule 1: never act without a successful simulation.
+    # Rule 1: never act without a successful simulation. (A failed simulation
+    # already carries its own error in simulation.error; .ok encodes that.)
     if simulation is None or not simulation.ok:
         reasons.append("no successful dry-run simulation; refusing to execute blind")
         return False, reasons
 
-    # Rule 2: the process check never produces an executable action.
+    # Rule 2: the process check is alert-only and is never auto-executed in v1.
     if decision.action == "process_alert":
         reasons.append("process actions are alert-only and never executed automatically")
         return False, reasons
 
-    # Rule 3: disk cleanup must have produced a bounded, simulated plan.
-    if decision.action == "disk_cleanup" and simulation.error:
-        reasons.append(f"cleanup simulation reported error: {simulation.error}")
+    # Rule 3: default-deny. Only explicitly allow-listed actions may execute, so
+    # any future or unrecognized action is refused until it is reviewed and added
+    # to _EXECUTABLE_ACTIONS. Fail closed rather than silently letting it run.
+    if decision.action not in _EXECUTABLE_ACTIONS:
+        reasons.append(
+            f"action {decision.action!r} is not in the executable allowlist; refusing to execute"
+        )
         return False, reasons
 
     reasons.append("all safety predicates satisfied")
@@ -123,6 +133,18 @@ def run_cycle(
     if not rec.execution.ok:
         rec.outcome = "failed"
         rec.notes.append(f"execution failed: {rec.execution.error}")
+        return rec
+
+    # A call that succeeded but changed nothing (e.g. disk cleanup matched no
+    # eligible files) cannot have cleared the breach. Don't report success for a
+    # no-op — escalate so a human looks instead of giving a false all-clear.
+    if not rec.execution.performed:
+        rec.verified = False
+        rec.outcome = "escalated"
+        rec.notes.append(
+            "action completed without changing anything (nothing matched); "
+            "the breach cannot have been resolved — escalating to a human"
+        )
         return rec
 
     # 5. Verify — confirm the condition actually cleared. Never blind-retry.

@@ -7,7 +7,7 @@ AgentPulse is a single-host Linux monitoring agent with hard safety invariants. 
 ```bash
 git clone https://github.com/strouddustinn-bot/agentpulse
 cd agentpulse/agent
-python3 tools/run_tests.py   # all 66 tests should pass
+python3 tools/run_tests.py   # all 73 tests should pass
 ```
 
 ## What we want

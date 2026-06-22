@@ -40,10 +40,10 @@ python3 tools/run_tests.py
 Output:
 ```
 ============================================================
-PASSED: 66   FAILED: 0
+PASSED: 73   FAILED: 0
 ```
 
-66 tests including a 4,100-iteration fuzz harness asserting safety invariants.
+73 tests including a 7,500-iteration fuzz harness asserting safety invariants.
 No pytest required — the runner is self-contained.
 
 ---
