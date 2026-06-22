@@ -88,16 +88,31 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.command == "approve":
         cfg, state, _ = _load(args.config)
-        result = approve(cfg, state, args.pending_id, dry_run=args.dry_run)
-        if result is None:
+        rec = approve(cfg, state, args.pending_id, dry_run=args.dry_run)
+        if rec is None:
             print(f"no pending action with id {args.pending_id}", file=sys.stderr)
             return 2
-        if result.ok:
-            print(f"{'(dry-run) ' if args.dry_run else ''}done: {result.action} {result.target}")
-            for d in result.details:
+        prefix = "(dry-run) " if args.dry_run else ""
+        detail_source = rec.execution if rec.execution else rec.simulation
+        details = detail_source.details if detail_source else []
+        if rec.outcome in ("succeeded", "executed_unverified", "simulated_only"):
+            print(f"{prefix}done ({rec.outcome}): {rec.decision.action} {rec.decision.target}")
+            for d in details:
                 print(f"  {d}")
             return 0
-        print(f"FAILED: {result.error}", file=sys.stderr)
+        if rec.outcome == "blocked":
+            print(f"BLOCKED by safety gate: {'; '.join(rec.gate_reasons)}", file=sys.stderr)
+            return 1
+        if rec.outcome == "escalated":
+            print(
+                "ESCALATED: the action ran but the condition did not clear; "
+                "a human needs to look. The agent will not retry.",
+                file=sys.stderr,
+            )
+            return 1
+        # failed
+        err = rec.execution.error if rec.execution else "unknown error"
+        print(f"FAILED: {err}", file=sys.stderr)
         return 1
 
     return 0  # pragma: no cover

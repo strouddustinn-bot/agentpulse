@@ -80,7 +80,65 @@ def test_approve_executes_pending(tmp_path):
     assert len(pending) == 1
     assert old.exists(), "ask-first must NOT act before approval"
 
-    result = runner.approve(cfg, state, pending[0]["id"])
-    assert result.ok
+    rec = runner.approve(cfg, state, pending[0]["id"])
+    # Approval runs the full decision loop, so the cleanup either verified-clear
+    # or escalated (if the sandbox root is itself full) — but either way it ran
+    # the action through the gate and actually removed the file.
+    assert rec.outcome in ("succeeded", "escalated")
+    assert rec.gate_allowed is True
     assert not old.exists(), "approval should execute the cleanup"
+    assert len(state.list_pending()) == 0
+
+
+def test_approve_runs_through_safety_gate(tmp_path):
+    # An approved process action must still be blocked by the gate — human
+    # approval is NOT a bypass of the hard safety invariants.
+    cfg = Config()
+    cfg.process.mode = "ask"
+    obs = [Observation(
+        check="process", target="pid:1 (init)", breached=True, detail="mem 99%",
+        metadata={"pid": 1},
+    )]
+    state = make_state(tmp_path)
+    runner.run_once(cfg, state, FakeNotifier(), gather_fn=lambda c: obs)
+    pending = state.list_pending()
+    assert len(pending) == 1
+
+    rec = runner.approve(cfg, state, pending[0]["id"])
+    assert rec.outcome == "blocked", "process actions must never execute, even when approved"
+    assert rec.gate_allowed is False
+    assert rec.execution is None
+
+
+def test_approve_dry_run_previews_without_consuming(tmp_path):
+    old = tmp_path / "old.log"
+    old.write_text("x" * 200)
+    now = time.time()
+    os.utime(old, (now - 10 * 86400, now - 10 * 86400))
+
+    cfg = Config()
+    cfg.disk.mode = "ask"
+    obs = [Observation(
+        check="disk", target="/", breached=True, detail="disk 99%",
+        metadata={"cleanup_globs": [str(tmp_path / "*.log")], "cleanup_older_than_days": 3},
+    )]
+    state = make_state(tmp_path)
+    runner.run_once(cfg, state, FakeNotifier(), gather_fn=lambda c: obs)
+    pid = state.list_pending()[0]["id"]
+
+    # A dry-run approval previews the action but must NOT delete anything or
+    # consume the pending entry.
+    rec = runner.approve(cfg, state, pid, dry_run=True)
+    assert rec.outcome == "simulated_only"
+    assert old.exists(), "dry-run approval must not delete anything"
+    assert len(state.list_pending()) == 1, "dry-run approval must not consume the pending entry"
+
+    # The entry survives reload from disk too (dry-run did not persist a pop).
+    reloaded = State.load(str(tmp_path / "state.json"))
+    assert len(reloaded.list_pending()) == 1
+
+    # A real approval afterward still finds and consumes the entry.
+    rec2 = runner.approve(cfg, state, pid)
+    assert rec2.outcome in ("succeeded", "escalated")
+    assert not old.exists(), "real approval should execute the cleanup"
     assert len(state.list_pending()) == 0

@@ -65,10 +65,11 @@ it's real, tested, and conservative on purpose.
 
 ## Guard rails are tested, not promised
 
-The agent ships with a **60-test suite, including a 4,100-iteration fuzz harness**
+The agent ships with a **73-test suite, including a 7,500-iteration fuzz harness**
 asserting the safety invariants: never sweep a system path, never delete new
-files / directories / symlinks, never auto-kill a process, refuse injection in
-service names. Run it: `cd agent && python3 tools/run_tests.py`.
+files / directories / symlinks, never auto-kill a process (even when approved),
+refuse injection in service names, and fail the safety gate closed on any action
+it doesn't explicitly allow. Run it: `cd agent && python3 tools/run_tests.py`.
 
 ## Try it locally (no root, no install)
 

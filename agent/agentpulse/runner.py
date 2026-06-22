@@ -25,11 +25,16 @@ def make_verify(cfg: Config, run_fn=None):
     """Build the verify step: re-measure after acting."""
 
     def verify(decision: Decision) -> bool:
+        # Verification must be a positive re-measurement of the target. If we
+        # can't find the target in a fresh check (empty list, renamed mount,
+        # transient check failure), we do NOT claim the condition cleared —
+        # returning False routes the cycle to escalation instead of a false
+        # all-clear.
         if decision.action == "disk_cleanup":
             for obs in checks.check_disk(cfg.disk):
                 if obs.target == decision.target:
                     return not obs.breached
-            return True
+            return False
         if decision.action == "service_restart":
             svc_cfg = cfg.service
             obs_list = (
@@ -40,8 +45,8 @@ def make_verify(cfg: Config, run_fn=None):
             for obs in obs_list:
                 if obs.target == decision.target:
                     return not obs.breached
-            return True
-        return True
+            return False
+        return False
 
     return verify
 
@@ -163,9 +168,20 @@ def run_once(
 
 def approve(
     cfg: Config, state: State, pending_id: str, dry_run: bool = False, run_fn=None
-) -> Optional[remediation.RemediationResult]:
-    """Execute a previously queued ask-first action after human approval."""
-    entry = state.pop_pending(pending_id)
+) -> Optional[decision_loop.CycleRecord]:
+    """Execute a previously queued ask-first action after human approval.
+
+    Approved actions run the SAME full decision loop as auto actions —
+    simulate -> gate -> act -> verify -> record — so human approval never
+    bypasses the safety gate or the verify-or-escalate guarantee. Conditions
+    can change between queueing and approval; the gate re-validates against the
+    freshly simulated plan rather than trusting the original queued decision.
+
+    A dry-run approval is a preview: it peeks at the pending entry without
+    consuming it, so a later real approval can still act on it. Only a real
+    approval removes the entry from the queue.
+    """
+    entry = state.get_pending(pending_id) if dry_run else state.pop_pending(pending_id)
     if entry is None:
         return None
     obs = Observation(
@@ -183,9 +199,16 @@ def approve(
         reason="approved by operator",
         observation=obs,
     )
-    result = remediation.execute(decision, dry_run=dry_run, run_fn=run_fn)
-    state.save()
-    return result
+    rec = decision_loop.run_cycle(
+        decision,
+        verify_fn=make_verify(cfg, run_fn=run_fn),
+        run_fn=run_fn,
+        force_dry_run=dry_run,
+    )
+    if not dry_run:
+        # Only a real approval mutates the queue; a dry-run preview leaves it intact.
+        state.save()
+    return rec
 
 
 def run_loop(cfg: Config, state: State, notifier: Notifier, dry_run: bool = False, max_cycles: Optional[int] = None) -> None:  # pragma: no cover - long running
