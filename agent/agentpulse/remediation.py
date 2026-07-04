@@ -55,12 +55,17 @@ def _is_safe_cleanup_glob(pattern: str) -> bool:
     if not pattern or not os.path.isabs(pattern):
         return False
     base = os.path.normpath(_glob_base_dir(pattern))
-    # Require the fixed base to be at least two levels deep (e.g. /tmp is fine,
-    # /var/log/app is fine; "/" or "/*" is not).
+    # POSIX normpath preserves exactly two leading slashes ('//etc' stays
+    # '//etc'), which would dodge the forbidden-base comparison below even
+    # though glob expands '//etc/*' into the real /etc. Collapse them first.
+    if base.startswith(os.sep + os.sep):
+        base = os.sep + base.lstrip(os.sep)
+    # The fixed base must have at least one path component (e.g. /tmp or
+    # /var/log/app; "/" or "/*" is not enough).
     depth = len([p for p in base.split(os.sep) if p])
     if base == os.sep or depth < 1:
         return False
-    # Explicitly forbid the most dangerous bases even at depth 1 we keep /tmp
+    # Explicitly forbid the most dangerous bases even at depth 1: we keep /tmp
     # allowed but block obviously catastrophic roots.
     forbidden = {"/", "/bin", "/sbin", "/lib", "/lib64", "/usr", "/etc", "/boot", "/dev", "/proc", "/sys", "/root", "/home", "/var", "/usr/bin", "/usr/sbin"}
     if base in forbidden:
@@ -78,6 +83,7 @@ def disk_cleanup(
     getmtime_fn: Callable[[str], float] = os.path.getmtime,
     getsize_fn: Callable[[str], int] = os.path.getsize,
     remove_fn: Callable[[str], None] = os.remove,
+    realpath_fn: Callable[[str], str] = os.path.realpath,
 ) -> RemediationResult:
     obs = decision.observation
     meta = obs.metadata if obs else {}
@@ -107,9 +113,21 @@ def disk_cleanup(
     freed = 0
     removed_any = False
     for pattern in safe_globs:
+        # A symlinked directory inside the glob path would let matches resolve
+        # anywhere on the filesystem (the matched file itself is not a symlink,
+        # so the islink check alone can't catch it). Require every match to
+        # still resolve inside the pattern's fixed base directory.
+        real_base = realpath_fn(_glob_base_dir(pattern))
         for path in sorted(glob_fn(pattern)):
             if islink_fn(path) or not isfile_fn(path):
                 continue  # never follow symlinks or delete directories
+            real = realpath_fn(path)
+            if real != real_base and not real.startswith(real_base + os.sep):
+                result.details.append(
+                    f"SKIP {path}: resolves outside the cleanup base "
+                    "(symlinked directory?); refusing"
+                )
+                continue
             try:
                 if getmtime_fn(path) > cutoff:
                     continue  # too new

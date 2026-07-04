@@ -84,7 +84,7 @@ Each check has a `mode` field that controls how AgentPulse responds when a condi
 |---|---|---|
 | `threshold_percent` | int | Alert/act when a path's disk usage hits this percentage. |
 | `paths` | string[] | Mount points to monitor. |
-| `cleanup_globs` | string[] | Glob patterns of files the agent may delete. **Used only when mode is `ask` or `auto`.** Hard limits: never deletes directories, symlinks, files newer than `cleanup_older_than_days`, or anything under system paths (`/bin`, `/etc`, `/usr`, etc.). |
+| `cleanup_globs` | string[] | Glob patterns of files the agent may delete. **Used only when mode is `ask` or `auto`.** Hard limits: never deletes directories, symlinks, files newer than `cleanup_older_than_days`, anything under system paths (`/bin`, `/etc`, `/usr`, etc.), or files that resolve outside the glob's base directory through a symlinked subdirectory. |
 | `cleanup_older_than_days` | int | Files newer than this are never touched, regardless of the glob. |
 
 **Example: auto-clean /var/log on a high-traffic server**
