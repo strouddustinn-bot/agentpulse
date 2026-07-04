@@ -44,6 +44,14 @@ def test_double_slash_globs_refused():
     for bad in ["//etc/*", "//usr/*", "//var/*", "//*", "//"]:
         assert remediation._is_safe_cleanup_glob(bad) is False, bad
 
+    # Double-slash globs for allowed locations must still be accepted.
+    for good in ["//tmp/*"]:
+        assert remediation._is_safe_cleanup_glob(good) is True, good
+
+    # Triple-slash globs should behave consistently with double-slash ones.
+    for bad_triple in ["///etc/*"]:
+        assert remediation._is_safe_cleanup_glob(bad_triple) is False, bad_triple
+
 
 def test_cleanup_refuses_when_all_globs_unsafe(tmp_path):
     d = _decision_cleanup(["/etc/*", "/*"])
