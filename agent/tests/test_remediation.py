@@ -38,6 +38,21 @@ def test_safe_globs_allowed():
         assert remediation._is_safe_cleanup_glob(good) is True, good
 
 
+def test_double_slash_globs_refused():
+    # POSIX normpath keeps '//etc' as-is, but glob('//etc/*') expands into the
+    # real /etc — the guard must see through the doubled leading slash.
+    for bad in ["//etc/*", "//usr/*", "//var/*", "//*", "//"]:
+        assert remediation._is_safe_cleanup_glob(bad) is False, bad
+
+    # Double-slash globs for allowed locations must still be accepted.
+    for good in ["//tmp/*"]:
+        assert remediation._is_safe_cleanup_glob(good) is True, good
+
+    # Triple-slash globs should behave consistently with double-slash ones.
+    for bad_triple in ["///etc/*"]:
+        assert remediation._is_safe_cleanup_glob(bad_triple) is False, bad_triple
+
+
 def test_cleanup_refuses_when_all_globs_unsafe(tmp_path):
     d = _decision_cleanup(["/etc/*", "/*"])
     res = remediation.disk_cleanup(d)
@@ -90,6 +105,36 @@ def test_cleanup_never_touches_directories_or_symlinks(tmp_path):
     remediation.disk_cleanup(d)
     assert subdir.exists(), "directories must never be deleted"
     assert target.exists(), "symlink target must be untouched"
+
+
+def test_cleanup_never_escapes_through_symlinked_dir(tmp_path):
+    # A symlinked directory inside the cleanup path must not let the glob
+    # reach files outside it: the matched file is a regular file (not a
+    # symlink), so only realpath containment can catch the escape.
+    victim_dir = tmp_path / "victim"
+    victim_dir.mkdir()
+    victim = victim_dir / "important.log"
+    victim.write_text("keep me")
+    now = time.time()
+    os.utime(victim, (now - 30 * 86400, now - 30 * 86400))
+
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    os.symlink(victim_dir, clean / "sub")
+
+    # An honest subdirectory whose old file SHOULD still be cleaned, proving
+    # the containment check doesn't over-block.
+    real_sub = clean / "realsub"
+    real_sub.mkdir()
+    doomed = real_sub / "old.log"
+    doomed.write_text("x")
+    os.utime(doomed, (now - 30 * 86400, now - 30 * 86400))
+
+    d = _decision_cleanup([str(clean / "*" / "*.log")], days=3)
+    res = remediation.disk_cleanup(d)
+    assert victim.exists(), "must never delete through a symlinked directory"
+    assert not doomed.exists(), "genuine in-tree old file should still be cleaned"
+    assert any("resolves outside the cleanup base" in line for line in res.details)
 
 
 # ---- service name validation ----------------------------------------------
