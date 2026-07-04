@@ -27,14 +27,14 @@ AgentPulse? **$99/month for 5 servers with auto-remediation included.** No per-G
 
 | Feature | AgentPulse | Datadog |
 |---------|-----------|---------|
-| Infrastructure monitoring | ✅ | ✅ |
+| Infrastructure monitoring | ✅ (disk, services, memory) | ✅ |
 | APM / Tracing | ❌ | ✅ |
-| Log management | ❌ (coming) | ✅ |
+| Log management | ❌ | ✅ |
 | Auto-remediation | ✅ | ⚠️ (Bits AI SRE, extra cost) |
-| Baseline learning | ✅ | ✅ (Watchdog) |
-| Dashboard | ✅ | ✅ (very comprehensive) |
-| Integrations | Telegram, email, webhooks | 800+ |
-| Security monitoring | ✅ | ✅ (separate product, extra cost) |
+| Baseline learning | ✅ (statistical, advisory) | ✅ (Watchdog) |
+| Dashboard | 🔜 roadmap | ✅ (very comprehensive) |
+| Integrations | Webhooks (Slack, Discord, PagerDuty, any HTTP) | 800+ |
+| Security monitoring | 🔜 roadmap | ✅ (separate product, extra cost) |
 | Pricing complexity | 3 plans | 20+ products, per-host + per-GB |
 | Setup time | Paid beta onboarding | Hours to days |
 | Sales call required | ❌ | For most features, yes |
@@ -71,7 +71,7 @@ AgentPulse is designed to avoid that trap. Simple pricing from day one. No honey
 
 **Choose Datadog if:** You're an established company with an SRE team, you need APM/tracing/log correlation, and your budget is $500+/month.
 
-**Choose AgentPulse if:** You're a small team that wants auto-remediation, real-time alerts, and security monitoring without the enterprise price tag.
+**Choose AgentPulse if:** You're a small team that wants auto-remediation and actionable alerts for the incidents that actually page you — without the enterprise price tag.
 
 **Datadog is a Swiss Army knife. AgentPulse is a scalpel.** Pick the tool that matches your problem.
 

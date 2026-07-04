@@ -1,14 +1,14 @@
 ---
 layout: default
-title: "AgentPulse Features — AI Server Monitoring That Fixes Problems Automatically"
-description: "Auto-remediation, baseline learning, approval gates, real-time monitoring, and instant alerts. Everything AgentPulse does to keep your Linux servers running — without waking you up at 3 AM."
+title: "AgentPulse Features — Server Monitoring That Fixes Problems, Safely"
+description: "Policy-gated auto-remediation, a verify-or-escalate decision loop, statistical baseline learning, and approval gates. Everything AgentPulse does today to keep your Linux servers running — and what's on the roadmap."
 ---
 
 # AgentPulse Features
 
 AgentPulse is a thin Linux monitoring agent with one job that most monitoring tools still refuse to do: **fix problems, not just report them**.
 
-Here's everything it does.
+Here's everything it does today — and, clearly labeled, what's on the roadmap. We'd rather under-promise than surprise you at 3 AM.
 
 ---
 
@@ -16,146 +16,105 @@ Here's everything it does.
 
 This is the core feature — the reason AgentPulse exists.
 
-When something goes wrong on your server, a traditional monitoring tool sends you an alert. You wake up, SSH in, run the same commands you always run, and go back to bed. AgentPulse skips straight to the "run the commands" part.
-
-### Kill Runaway Processes
-
-That Java app eating 4GB of RAM? Terminated. That Python script spinning at 100% CPU for the last 45 minutes? Gone.
-
-AgentPulse tracks per-process resource consumption and acts when a process exceeds the thresholds you define — or the thresholds it learned from your server's normal behavior. You can set policies per process type: auto-kill, ask first, or alert only.
-
-### Restart Crashed Services
-
-nginx down? Postgres dropped? AgentPulse detects the crash and brings the service back up — in seconds, not minutes after your on-call rotation finally wakes up.
-
-You define which services it should manage. It restarts them, reports what happened, and logs the event. If the service keeps crashing in a loop, it escalates instead of cycling endlessly.
+When something goes wrong on your server, a traditional monitoring tool sends you an alert. You wake up, SSH in, run the same commands you always run, and go back to bed. AgentPulse skips straight to the "run the commands" part — for the incident classes where a safe first fix exists.
 
 ### Free Disk Space
 
 Log rotation silently failed two weeks ago and now your disk is at 94%. Classic.
 
-AgentPulse monitors disk usage per-partition and can clean up based on your rules: rotate old logs, clear stale temp files, prune old application caches. You decide what's fair game. It never deletes things it doesn't have explicit permission to touch.
+AgentPulse monitors disk usage per configured path and cleans up based on your rules: it deletes files older than a threshold you set, **only inside cleanup paths you explicitly configure**. It never deletes directories, never follows symlinks, and refuses system paths outright — those guards are code-level invariants, not config.
 
-### Block SSH Brute-Force Attacks
+### Restart Crashed Services
 
-AgentPulse watches auth logs for brute-force patterns — repeated failed SSH login attempts from the same IP — and can block the offending address automatically. Same logic as fail2ban, but integrated into the same agent watching the rest of your server.
+nginx down? A worker died? AgentPulse detects the failed systemd unit and brings it back up — in seconds, not minutes after your on-call rotation finally wakes up.
 
-No extra daemons to configure. No separate tool to maintain.
+You define an allowlist of services it may manage. It restarts them, verifies they actually came back, and reports what happened. If the restart doesn't hold, it escalates to you instead of cycling endlessly.
+
+### Flag Runaway Processes
+
+That Python script eating half your RAM? AgentPulse spots the largest offender when it crosses your memory threshold and tells you exactly which process it is.
+
+**It never kills a process automatically in v1 — even if you set the process check to "auto", the agent clamps it to ask-first.** Killing the wrong process is the one remediation that can make a bad night catastrophically worse, so a human stays in that loop by design. You get the flag, you make the call.
+
+---
+
+## The Verify-or-Escalate Decision Loop
+
+Every fix — automatic or human-approved — runs the same six-stage loop before and after anything touches your server:
+
+**Reason** — the agent states the expected end-state before acting. "Disk usage on `/` should drop below the threshold after removing old files." No action without a testable expectation.
+
+**Simulate** — the fix runs as a dry-run first, and the agent captures exactly what *would* change. A simulation that fails or matches nothing stops the cycle right there.
+
+**Gate** — the simulated plan is checked against hard safety predicates: no system-path sweeps, no process kills, allowlisted services only, and a fail-closed action allowlist — an action type the gate doesn't explicitly recognize is refused, period. Human approval doesn't bypass the gate either.
+
+**Act** — the validated action runs locally on your server. No cloud round-trip, no dependency on an external API being reachable at 3 AM.
+
+**Verify** — the agent re-measures the original condition. Did disk usage actually drop? Is the service actually active? A fix that ran but didn't clear the breach — or that ran and changed nothing — is **escalated to you instead of retried**. The loop refuses to spiral.
+
+**Record** — the full cycle (expectation, simulation, gate verdict, execution, verification, outcome) is captured for analysis, so you can always answer "what did the agent do and why?"
+
+These guarantees aren't promises — they're enforced by a 78-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
 
 ---
 
 ## Baseline Learning
 
-Alerting on raw thresholds is how you end up with alert fatigue. A CPU spike to 90% at 3 AM is alarming. A CPU spike to 90% every night at 3 AM because your backup job runs — that's normal.
+Alerting on raw thresholds is how you end up with alert fatigue. A disk that has hovered at 89% for a month is not news. A disk that jumped ten points overnight is — even if it hasn't crossed your threshold yet.
 
-AgentPulse learns the difference.
+AgentPulse learns the difference with **statistical baselines**: for each metric (disk usage per path, host memory), it maintains a running mean and variance of what's normal *for this specific server*, and flags samples that deviate sharply from the learned normal (z-score based, with a warm-up period so it never alerts before it has enough data).
 
-### What It Learns
+Two honest caveats:
 
-Over the first few days after install, AgentPulse builds a picture of your server's normal behavior:
-
-- Which processes run at which times
-- Typical CPU, RAM, and disk usage patterns by hour and day of week
-- Known cron job spikes and maintenance windows
-- Baseline network traffic patterns
-
-Once it has a baseline, it stops alerting you about things you already know about.
-
-### What It Flags
-
-After baseline is established, AgentPulse focuses on **deviations from normal**:
-
-- A service that's never used much RAM suddenly consuming gigabytes
-- An API process that's been slowly leaking memory for the last six hours
-- A new process that appeared this week and has been running constantly
-
-Pattern-based alerting finds problems that threshold-based alerting misses entirely.
-
-### Manual Overrides
-
-You know your server better than the agent does. If AgentPulse is flagging something you know is expected, you can mark it as known behavior from the dashboard. It learns from your corrections.
+- It's statistics, not machine learning — deterministic, dependency-free, and inspectable. Learned per-hour/per-weekday patterns are on the roadmap.
+- Baseline anomalies are **advisory only**. They alert; they never trigger a remediation. Only your explicit threshold policies can do that.
 
 ---
 
 ## Approval Gates
 
-You're not handing a bot unchecked root access to your production server. Approval gates let you decide exactly how much autonomy AgentPulse has — per action type, per service, per threshold.
+You're not handing a bot unchecked root access to your production server. Every check runs in one of four modes, and you set each one independently:
 
-### Three Modes Per Action
+**Alert only** *(the default for everything)* — AgentPulse detects the problem and tells you, but doesn't touch anything.
 
-**Auto-fix** — AgentPulse acts immediately, then notifies you afterward.
+> "Disk / at 91.3% (threshold 90%). I'm not touching it — here's what I see."
 
-> Example: "Always clean /tmp when disk usage exceeds 90%."
+**Ask first** — AgentPulse queues the fix and waits for your explicit approval:
 
-**Ask first** — AgentPulse sends you an alert and waits for your approval before acting.
+```bash
+sudo agentpulse list-pending /etc/agentpulse/config.json
+sudo agentpulse approve /etc/agentpulse/config.json <id>
+```
 
-> Example: "Nginx is down. Restart it? [Yes / No / Skip and just alert]"
+Approved actions still run the full decision loop — simulate, gate, verify. Approval is consent, not a safety bypass.
 
-**Alert only** — AgentPulse detects the problem and tells you, but doesn't touch anything.
+**Auto-fix** — AgentPulse acts immediately, then notifies you with exactly what changed.
 
-> Example: "The database process is using abnormally high RAM. I'm not touching it — here's what I see."
+**Off** — the check doesn't run at all.
 
 ### Why This Matters
 
-Different actions carry different risk. Clearing /tmp is safe to automate. Restarting a database mid-transaction is not. Approval gates let you be surgical about autonomy instead of making a blanket "fix everything" or "fix nothing" choice.
+Different actions carry different risk. Clearing old files in `/tmp` is safe to automate. Restarting a database mid-transaction is not. Per-check modes let you be surgical about autonomy instead of making a blanket "fix everything" or "fix nothing" choice.
 
-You can start conservative — alert only on everything — and gradually move high-confidence, low-risk actions to auto-fix as you build trust in the agent's judgment.
-
----
-
-## Real-Time Monitoring
-
-AgentPulse runs continuously on your server, collecting metrics every few seconds and shipping them to the dashboard.
-
-### What It Tracks
-
-**CPU** — system-wide usage, per-core breakdown, load average (1m, 5m, 15m), top processes by CPU consumption.
-
-**Memory** — total/used/free RAM, swap usage, per-process memory footprint, memory growth trends over time.
-
-**Disk** — usage per partition, I/O throughput, inodes remaining, growth rate projection ("at this rate, disk fills in ~4 days").
-
-**Processes** — running process list, resource consumption per process, crash detection, zombie process detection.
-
-**Network** — inbound/outbound traffic rates, connection counts, unusual connection patterns.
-
-**Security** — failed SSH login attempts, new listening ports, unexpected cron job changes, privilege escalation events.
-
-### The Dashboard
-
-Metrics feed into a real-time dashboard with current state and historical charts. You can see what's happening now, or look back at the last hour, day, or week to understand what changed and when.
-
-No Grafana setup required. No InfluxDB to maintain. It's just there.
+Start conservative — everything ships in alert-only mode — and promote high-confidence, low-risk actions to ask-first, then auto, as the agent earns your trust.
 
 ---
 
 ## Alerts
 
-When something requires your attention and the agent can't (or isn't allowed to) handle it automatically, you get notified.
+When something requires your attention — a breach, a queued approval, an escalation, a baseline anomaly — you get notified.
 
-### Alert Channels
+### Channels today
 
-**Telegram** — instant message to your phone or a team channel. Fast, reliable, free. Works well for solo devs who want low-friction notifications.
+**Webhook** — POST to any URL with a JSON payload. This is how you wire AgentPulse into Slack, Discord, PagerDuty, or your own API today: point it at an incoming-webhook URL and you're done. If webhook delivery fails, the agent falls back to logging the alert rather than crashing or going silent.
 
-**Email** — send alerts to any email address. Works with forwarding rules, filters, and whatever you already use to triage problems.
+**stdout / journald** — every alert is always visible in `journalctl -u agentpulse`, no configuration needed.
 
-**Webhooks** — POST to any URL with a JSON payload. Wire it into Slack, Discord, PagerDuty, your own API, or anything else that accepts HTTP. Slack and Discord native integrations are on the roadmap — the webhook covers you today.
+Native Telegram and email channels are on the roadmap — the webhook covers those flows today via services you already use.
 
-### Alert Content
+### Alert content
 
-Alerts aren't just "something broke." They include:
-
-- What happened (the specific metric, threshold, and current value)
-- Which process or service is involved
-- What AgentPulse did (if it acted) or why it didn't
-- Severity level
-- A link to the relevant dashboard view
-
-No more decoding a cryptic alert message at 3 AM trying to figure out which server is on fire.
-
-### Alert Deduplication
-
-AgentPulse groups related alerts and suppresses duplicates. If disk is at 91% and still climbing, you get one alert — not one every 30 seconds as it ticks upward. It re-alerts when severity changes (e.g., 91% → 95% → 99%) or when the situation resolves.
+Alerts aren't just "something broke." They include what happened (metric, threshold, current value), which resource is involved, what AgentPulse did or why it didn't act, and — for escalations — an explicit statement that a fix ran and did not hold.
 
 ---
 
@@ -163,38 +122,36 @@ AgentPulse groups related alerts and suppresses duplicates. If disk is at 91% an
 
 {% include install.html %}
 
-That's it. The installer:
+We actually recommend the slightly longer, more paranoid version — download it, read it, then run it, because it runs as root:
 
-1. Detects your Linux distribution (Ubuntu, Debian, CentOS, RHEL, Amazon Linux, and others)
-2. Installs the agent as a systemd service
-3. Connects to the AgentPulse platform with your account token
-4. Starts monitoring immediately
+```bash
+curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
+less install.sh
+sudo bash install.sh
+```
 
-No config files to edit before first use. No firewall rules to open (the agent initiates outbound connections). No dependencies to install manually. It works on any Linux server — VPS, bare metal, cloud instance, home lab.
+The installer:
 
-The agent footprint is minimal: under 50MB RAM, under 1% CPU in steady state.
+1. Checks for Python 3.8+ (the agent is dependency-free — no pip, no venv)
+2. Installs the agent to `/opt/agentpulse` and registers a hardened systemd service
+3. Writes a default **alert-only** config to `/etc/agentpulse/config.json` and validates it
+4. Starts watching immediately — and changes nothing until you promote a check yourself
+
+No account required to run the agent. No firewall rules to open (alerts are outbound-only). Works on any systemd-based Linux — VPS, bare metal, cloud instance, home lab.
 
 ---
 
-## How It Works
+## Roadmap (not here yet — honestly)
 
-AgentPulse doesn't just match metrics against thresholds. Every potential remediation goes through a six-stage decision loop before anything runs on your server.
+These are planned, not shipped. Nothing below is included in what you buy today:
 
-**Remember** — Before reasoning about an anomaly, the agent queries its baseline memory: what's normal CPU, RAM, disk, and process behavior for *this specific server*? A process spiking at 3 AM might be the nightly backup. The agent knows the difference.
+- **Cloud dashboard & fleet view** — real-time and historical charts across servers, without running Grafana.
+- **SSH brute-force detection & blocking** — fail2ban-style auth-log watching, integrated into the same agent.
+- **Native Telegram / email / Slack channels** — beyond the generic webhook.
+- **Learned time-of-day baselines** — "the backup always spikes at 3 AM" as a first-class concept.
+- **Fleet intelligence** — agents sharing anonymized patterns across your servers, so a pattern caught on one box hardens all of them.
 
-**Reason** — Given the anomaly and its baseline context, the agent identifies candidate responses. Disk full: log rotation, temp file cleanup, or alert-only? Runaway process: kill, throttle, or escalate? Multiple options are weighed, not just the first rule that matches.
-
-**Simulate** — Each candidate response is evaluated for consequences before it runs. Would killing this process break a dependent service? Is the process owned by a system account that warrants escalation instead? Lightweight consequence modeling prevents remediation that makes things worse.
-
-**Gate** — Every proposed action is checked against your configured policies before it executes. Auto-fix actions run immediately. Ask-first actions pause for your approval. Alert-only actions stop here and notify you. Nothing runs against your policy.
-
-**Act** — The validated action runs locally on your server — no cloud round-trip required. The agent records the outcome (what ran, what changed, whether it worked) and feeds that back into its memory for the next cycle.
-
-**Share** *(roadmap)* — When AgentPulse runs across a fleet, agents share anonymized patterns. A novel attack signature detected on one server propagates as a defensive rule across all of them. Each agent runs independently; the intelligence is shared.
-
-The loop closes: act outcomes update the baseline, sharpening what the agent knows about your server. It gets more accurate over time.
-
-Decision logic runs locally; baseline computation runs in the platform so it doesn't eat your server's resources. The agent holds a pre-authorized action set — a compromised platform cannot issue arbitrary commands to your servers.
+If any of these is the thing you need *first*, tell us at [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com) — beta users steer the order.
 
 ---
 
@@ -204,13 +161,13 @@ AgentPulse is purpose-built for a specific problem. It doesn't try to do everyth
 
 **Not an APM tool.** AgentPulse doesn't trace request latency, instrument your application code, or correlate slow database queries with API response times. For distributed tracing and application performance monitoring, use Datadog, New Relic, or an OpenTelemetry-compatible tool.
 
-**Not a log management platform.** There's no log aggregation, log search, or log-based alerting. AgentPulse watches system logs for specific security patterns (like SSH brute-force), but it doesn't ingest, index, or search your application logs. For that, use Loki, Papertrail, or a purpose-built log platform.
+**Not a log management platform.** There's no log aggregation, log search, or log-based alerting. For that, use Loki, Papertrail, or a purpose-built log platform.
 
 **Not an uptime checker.** AgentPulse monitors your server from the inside, not the outside. It can tell you a service crashed. It can't tell you whether your site is reachable from Europe. For external uptime monitoring, pair AgentPulse with Uptime Kuma or Better Stack's uptime checker.
 
 **Not a status page tool.** No public status pages, no on-call scheduling, no incident communication workflows. Better Stack and incident.io handle that.
 
-**Not free.** The agent source is open, but the platform is not. There's no self-hosted option. If you need free server monitoring, Netdata and Prometheus+Grafana are solid choices — they just won't fix anything.
+**Not free.** The agent source is public so you can audit exactly what runs as root on your server — but AgentPulse is a paid product. If you need free server monitoring, Netdata and Prometheus+Grafana are solid choices — they just won't fix anything.
 
 **Not an enterprise observability platform.** No SSO, no RBAC, no SOC 2 compliance documentation, no 20-product pricing calculator. AgentPulse is for small teams who want things to work, not enterprise buyers who need a vendor to check boxes.
 
@@ -228,8 +185,8 @@ For the full plan breakdown, per-tier feature comparison, and FAQ, see the [pric
 
 ## Ready to Stop Firefighting?
 
-AgentPulse installs in 60 seconds and starts protecting your server immediately.
+AgentPulse installs in about 60 seconds and starts watching immediately — in alert-only mode, until you say otherwise.
 
-[**Get Started — Try AgentPulse Free →**](https://agentpulse.dustinnstroud.com/signup)
+[**Join the paid beta →**](https://agentpulse.dustinnstroud.com/signup)
 
-Questions? Email [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com) or join the [Discord community](https://discord.gg/vCaXFWuc).
+Questions? Email [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com).

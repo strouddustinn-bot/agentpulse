@@ -45,17 +45,17 @@ That's 3–6 services to install, configure, keep running, and upgrade. If you'r
 | Setup time | 60 seconds | Hours to days |
 | Components to manage | 1 agent | 3–6 services |
 | Auto-remediation | ✅ | ❌ |
-| Kill runaway processes | ✅ | ❌ |
+| Flag runaway processes | ✅ (kill stays behind your approval — never automatic) | ❌ |
 | Restart crashed services | ✅ | ❌ |
 | Free disk space automatically | ✅ | ❌ |
-| Block brute-force SSH attacks | ✅ | ❌ |
-| Baseline learning | ✅ | ⚠️ (with extra tooling) |
+| Block brute-force SSH attacks | 🔜 roadmap | ❌ |
+| Baseline learning | ✅ (statistical, advisory) | ⚠️ (with extra tooling) |
 | Custom dashboards | ❌ | ✅ (world-class) |
 | Multi-data-source correlation | ❌ | ✅ |
 | Self-hostable | ❌ | ✅ |
 | Pricing (5 servers) | $99/mo | Free (self-hosted) or Grafana Cloud |
 | Approval gates (auto-fix/ask/alert) | ✅ | ❌ |
-| Alerts | ✅ (Telegram, email, webhooks) | ✅ (with Alertmanager) |
+| Alerts | ✅ (webhooks — Slack, Discord, PagerDuty, anything HTTP) | ✅ (with Alertmanager) |
 | Enterprise SSO/RBAC | ❌ | ✅ (Grafana Enterprise) |
 
 ## Where Grafana Wins
@@ -74,7 +74,7 @@ Let's be direct about what Grafana does better:
 
 ## Where AgentPulse Wins
 
-**It actually fixes things.** This is the fundamental difference. Grafana (and Prometheus, and Alertmanager) can detect a problem, show it on a beautiful chart, and fire off an alert to your phone. Then you have to wake up, log into the server, and fix it. AgentPulse can detect that a rogue process is eating 99% CPU and kill it — before you ever get paged.
+**It actually fixes things.** This is the fundamental difference. Grafana (and Prometheus, and Alertmanager) can detect a problem, show it on a beautiful chart, and fire off an alert to your phone. Then you have to wake up, log into the server, and fix it. AgentPulse can detect a disk filling up and clear it, or a crashed service and restart it — verified, before you ever get paged.
 
 **60-second install.** One `curl | bash` and you're done. No Prometheus config files, no scrape interval tuning, no Alertmanager routing trees.
 
@@ -99,9 +99,9 @@ Here's how each tool handles a disk filling to 95% at 3AM:
 
 **With AgentPulse:**
 1. AgentPulse detects disk at 95%
-2. It compresses and rotates old logs automatically
-3. Disk drops to 70%
-4. You get a Telegram message: "Freed 8GB on prod-1 by rotating logs. Disk is now at 70%."
+2. It removes old files inside the cleanup paths you configured — after a dry-run simulation and a safety-gate check
+3. It re-measures: disk dropped below the threshold
+4. Your Slack/Discord webhook gets: "decision loop succeeded: disk_cleanup / — removed 8.2GB of files older than 3 days"
 5. You see the message in the morning and go about your day
 
 The Grafana approach gives you perfect visibility into the problem. The AgentPulse approach makes the problem disappear.
@@ -116,10 +116,10 @@ The Grafana approach gives you perfect visibility into the problem. The AgentPul
 5. Total time: 10–20 minutes, minimum
 
 **With AgentPulse:**
-1. AgentPulse detects a process exceeding CPU thresholds for 5 minutes
-2. Based on your approval gate setting (auto-fix or ask-first), it either kills the process or asks for your approval via Telegram
-3. CPU normalizes
-4. You get a notification with what happened and why
+1. AgentPulse flags the largest process the moment it crosses your memory threshold
+2. It queues the incident for your approval — killing a process is the one action AgentPulse never automates, because getting it wrong makes the night worse
+3. You approve (or dismiss) from the CLI with one command, with the full context in front of you
+4. Total time: about a minute, with a decision you made instead of a script guessing
 
 ## Who Should Use Grafana
 
@@ -137,11 +137,11 @@ Grafana is the right choice if:
 AgentPulse is the right choice if:
 
 - **You're a solo developer or indie founder.** You don't have time to maintain an observability stack. You need something that works and stays out of your way.
-- **You want auto-remediation.** No dashboard tells you when a process is killing your server at 3AM. AgentPulse fixes it.
+- **You want auto-remediation.** No dashboard restarts nginx or clears a full disk at 3AM. AgentPulse does — and verifies the fix held.
 - **You value simplicity.** One agent, one command to install, one flat monthly fee.
 - **You run 1–5 servers.** The Grafana stack adds significant overhead for a small number of servers. AgentPulse's $29–99/month is a better trade-off.
 - **You want predictable costs.** Fixed pricing means no surprises, no "we scaled our metrics volume and got a $500 overage."
-- **You're not a monitoring specialist.** AgentPulse's baseline learning figures out what's normal for your workload. You don't have to tune alert thresholds.
+- **You're not a monitoring specialist.** Sensible alert-only defaults, plus statistical baseline learning that flags "this server is behaving abnormally" before a hard threshold trips.
 
 ## Can You Use Both?
 
@@ -153,8 +153,8 @@ That said, if you're a small team choosing one tool: pick based on whether you n
 
 **Grafana is the right tool** if you need world-class dashboards, you have the ops capacity to maintain the full stack, and visibility across complex systems is your core requirement.
 
-**AgentPulse is the right tool** if you want your servers to stay healthy without you babysitting them — kill runaway processes, restart crashed services, block brute-force attacks, free disk space — all automatically.
+**AgentPulse is the right tool** if you want your servers to stay healthy without you babysitting them — free disk space, restart crashed services, flag runaway processes for one-command approval — with every fix verified after it runs.
 
 Grafana shows you the fire. AgentPulse puts it out.
 
-[Try AgentPulse free for 14 days →](https://agentpulse.dustinnstroud.com/signup)
+[Join the AgentPulse paid beta →](https://agentpulse.dustinnstroud.com/signup) — 30-day guarantee: if it doesn't catch or reduce one repeat incident, the next month is free.

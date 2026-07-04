@@ -3,24 +3,6 @@ layout: default
 title: Join the AgentPulse Paid Beta
 ---
 
-<!--
-  ========================================================================
-  DUSTINN — ONE-LINE GO-LIVE FOR REAL PAYMENT
-  ------------------------------------------------------------------------
-  To turn on real checkout, paste your Stripe Payment Link below, replacing
-  the placeholder in the `href` of the "checkout-cta" button (search the
-  page for STRIPE_PAYMENT_LINK).
-
-  To turn on a real backed lead form instead of (or alongside) checkout,
-  paste a Tally / Google Form embed URL into the iframe `src` below
-  (search for LEAD_FORM_EMBED) and delete the surrounding comment markers.
-
-  Until you do either, the page still works: the button and the form
-  section both fall back to a structured email capture, which is better
-  than a bare mailto because it pre-fills every field we need.
-  ========================================================================
--->
-
 # Join the paid beta
 
 AgentPulse is onboarding a small group of founders and small teams who run
@@ -52,23 +34,10 @@ just paging you about them.
 
 ## Reserve your slot
 
-<!--
-  LEAD_FORM_EMBED — to use a real backed form (Tally, Google Forms, Typeform):
-  1. Build a form with the fields listed under "What to include" below.
-  2. Paste its embed URL into the iframe src.
-  3. Delete this comment and the two "FORM-FALLBACK" comment lines to reveal the iframe.
-
-  <iframe src="LEAD_FORM_EMBED"
-          width="100%" height="720" frameborder="0"
-          title="AgentPulse Paid Beta signup"></iframe>
--->
-
-<!-- FORM-FALLBACK START (delete this block once the iframe above is live) -->
 The fastest way in tonight: hit the button above, or send the details below to
 [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20paid%20beta%20request).
 We reply within a few hours during the launch window with your recommended
 first-server setup and the payment link for your plan.
-<!-- FORM-FALLBACK END -->
 
 ### What to include
 
