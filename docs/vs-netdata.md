@@ -14,18 +14,18 @@ But here's the thing: **showing you the problem isn't the same as fixing it.**
 
 | Feature | AgentPulse | Netdata |
 |---------|-----------|---------|
-| Real-time metrics | ✅ | ✅ |
 | Auto-remediation | ✅ | ❌ |
-| Baseline learning | ✅ | ✅ (ML in paid tier) |
+| Baseline learning | ✅ (statistical, advisory) | ✅ (ML in paid tier) |
+| Real-time dashboards | 🔜 roadmap | ✅ (best in class) |
 | Pricing model | Per plan ($29-299/mo) | Per node ($4.50/node/mo Business) |
 | Beta access | Paid beta | 5 nodes free |
 | Install | `curl \| bash` | `curl \| bash` |
-| Alert integrations | Telegram, email, webhooks | Limited on free tier |
-| Auto-fix processes | ✅ | ❌ |
+| Alert integrations | Webhooks (Slack, Discord, PagerDuty, any HTTP) | Limited on free tier |
+| Flag runaway processes | ✅ (kill needs your approval — never automatic) | ❌ |
 | Auto-restart services | ✅ | ❌ |
 | Disk space recovery | ✅ | ❌ |
-| Security hardening | ✅ | ❌ |
-| Open source | Agent only | Full agent + cloud |
+| SSH brute-force blocking | 🔜 roadmap | ❌ |
+| Source available | Agent only | Full agent + cloud |
 
 ## Where Netdata Wins
 
@@ -39,13 +39,13 @@ But here's the thing: **showing you the problem isn't the same as fixing it.**
 - **Auto-remediation** — Netdata will show you a beautiful chart of your server dying. AgentPulse will save it.
 - **Simple pricing** — Netdata's per-node pricing gets expensive fast. 20 servers = $90/mo on Netdata Business. AgentPulse Business covers unlimited servers for $299/mo.
 - **No pricing games** — Netdata users have [complained bitterly](https://community.netdata.cloud/t/concerned-about-the-future-of-netdata-forced-sso-cloud/5771) about forced cloud, SSO requirements, and tier restrictions. AgentPulse is straightforward.
-- **Security features** — brute-force detection, suspicious process flagging, port monitoring built in.
+- **Verify-or-escalate** — every fix is simulated first, checked against hard safety rules, and re-measured after it runs. If the fix didn't hold, AgentPulse escalates to you instead of retrying blindly.
 
 ## The Bottom Line
 
 If you want the best real-time dashboards and don't mind being the remediation layer yourself, Netdata is great.
 
-If you want your servers to **heal themselves** — kill runaway processes, restart crashed services, free disk space — without you touching SSH, AgentPulse is built for that.
+If you want your servers to **heal themselves** — free disk space, restart crashed services, flag runaway processes for one-command approval — without you touching SSH, AgentPulse is built for that.
 
 **Netdata shows you the fire. AgentPulse puts it out.**
 

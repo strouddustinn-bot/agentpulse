@@ -123,8 +123,15 @@ def from_dict(data: Dict[str, Any]) -> Config:
         if ntype not in ("stdout", "webhook"):
             raise ConfigError(f"notify.type must be 'stdout' or 'webhook', got {ntype!r}")
         url = n.get("webhook_url", "")
-        if ntype == "webhook" and not url:
-            raise ConfigError("notify.webhook_url is required when notify.type is 'webhook'")
+        if ntype == "webhook":
+            if not url:
+                raise ConfigError("notify.webhook_url is required when notify.type is 'webhook'")
+            # The URL is handed to urllib verbatim; only web schemes make sense
+            # (file:// or ftp:// here is a misconfiguration at best).
+            if not str(url).startswith(("http://", "https://")):
+                raise ConfigError(
+                    f"notify.webhook_url must be an http:// or https:// URL, got {url!r}"
+                )
         cfg.notify = NotifyConfig(type=ntype, webhook_url=str(url))
 
     b = data.get("baseline", {})

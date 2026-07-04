@@ -29,7 +29,7 @@ Start from `agentpulse.config.example.json` (production) or
 | Field | Values | Description |
 |---|---|---|
 | `type` | `"stdout"` · `"webhook"` | Where alerts are sent. `"stdout"` prints to the journal. `"webhook"` POSTs JSON to `webhook_url`. |
-| `webhook_url` | URL string | Required when `type` is `"webhook"`. Discord/Slack webhook format is supported. |
+| `webhook_url` | URL string | Required when `type` is `"webhook"`; must be `http://` or `https://`. Discord/Slack webhook format is supported. |
 
 ---
 

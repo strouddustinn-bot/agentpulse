@@ -46,10 +46,10 @@ AgentPulse wins when the real problem is not visibility. It is repetitive infras
 
 New Relic is excellent at telling you that something is broken. AgentPulse is designed to take the next step:
 
-- kill runaway processes
 - restart dead services
 - free disk space using your rules
-- flag and respond to obvious server-side problems before they turn into outages
+- flag runaway processes for one-command approval (it never kills automatically)
+- verify every fix after it runs, and escalate to you if it didn't hold
 
 That difference matters for small teams. If the same issue has the same fix every week, the tool should do the boring part for you.
 

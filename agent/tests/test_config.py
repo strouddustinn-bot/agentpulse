@@ -53,6 +53,12 @@ def test_webhook_requires_url(tmp_path):
         cfgmod.load(write(tmp_path, {"notify": {"type": "webhook"}}))
 
 
+def test_webhook_rejects_non_http_url(tmp_path):
+    # The URL goes to urllib verbatim; anything but http(s) is a misconfiguration.
+    with pytest.raises(cfgmod.ConfigError):
+        cfgmod.load(write(tmp_path, {"notify": {"type": "webhook", "webhook_url": "file:///etc/passwd"}}))
+
+
 def test_missing_file():
     with pytest.raises(cfgmod.ConfigError):
         cfgmod.load("/no/such/file.json")
