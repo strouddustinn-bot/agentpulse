@@ -5,10 +5,12 @@ its own.
 Invariants under test:
   I1  A process is NEVER auto-executed (no auto-kill), under any mode.
   I2  Non-breached / 'off' observations never produce an action.
-  I3  The cleanup glob guard never approves a filesystem-root sweep.
+  I3  The cleanup glob guard never approves a filesystem-root sweep — including
+      patterns hiding behind a doubled leading slash ('//etc/*').
   I4  Real cleanup deletes ONLY regular files, older than the cutoff, inside the
       configured globs — never new files, never files outside the globs, never
-      directories or symlinks — and never raises.
+      directories or symlinks, and never through a symlinked directory that
+      resolves outside the cleanup base — and never raises.
   I5  Service restart refuses any name containing shell/injection characters.
   I6  Baseline learning never flags an anomaly during warmup.
   I7  The decision-loop safety gate fails closed: it never allows an action
@@ -82,9 +84,15 @@ def test_I3_glob_guard_never_allows_root_sweep():
         base = random.choice(FORBIDDEN_BASES)
         suffix = random.choice(["/*", "/**", "/*.log", "", "/" + _rand_name() + "/*"])
         pattern = base + suffix
+        if random.random() < 0.25:
+            # '//etc/*' — POSIX normpath preserves the doubled slash, but glob
+            # still expands it into the real /etc. Must still be refused.
+            pattern = "/" + pattern
         allowed = remediation._is_safe_cleanup_glob(pattern)
         # Anything whose fixed base is a forbidden root must be refused.
         fixed_base = os.path.normpath(remediation._glob_base_dir(pattern))
+        if fixed_base.startswith("//"):
+            fixed_base = "/" + fixed_base.lstrip("/")
         if fixed_base in FORBIDDEN_BASES or fixed_base == "/":
             assert allowed is False, pattern
         # Relative patterns always refused.
@@ -137,9 +145,33 @@ def test_I4_cleanup_only_old_files_in_globs(tmp_path):
         canary.write_text("do not touch")
         must_survive.add(str(canary))
 
+        # a symlinked directory inside the glob path: the second glob matches
+        # regular files *through* it, which resolve outside the cleanup base
+        # and must survive
+        victim = outside_dir / "victim.log"
+        victim.write_text("reachable only through the symlinked dir")
+        os.utime(victim, (now - 100 * 86400, now - 100 * 86400))
+        os.symlink(outside_dir, target_dir / "sneaky")
+        must_survive.add(str(victim))
+
+        # an honest subdirectory whose old file SHOULD be cleaned by the
+        # second glob, proving containment doesn't over-block
+        real_sub = target_dir / "realsub"
+        real_sub.mkdir()
+        doomed = real_sub / "doomed.log"
+        doomed.write_text("x")
+        os.utime(doomed, (now - 100 * 86400, now - 100 * 86400))
+        expected_deleted.add(str(doomed))
+
         obs = Observation(
             check="disk", target="/", breached=True,
-            metadata={"cleanup_globs": [str(target_dir / "*.log")], "cleanup_older_than_days": 3},
+            metadata={
+                "cleanup_globs": [
+                    str(target_dir / "*.log"),
+                    str(target_dir / "*" / "*.log"),
+                ],
+                "cleanup_older_than_days": 3,
+            },
         )
         dec = Decision(action="disk_cleanup", target="/", mode_effective="auto",
                        execute=True, requires_approval=False, reason="r", observation=obs)
