@@ -56,8 +56,8 @@ human instead of retrying** — the loop refuses to spiral.
 ## What's NOT here yet (honest roadmap)
 
 - Cloud dashboard / multi-server fleet view
-- ML-grade pattern learning (a statistical baseline — per-metric mean/variance with advisory anomaly alerts — ships today in `baseline.py`)
-- More remediation actions and native integrations (Slack/Discord webhooks work today via `notify.webhook_url`)
+- Baseline/ML learning of "normal"
+- More remediation actions and integrations (Slack/Discord)
 - Hosted control plane
 
 v1 is a single-host agent you install and configure yourself. That's it — and
@@ -65,7 +65,7 @@ it's real, tested, and conservative on purpose.
 
 ## Guard rails are tested, not promised
 
-The agent ships with a **78-test suite, including a 7,500-iteration fuzz harness**
+The agent ships with a **75-test suite, including a 7,500-iteration fuzz harness**
 asserting the safety invariants: never sweep a system path, never delete new
 files / directories / symlinks, never auto-kill a process (even when approved),
 refuse injection in service names, and fail the safety gate closed on any action

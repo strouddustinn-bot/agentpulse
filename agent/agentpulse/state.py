@@ -34,10 +34,6 @@ class State:
                     st.data = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 st.data = {"pending": {}, "last_run": None, "baselines": {}}
-        if not isinstance(st.data, dict):
-            # Valid JSON but not an object (e.g. a list or string): treat it
-            # like corruption rather than crashing on the first access.
-            st.data = {"pending": {}, "last_run": None, "baselines": {}}
         st.data.setdefault("pending", {})
         st.data.setdefault("baselines", {})
         return st

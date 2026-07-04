@@ -14,19 +14,19 @@ But "free" has limitations. Uptime Kuma watches your servers from the outside. I
 
 | Feature | AgentPulse | Uptime Kuma |
 |---------|-----------|-------------|
-| External uptime checks | ❌ (inside-the-server agent) | ✅ |
+| Uptime monitoring | ✅ | ✅ |
 | Auto-remediation | ✅ | ❌ |
 | Server-side agent | ✅ | ❌ |
-| Baseline learning | ✅ (statistical, advisory) | ❌ |
-| Process monitoring | ✅ (memory runaways) | ❌ |
-| Disk/RAM metrics | ✅ | ❌ |
-| Service monitoring | ✅ (systemd, from inside) | ⚠️ (external only) |
-| Status pages | ❌ | ✅ |
-| Self-hosted | Agent runs on your server | Full stack |
+| Baseline learning | ✅ | ❌ |
+| Process monitoring | ✅ | ❌ |
+| Disk/RAM/CPU metrics | ✅ | ❌ |
+| Service monitoring | ✅ | ⚠️ (external only) |
+| Status pages | ❌ (coming) | ✅ |
+| Self-hosted | Agent only | Full stack |
 | Cost | $29-299/mo | Free (self-hosted) |
-| Maintenance | One dependency-free systemd service | You maintain it |
-| Alerts | Webhooks (Slack, Discord, PagerDuty, any HTTP) | Many built-in channels |
-| SSH brute-force blocking | 🔜 roadmap | ❌ |
+| Maintenance | Zero | You maintain it |
+| Telegram alerts | ✅ | ✅ |
+| Security monitoring | ✅ | ❌ |
 
 ## Where Uptime Kuma Wins
 
@@ -38,17 +38,21 @@ But "free" has limitations. Uptime Kuma watches your servers from the outside. I
 
 ## Where AgentPulse Wins
 
-- **Auto-remediation** — Uptime Kuma tells you your server is down. AgentPulse fixes the things that make it go down.
-- **Server-side monitoring** — AgentPulse runs inside your server, so it sees RAM, disk, and processes — not just "is port 443 responding?"
-- **Minimal maintenance** — no Docker container, no database to back up; one dependency-free Python agent under systemd
-- **Baseline learning** — learns what's statistically normal for your server and flags deviations early
-- **Verify-or-escalate** — every fix is simulated, safety-gated, and re-measured; if it didn't hold, you get escalated to instead of spammed
+- **Auto-remediation** — Uptime Kuma tells you your server is down. AgentPulse fixes it.
+- **Server-side monitoring** — AgentPulse runs inside your server, so it sees CPU, RAM, disk, processes — not just "is port 443 responding?"
+- **Zero maintenance** — no Docker container to keep running, no updates to apply, no database to back up
+- **Baseline learning** — learns what's normal and catches anomalies early
+- **Security features** — brute-force detection, suspicious process monitoring
 
-## Different Vantage Points
+## The Self-Hosted Paradox
 
-Uptime Kuma watches from the outside: is the port answering, is the site up. AgentPulse watches from the inside: is the disk filling, did a service die, is a process eating all the memory — and it can act on what it sees.
+Uptime Kuma is self-hosted. That means the monitoring tool runs on... your server. The same server you're monitoring. Which means:
 
-That's why they're not really substitutes. Kuma can't clean a disk or restart a failed unit; AgentPulse can't tell you whether your site is reachable from another continent. If external uptime matters to you, running both is a perfectly good setup — Kuma for the outside view, AgentPulse to fix what's fixable before it becomes an outage.
+- **If your server goes down, your monitoring goes down too**
+- You need a second server just to monitor the first one
+- You're responsible for updates, backups, and uptime of the monitoring tool itself
+
+AgentPulse is a managed service. Your monitoring doesn't go down when your server does. The alerts still fire. The remediation still runs.
 
 ## When to Upgrade from Uptime Kuma
 

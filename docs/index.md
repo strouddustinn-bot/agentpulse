@@ -31,7 +31,7 @@ Most monitoring products stop at alerts. AgentPulse focuses on the repeat incide
 | Memory runaway | Shows a spike | Flags the largest offender (never auto-kills in v1) |
 | Fix didn't hold | — | Re-checks after acting and escalates to you instead of retrying |
 
-*Everything ships alert-only. You choose what AgentPulse may auto-fix, and every auto-fix is simulated and verified before and after it runs. Statistical baseline learning is built in (advisory anomaly alerts); a fleet dashboard is on the roadmap.*
+*Everything ships alert-only. You choose what AgentPulse may auto-fix, and every auto-fix is simulated and verified before and after it runs. Baseline learning and a fleet dashboard are on the roadmap.*
 
 ## Paid beta offer
 

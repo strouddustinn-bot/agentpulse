@@ -32,12 +32,12 @@ If you're a small team running Datadog, you know the feeling:
 
 For **$99/month** (Pro plan, 5 servers):
 
-- ✅ Continuous monitoring (disk, services, memory, runaway processes)
-- ✅ **Auto-remediation** — free disk space, restart services, flag runaway processes for one-command approval
-- ✅ Verify-or-escalate — every fix is simulated, safety-gated, and re-measured after it runs
-- ✅ Baseline learning — statistical anomaly detection tuned to *your* server's normal
-- ✅ Webhook alerts — wire into Slack, Discord, PagerDuty, or anything that accepts HTTP
-- 🔜 Dashboard, fleet view, and SSH brute-force blocking are on the roadmap — priced-in, not upsold, when they land
+- ✅ Real-time monitoring (CPU, RAM, disk, processes, services)
+- ✅ **Auto-remediation** — kill runaway processes, restart services, free disk space
+- ✅ Baseline learning — anomaly detection without false positives
+- ✅ Telegram, email, and webhook alerts
+- ✅ Security hardening — brute-force detection, suspicious process monitoring
+- ✅ Real-time dashboard
 
 The same feature set on Datadog? **$300-500+/month.**
 

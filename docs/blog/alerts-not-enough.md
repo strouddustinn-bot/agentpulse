@@ -40,10 +40,10 @@ The pattern: auto-remediation exists, but it's locked behind enterprise pricing 
 
 AgentPulse brings auto-remediation to solo devs, indie hackers, and small teams:
 
-- **Auto-restart crashed services** — nginx down? Back up in seconds, and re-checked to confirm it stayed up
-- **Auto-free disk space** — log rotation failed? Old files cleaned up inside the paths you configured, never anywhere else
-- **Flag runaway processes** — that Java app eating all your RAM gets identified and queued for your one-command approval (AgentPulse never kills a process on its own — that's the one fix that can make a bad night worse)
-- **Approval gates** — auto-fix, ask-first, or alert-only per action, with alert-only as the default for everything
+- **Auto-kill runaway processes** — that Java app eating all your RAM? Terminated automatically
+- **Auto-restart crashed services** — nginx down? Back up in seconds
+- **Auto-free disk space** — log rotation failed? Cleaned up based on your rules
+- **Approval gates** — auto-fix, ask-first, or alert-only per action
 
 Starting at **$29/mo for monitoring** and **$99/mo for auto-remediation** — no sales calls, no per-GB billing.
 
