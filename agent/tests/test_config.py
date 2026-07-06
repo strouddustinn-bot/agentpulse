@@ -84,3 +84,26 @@ def test_example_config_is_valid():
     assert c.disk.mode == "alert"
     assert c.service.mode == "alert"
     assert c.process.mode == "alert"
+
+
+def test_checkin_config_valid(tmp_path):
+    c = cfgmod.load(write(tmp_path, {
+        "checkin": {
+            "endpoint_url": "https://api.example.com/api/agent/checkin",
+            "auth_token": "secret-token",
+            "timeout_seconds": 5,
+        }
+    }))
+    assert c.checkin.endpoint_url == "https://api.example.com/api/agent/checkin"
+    assert c.checkin.auth_token == "secret-token"
+    assert c.checkin.timeout_seconds == 5
+
+
+def test_checkin_endpoint_rejects_non_http_url(tmp_path):
+    with pytest.raises(cfgmod.ConfigError):
+        cfgmod.load(write(tmp_path, {"checkin": {"endpoint_url": "file:///tmp/checkin"}}))
+
+
+def test_checkin_timeout_must_be_positive(tmp_path):
+    with pytest.raises(cfgmod.ConfigError):
+        cfgmod.load(write(tmp_path, {"checkin": {"timeout_seconds": 0}}))

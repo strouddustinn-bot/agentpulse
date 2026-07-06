@@ -7,7 +7,7 @@ import sys
 from typing import List, Optional
 
 from . import __version__, config as config_mod
-from .checkin import build_checkin_payload, payload_to_json
+from .checkin import CheckinDeliveryError, build_checkin_payload, payload_to_json, send_checkin_payload
 from .notify import Notifier
 from .runner import approve, run_loop, run_once
 from .state import State
@@ -82,13 +82,21 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1 if summary.errors else 0
 
     if args.command == "check-in":
-        if not args.dry_run:
-            print("check-in currently supports --dry-run only; backend delivery is not implemented", file=sys.stderr)
-            return 2
         cfg, state, _ = _load(args.config)
         summary = run_once(cfg, state, _SilentNotifier(), dry_run=True)
         payload = build_checkin_payload(cfg, summary)
-        print(payload_to_json(payload))
+
+        if args.dry_run:
+            print(payload_to_json(payload))
+            return 1 if summary.errors else 0
+
+        try:
+            status = send_checkin_payload(cfg, payload)
+        except CheckinDeliveryError as exc:
+            print(f"CHECK-IN FAILED: {exc}", file=sys.stderr)
+            return 2
+
+        print(f"check-in delivered status={status}")
         return 1 if summary.errors else 0
 
     if args.command == "run":
