@@ -8,6 +8,8 @@ payload, print it, and do not require a network service.
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -57,3 +59,42 @@ def build_checkin_payload(
 def payload_to_json(payload: Dict[str, Any]) -> str:
     """Serialize a check-in payload for CLI output."""
     return json.dumps(payload, indent=2, sort_keys=True)
+
+
+class CheckinDeliveryError(RuntimeError):
+    """Raised when check-in delivery fails safely."""
+
+
+def send_checkin_payload(cfg: Config, payload: Dict[str, Any], opener=None) -> int:
+    """POST a check-in payload to the configured endpoint.
+
+    Uses urllib from the standard library to keep the agent dependency-free.
+    Returns the HTTP status code on success.
+    """
+    if not cfg.checkin.endpoint_url:
+        raise CheckinDeliveryError("checkin.endpoint_url is required for delivery")
+
+    body = json.dumps(payload).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": f"AgentPulse/{__version__}",
+    }
+    if cfg.checkin.auth_token:
+        headers["Authorization"] = f"Bearer {cfg.checkin.auth_token}"
+
+    req = urllib.request.Request(
+        cfg.checkin.endpoint_url,
+        data=body,
+        headers=headers,
+        method="POST",
+    )
+
+    open_fn = opener or urllib.request.urlopen
+    try:
+        with open_fn(req, timeout=cfg.checkin.timeout_seconds) as resp:  # noqa: S310
+            status = getattr(resp, "status", 200)
+            if not 200 <= status < 300:
+                raise CheckinDeliveryError(f"check-in endpoint returned HTTP {status}")
+            return int(status)
+    except (urllib.error.URLError, OSError) as exc:
+        raise CheckinDeliveryError(f"check-in delivery failed: {exc}") from exc

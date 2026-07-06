@@ -47,6 +47,13 @@ class NotifyConfig:
 
 
 @dataclass
+class CheckinConfig:
+    endpoint_url: str = ""
+    auth_token: str = ""
+    timeout_seconds: float = 10.0
+
+
+@dataclass
 class BaselineConfig:
     """Statistical baseline learning (per-metric mean/variance, z-score anomalies).
 
@@ -66,6 +73,7 @@ class Config:
     state_file: str = "/var/lib/agentpulse/state.json"
     log_file: str = "/var/log/agentpulse/agentpulse.log"
     notify: NotifyConfig = field(default_factory=NotifyConfig)
+    checkin: CheckinConfig = field(default_factory=CheckinConfig)
     baseline: BaselineConfig = field(default_factory=BaselineConfig)
     disk: DiskCheckConfig = field(default_factory=DiskCheckConfig)
     service: ServiceCheckConfig = field(default_factory=ServiceCheckConfig)
@@ -133,6 +141,21 @@ def from_dict(data: Dict[str, Any]) -> Config:
                     f"notify.webhook_url must be an http:// or https:// URL, got {url!r}"
                 )
         cfg.notify = NotifyConfig(type=ntype, webhook_url=str(url))
+
+    cin = data.get("checkin", {})
+    if cin:
+        endpoint_url = str(cin.get("endpoint_url", ""))
+        if endpoint_url and not endpoint_url.startswith(("http://", "https://")):
+            raise ConfigError(
+                f"checkin.endpoint_url must be an http:// or https:// URL, got {endpoint_url!r}"
+            )
+        cfg.checkin = CheckinConfig(
+            endpoint_url=endpoint_url,
+            auth_token=str(cin.get("auth_token", "")),
+            timeout_seconds=_positive_number(
+                "checkin.timeout_seconds", cin.get("timeout_seconds", 10.0)
+            ),
+        )
 
     b = data.get("baseline", {})
     if b:
