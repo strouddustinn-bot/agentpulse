@@ -9,3 +9,4 @@ __pycache__/
 *.pyo
 /tmp/agentpulse/
 .pytest_cache/
+load-tests/archive/
