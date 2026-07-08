@@ -9,5 +9,6 @@ __pycache__/
 *.pyo
 /tmp/agentpulse/
 .pytest_cache/
+.coverage
 load-tests/archive/
 load-tests/archive/
