@@ -29,7 +29,6 @@ jobs:
       AWS_ACCOUNT_ID: "439855819631"
       ECR_REPO: agentpulse-backend
       IMAGE_TAG: ${{ github.sha }}
-      IMAGE_URI: "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ github.sha }}"
       TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
     steps:
@@ -56,7 +55,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE_URI }}
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ github.sha }}
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -71,4 +70,4 @@ jobs:
         env:
           TF_VAR_aws_region: ${{ env.AWS_REGION }}
           TF_VAR_aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
-          TF_VAR_container_image: ${{ env.IMAGE_URI }}
+          TF_VAR_container_image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ github.sha }}
