@@ -10,7 +10,7 @@ name: Deploy Backend (AWS Fargate)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - "backend/**"
       - "infra/aws/**"
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write   # for OIDC
+      id-token: write # for OIDC
       contents: read
 
     env:
@@ -30,6 +30,7 @@ jobs:
       ECR_REPO: agentpulse-backend
       IMAGE_TAG: ${{ github.sha }}
       IMAGE_URI: "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ github.sha }}"
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
     steps:
       - name: Checkout
