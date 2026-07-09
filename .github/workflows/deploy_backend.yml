@@ -1,0 +1,73 @@
+# Deploy backend to AWS ECS/Fargate
+# Requires:
+#   • AWS OIDC role with ECR & ECS permissions → secret: AWS_ROLE_TO_ASSUME
+#   • Optional: TF_VAR_* env vars can be overriden in repo / org secrets.
+#   • The backend Docker image is built & pushed to both GHCR and ECR.
+#
+# IMPORTANT: the first run will create the ECR repo. Subsequent runs reuse it.
+
+name: Deploy Backend (AWS Fargate)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "backend/**"
+      - "infra/aws/**"
+      - ".github/workflows/deploy_backend.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write   # for OIDC
+      contents: read
+
+    env:
+      AWS_REGION: us-east-2
+      AWS_ACCOUNT_ID: "439855819631"
+      ECR_REPO: agentpulse-backend
+      IMAGE_TAG: ${{ github.sha }}
+      IMAGE_URI: "${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO }}:${{ github.sha }}"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push backend image to ECR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_URI }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        run: terraform -chdir=infra/aws init
+
+      - name: Terraform Apply
+        run: terraform -chdir=infra/aws apply -auto-approve -input=false
+        env:
+          TF_VAR_aws_region: ${{ env.AWS_REGION }}
+          TF_VAR_aws_account_id: ${{ env.AWS_ACCOUNT_ID }}
+          TF_VAR_container_image: ${{ env.IMAGE_URI }}
