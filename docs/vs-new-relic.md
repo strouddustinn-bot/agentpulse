@@ -8,7 +8,7 @@ description: "New Relic gives broad observability. AgentPulse focuses on Linux s
 
 New Relic and AgentPulse solve different slices of the same problem.
 
-New Relic is a broad observability platform. It is built to help engineering teams understand applications, infrastructure, logs, and traces across a larger stack. AgentPulse is narrower on purpose: monitor Linux servers, learn normal behavior, and remediate common failures before you have to wake up and SSH in.
+New Relic is a broad observability platform. It is built to help engineering teams understand applications, infrastructure, logs, and traces across a larger stack. AgentPulse is narrower on purpose: monitor Linux/macOS hosts, learn normal behavior, and remediate common failures before you have to wake up and SSH in.
 
 If your recurring incidents look like "disk is full," "the service died," or "this process is eating memory again," the smaller product can be the better fit.
 
@@ -16,7 +16,7 @@ If your recurring incidents look like "disk is full," "the service died," or "th
 
 | Feature | AgentPulse | New Relic |
 |---------|-----------|-----------|
-| Primary job | Keep Linux servers healthy | Observe apps, infra, logs, and traces |
+| Primary job | Keep Linux/macOS hosts healthy | Observe apps, infra, logs, and traces |
 | Auto-remediation | ✅ Built in | Manual response or external automation |
 | Setup style | One-command install | Agent install plus dashboards, alerts, and broader configuration |
 | Pricing model | Flat plans | Usage-based |
@@ -94,7 +94,7 @@ For solo operators and small agencies, flat plans are easier to budget than a us
 
 **Use AgentPulse if:**
 
-- you run Linux servers and want the obvious fixes automated
+- you run Linux/macOS hosts and want the obvious fixes automated
 - your incident response still starts with manual SSH
 - you care more about uptime and remediation than observability breadth
 - your team is small enough that simplicity is a feature

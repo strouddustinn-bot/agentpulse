@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 from agentpulse import remediation
@@ -13,20 +14,33 @@ def _decision_cleanup(globs, days=3, target="/"):
         metadata={"cleanup_globs": globs, "cleanup_older_than_days": days},
     )
     return Decision(
-        action="disk_cleanup", target=target, mode_effective="auto",
-        execute=True, requires_approval=False, reason="r", observation=obs,
+        action="disk_cleanup",
+        target=target,
+        mode_effective="auto",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
     )
 
 
 def _decision_service(name):
-    obs = Observation(check="service", target=name, breached=True, metadata={"service": name})
+    obs = Observation(
+        check="service", target=name, breached=True, metadata={"service": name}
+    )
     return Decision(
-        action="service_restart", target=name, mode_effective="auto",
-        execute=True, requires_approval=False, reason="r", observation=obs,
+        action="service_restart",
+        target=name,
+        mode_effective="auto",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
     )
 
 
 # ---- safety guard on globs -------------------------------------------------
+
 
 def test_unsafe_root_globs_refused():
     for bad in ["/", "/*", "/etc/*", "/usr/*", "/bin/*", "relative/*", ""]:
@@ -61,6 +75,7 @@ def test_cleanup_refuses_when_all_globs_unsafe(tmp_path):
 
 
 # ---- real filesystem behavior ---------------------------------------------
+
 
 def test_cleanup_deletes_only_old_files(tmp_path):
     old = tmp_path / "old.log"
@@ -139,6 +154,7 @@ def test_cleanup_never_escapes_through_symlinked_dir(tmp_path):
 
 # ---- service name validation ----------------------------------------------
 
+
 def test_service_restart_rejects_injection():
     for bad in ["nginx; rm -rf /", "a b", "$(reboot)", "x|y", ""]:
         res = remediation.service_restart(_decision_service(bad))
@@ -153,10 +169,54 @@ def test_service_restart_dry_run():
 
 
 def test_service_restart_success():
-    res = remediation.service_restart(_decision_service("nginx"), run_fn=lambda argv: (0, ""))
+    res = remediation.service_restart(
+        _decision_service("nginx"), run_fn=lambda argv: (0, "")
+    )
     assert res.performed is True
 
 
 def test_service_restart_failure():
-    res = remediation.service_restart(_decision_service("nginx"), run_fn=lambda argv: (1, "boom"))
+    res = remediation.service_restart(
+        _decision_service("nginx"), run_fn=lambda argv: (1, "boom")
+    )
     assert res.performed is False and res.error is not None
+
+
+def test_service_restart_uses_launchctl_on_macos():
+    calls = []
+    original_platform = sys.platform
+
+    def fake_run(argv):
+        calls.append(argv)
+        return 0, ""
+
+    try:
+        sys.platform = "darwin"
+        res = remediation.service_restart(
+            _decision_service("com.example.agent"), run_fn=fake_run
+        )
+    finally:
+        sys.platform = original_platform
+
+    assert res.ok
+    assert res.performed is True
+    assert calls == [["launchctl", "kickstart", "-k", "system/com.example.agent"]]
+
+
+def test_service_restart_uses_systemctl_off_macos():
+    calls = []
+    original_platform = sys.platform
+
+    def fake_run(argv):
+        calls.append(argv)
+        return 0, ""
+
+    try:
+        sys.platform = "linux"
+        res = remediation.service_restart(_decision_service("nginx"), run_fn=fake_run)
+    finally:
+        sys.platform = original_platform
+
+    assert res.ok
+    assert res.performed is True
+    assert calls == [["systemctl", "restart", "nginx"]]

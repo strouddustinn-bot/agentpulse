@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Protocol
 
-from . import baseline, checks, decision_loop, policy, remediation
+from . import baseline, checks, decision_loop, policy
+from .checkin import CheckinDeliveryError, build_checkin_payload, send_checkin_payload
 from .config import Config
 from .models import Decision, Observation
-from .notify import Notifier
 from .state import State
+
+
+class NotifierLike(Protocol):
+    def send(self, title: str, body: str) -> bool: ...
 
 
 def mode_for(cfg: Config, check: str) -> str:
@@ -68,7 +72,7 @@ def learn_baselines(
     cfg: Config,
     state: State,
     observations: List[Observation],
-    notifier: Notifier,
+    notifier: NotifierLike,
     summary: "CycleSummary",
     mem_fn=checks.host_memory_percent,
 ) -> None:
@@ -90,13 +94,36 @@ def learn_baselines(
             notifier.send(f"baseline anomaly: {key}", reason)
 
 
+def send_backend_checkin(
+    cfg: Config,
+    summary: CycleSummary,
+    notifier: NotifierLike,
+    sender: Callable[[Config, Dict[str, Any]], int] = send_checkin_payload,
+) -> bool:
+    """Send a best-effort backend check-in if configured.
+
+    Backend outages must never stop local monitoring/remediation. Failure is
+    surfaced through the normal notifier and the next cycle will try again.
+    """
+    if not cfg.checkin.endpoint_url:
+        return False
+    payload = build_checkin_payload(cfg, summary)
+    try:
+        sender(cfg, payload)
+        return True
+    except CheckinDeliveryError as exc:
+        notifier.send("backend check-in failed", str(exc))
+        return False
+
+
 def run_once(
     cfg: Config,
     state: State,
-    notifier: Notifier,
+    notifier: NotifierLike,
     dry_run: bool = False,
     gather_fn: Callable[[Config], List[Observation]] = checks.gather,
     run_fn=None,
+    checkin_sender: Callable[[Config, Dict[str, Any]], int] = send_checkin_payload,
 ) -> CycleSummary:
     summary = CycleSummary()
     observations = gather_fn(cfg)
@@ -132,7 +159,11 @@ def run_once(
             label = f"{decision.action}:{decision.target}"
             details = "\n".join(
                 [rec.expectation]
-                + (rec.execution.details if rec.execution else (rec.simulation.details if rec.simulation else []))
+                + (
+                    rec.execution.details
+                    if rec.execution
+                    else (rec.simulation.details if rec.simulation else [])
+                )
                 + rec.notes
             )
             if rec.outcome in ("succeeded", "executed_unverified", "simulated_only"):
@@ -145,7 +176,8 @@ def run_once(
                 summary.escalations.append(label)
                 notifier.send(
                     f"ESCALATION: {decision.action} ran but did not clear",
-                    details + "\n→ needs a human; the agent will not retry automatically.",
+                    details
+                    + "\n→ needs a human; the agent will not retry automatically.",
                 )
             elif rec.outcome == "blocked":
                 summary.blocked.append(label)
@@ -156,13 +188,17 @@ def run_once(
             else:  # failed
                 err = rec.execution.error if rec.execution else "unknown error"
                 summary.errors.append(f"{label}: {err}")
-                notifier.send(f"auto-fix FAILED: {decision.action}", err or "unknown error")
+                notifier.send(
+                    f"auto-fix FAILED: {decision.action}", err or "unknown error"
+                )
         else:
             summary.alerts.append(f"{obs.check}:{obs.target}")
             notifier.send(f"alert: {obs.check}", obs.detail)
 
     state.mark_run()
     state.save()
+    if not dry_run:
+        send_backend_checkin(cfg, summary, notifier, sender=checkin_sender)
     return summary
 
 
@@ -211,7 +247,13 @@ def approve(
     return rec
 
 
-def run_loop(cfg: Config, state: State, notifier: Notifier, dry_run: bool = False, max_cycles: Optional[int] = None) -> None:  # pragma: no cover - long running
+def run_loop(
+    cfg: Config,
+    state: State,
+    notifier: NotifierLike,
+    dry_run: bool = False,
+    max_cycles: Optional[int] = None,
+) -> None:  # pragma: no cover - long running
     cycles = 0
     while True:
         run_once(cfg, state, notifier, dry_run=dry_run)

@@ -1,5 +1,4 @@
-import pytest
-
+import pytest  # type: ignore
 from agentpulse import policy
 from agentpulse.models import Observation
 
@@ -18,21 +17,25 @@ def test_off_returns_none():
 
 def test_alert_notifies_only():
     d = policy.decide("disk", "alert", obs())
+    assert d is not None
     assert d.execute is False and d.requires_approval is False
 
 
 def test_ask_requires_approval():
     d = policy.decide("service", "ask", obs("service"))
+    assert d is not None
     assert d.requires_approval is True and d.execute is False
 
 
 def test_auto_executes():
     d = policy.decide("disk", "auto", obs())
+    assert d is not None
     assert d.execute is True and d.requires_approval is False
 
 
 def test_process_auto_is_clamped_to_ask():
     d = policy.decide("process", "auto", obs("process"))
+    assert d is not None
     assert d.execute is False
     assert d.requires_approval is True
     assert d.clamped_from == "auto"

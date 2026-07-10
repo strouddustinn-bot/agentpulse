@@ -1,12 +1,12 @@
 ---
 layout: default
 title: "AgentPulse Features — Server Monitoring That Fixes Problems, Safely"
-description: "Policy-gated auto-remediation, a verify-or-escalate decision loop, statistical baseline learning, and approval gates. Everything AgentPulse does today to keep your Linux servers running — and what's on the roadmap."
+description: "Policy-gated auto-remediation, a verify-or-escalate decision loop, statistical baseline learning, and approval gates. Everything AgentPulse does today to keep your Linux and macOS hosts running — and what's on the roadmap."
 ---
 
 # AgentPulse Features
 
-AgentPulse is a thin Linux monitoring agent with one job that most monitoring tools still refuse to do: **fix problems, not just report them**.
+AgentPulse is a thin Linux/macOS monitoring agent with one job that most monitoring tools still refuse to do: **fix problems, not just report them**.
 
 Here's everything it does today — and, clearly labeled, what's on the roadmap. We'd rather under-promise than surprise you at 3 AM.
 
@@ -26,7 +26,7 @@ AgentPulse monitors disk usage per configured path and cleans up based on your r
 
 ### Restart Crashed Services
 
-nginx down? A worker died? AgentPulse detects the failed systemd unit and brings it back up — in seconds, not minutes after your on-call rotation finally wakes up.
+nginx down? A worker died? AgentPulse detects the failed systemd unit on Linux or launchd service on macOS and brings it back up — in seconds, not minutes after your on-call rotation finally wakes up.
 
 You define an allowlist of services it may manage. It restarts them, verifies they actually came back, and reports what happened. If the restart doesn't hold, it escalates to you instead of cycling endlessly.
 
@@ -54,7 +54,7 @@ Every fix — automatic or human-approved — runs the same six-stage loop befor
 
 **Record** — the full cycle (expectation, simulation, gate verdict, execution, verification, outcome) is captured for analysis, so you can always answer "what did the agent do and why?"
 
-These guarantees aren't promises — they're enforced by a 78-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
+These guarantees aren't promises — they're enforced by a 102-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
 
 ---
 
@@ -132,9 +132,9 @@ sudo bash install.sh
 
 The installer:
 
-1. Checks for Python 3.8+ (the agent is dependency-free — no pip, no venv)
-2. Installs the agent to `/opt/agentpulse` and registers a hardened systemd service
-3. Writes a default **alert-only** config to `/etc/agentpulse/config.json` and validates it
+1. Checks for Python 3.10+ (the agent is dependency-free at runtime)
+2. Installs the agent and registers a systemd service on Linux or launchd daemon on macOS
+3. Writes a default **alert-only** config and validates it
 4. Starts watching immediately — and changes nothing until you promote a check yourself
 
 No account required to run the agent. No firewall rules to open (alerts are outbound-only). Works on any systemd-based Linux — VPS, bare metal, cloud instance, home lab.
@@ -171,7 +171,7 @@ AgentPulse is purpose-built for a specific problem. It doesn't try to do everyth
 
 **Not an enterprise observability platform.** No SSO, no RBAC, no SOC 2 compliance documentation, no 20-product pricing calculator. AgentPulse is for small teams who want things to work, not enterprise buyers who need a vendor to check boxes.
 
-If you need any of those things, we'll point you toward tools that do them well. AgentPulse does one thing well: **keep your Linux servers running without waking you up to fix them.**
+If you need any of those things, we'll point you toward tools that do them well. AgentPulse does one thing well: **keep your Linux/macOS hosts running without waking you up to fix them.**
 
 ---
 

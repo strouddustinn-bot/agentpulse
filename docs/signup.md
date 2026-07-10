@@ -6,7 +6,7 @@ title: Join the AgentPulse Paid Beta
 # Join the paid beta
 
 AgentPulse is onboarding a small group of founders and small teams who run
-1–10 Linux servers and want monitoring that can safely remediate repeat
+1–10 Linux/macOS hosts and want monitoring that can safely remediate repeat
 incidents — disk pressure, crashed services, runaway processes — instead of
 just paging you about them.
 
@@ -41,8 +41,8 @@ first-server setup and the payment link for your plan.
 
 ### What to include
 
-- Number of Linux servers you want to monitor.
-- Hosting provider (Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail/EC2).
+- Number of Linux/macOS hosts you want to monitor.
+- Hosting provider or environment (Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail/EC2, Mac mini, etc.).
 - Your stack: web server, process manager (PM2/systemd), database.
 - The incident that keeps repeating.
 - Whether you want to start alert-only, ask-first, or auto-fix.
@@ -64,7 +64,7 @@ Every policy is visible, reversible, and scoped to the server it runs on.
 
 ## Good first beta fit
 
-- You run 1–10 Linux servers for a real app or client workload.
+- You run 1–10 Linux/macOS hosts for a real app or client workload.
 - You already have alerts, but still SSH in to fix the same things.
 - You can name one recurring issue you want reduced: disk pressure, crashed
   services, runaway processes, or similar.

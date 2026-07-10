@@ -6,7 +6,7 @@ title: Install AgentPulse
 # Install guide
 
 AgentPulse is a self-serve, dependency-free agent that runs as a systemd service
-on one Linux box. It installs in **alert-only** mode — it watches and changes
+on Linux or a launchd daemon on macOS. It installs in **alert-only** mode — it watches and changes
 nothing until you say so.
 
 ```bash
@@ -15,9 +15,25 @@ less install.sh          # review it — it runs as root
 sudo bash install.sh
 ```
 
-Requires Python 3.8+ and systemd. The installer writes a default config to
+Linux requires Python 3.10+ and systemd. The Linux installer writes a default config to
 `/etc/agentpulse/config.json`, registers the service, and starts it in
 alert-only mode.
+
+## macOS launchd install
+
+Install the Python package, then run the packaged launchd installer:
+
+```bash
+python3 -m pip install agentpulse
+sudo agentpulse install-launchd
+```
+
+The macOS installer writes `/usr/local/etc/agentpulse/config.json`, installs
+`/Library/LaunchDaemons/com.agentpulse.agent.plist`, starts it with launchd,
+and logs to `/usr/local/var/log/agentpulse/agentpulse.log`.
+
+For service checks on macOS, configure launchd labels such as `com.apple.sshd`
+or your own `com.company.service` labels.
 
 ## Recommended rollout
 
@@ -55,6 +71,12 @@ repeating.
 ## Uninstall
 
 ```bash
+# Linux
 sudo systemctl disable --now agentpulse
-sudo rm -rf /opt/agentpulse /usr/local/bin/agentpulse /etc/systemd/system/agentpulse.service
+sudo rm -rf /opt/agentpulse /usr/local/bin/agentpulse /etc/systemd/system/agentpulse.service /etc/agentpulse
+
+# macOS
+sudo launchctl bootout system /Library/LaunchDaemons/com.agentpulse.agent.plist
+sudo rm -f /Library/LaunchDaemons/com.agentpulse.agent.plist
+sudo rm -rf /usr/local/etc/agentpulse /usr/local/var/log/agentpulse
 ```

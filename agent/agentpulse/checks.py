@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from typing import Callable, List, Optional, Tuple
 
 from .config import (
@@ -34,7 +35,10 @@ def _default_run(argv: List[str]) -> Tuple[int, str]:
             argv, capture_output=True, text=True, timeout=15, check=False
         )
         return proc.returncode, (proc.stdout or "").strip()
-    except (OSError, subprocess.TimeoutExpired) as exc:  # pragma: no cover - env dependent
+    except (
+        OSError,
+        subprocess.TimeoutExpired,
+    ) as exc:  # pragma: no cover - env dependent
         return 1, str(exc)
 
 
@@ -82,8 +86,15 @@ def check_services(
 ) -> List[Observation]:
     out: List[Observation] = []
     for svc in cfg.services:
-        rc, stdout = run_fn(["systemctl", "is-active", svc])
-        active = rc == 0 and stdout.strip() == "active"
+        if sys.platform.startswith("darwin"):
+            # launchctl list returns 0 when the service is loaded (running or not)
+            rc, stdout = run_fn(["launchctl", "list", svc])
+            # launchctl does not expose one simple "active" string here; for v1,
+            # a loaded LaunchDaemon is considered healthy enough to avoid restart.
+            active = rc == 0
+        else:
+            rc, stdout = run_fn(["systemctl", "is-active", svc])
+            active = rc == 0 and stdout.strip() == "active"
         out.append(
             Observation(
                 check="service",
@@ -112,7 +123,7 @@ def _read_meminfo_total_kb(proc_root: str) -> Optional[int]:
 
 
 def _iter_proc_rss(proc_root: str):
-    """Yield (pid, name, rss_kb) for each process under proc_root."""
+    """Yield (pid, name, rss_kb) for each Linux process under proc_root."""
     try:
         entries = os.listdir(proc_root)
     except OSError:  # pragma: no cover - env dependent
@@ -133,6 +144,33 @@ def _iter_proc_rss(proc_root: str):
         except (OSError, ValueError):
             continue
         yield int(entry), name, rss_kb
+
+
+def _read_macos_total_kb(run_fn: RunFn) -> Optional[int]:
+    rc, stdout = run_fn(["sysctl", "-n", "hw.memsize"])
+    if rc != 0:
+        return None
+    try:
+        return int(stdout.strip()) // 1024
+    except ValueError:
+        return None
+
+
+def _iter_macos_rss(run_fn: RunFn):
+    """Yield (pid, name, rss_kb) using macOS ps output."""
+    rc, stdout = run_fn(["ps", "-axo", "pid=,comm=,rss="])
+    if rc != 0:
+        return
+    for raw in stdout.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            head, rss_text = line.rsplit(None, 1)
+            pid_text, name = head.split(None, 1)
+            yield int(pid_text), name, int(rss_text)
+        except ValueError:
+            continue
 
 
 def host_memory_percent(proc_root: str = "/proc") -> Optional[float]:
@@ -161,19 +199,27 @@ def host_memory_percent(proc_root: str = "/proc") -> Optional[float]:
 
 
 def check_processes(
-    cfg: ProcessCheckConfig, proc_root: str = "/proc"
+    cfg: ProcessCheckConfig,
+    proc_root: str = "/proc",
+    run_fn: RunFn = _default_run,
 ) -> List[Observation]:
     """Flag the single largest process if it exceeds the memory threshold.
 
     v1 only reports memory-runaway; it never kills. Reporting the top offender
     (not every process) keeps alerts actionable.
     """
-    mem_total = _read_meminfo_total_kb(proc_root)
+    if sys.platform.startswith("darwin") and proc_root == "/proc":
+        mem_total = _read_macos_total_kb(run_fn)
+        processes = _iter_macos_rss(run_fn)
+    else:
+        mem_total = _read_meminfo_total_kb(proc_root)
+        processes = _iter_proc_rss(proc_root)
+
     if not mem_total:
         return []
 
     worst = None  # (percent, pid, name, rss_kb)
-    for pid, name, rss_kb in _iter_proc_rss(proc_root):
+    for pid, name, rss_kb in processes:
         percent = rss_kb / mem_total * 100.0
         if worst is None or percent > worst[0]:
             worst = (percent, pid, name, rss_kb)
@@ -196,7 +242,12 @@ def check_processes(
                 f"process {name} (pid {pid}) using {percent:.1f}% of memory "
                 f"(threshold {cfg.mem_percent_threshold:.0f}%)"
             ),
-            metadata={"pid": pid, "name": name, "rss_kb": rss_kb, "percent": round(percent, 1)},
+            metadata={
+                "pid": pid,
+                "name": name,
+                "rss_kb": rss_kb,
+                "percent": round(percent, 1),
+            },
         )
     ]
 

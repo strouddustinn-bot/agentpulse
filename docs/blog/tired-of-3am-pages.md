@@ -68,7 +68,7 @@ No "contact sales." No per-GB billing that balloons unpredictably. No 14-page pr
 
 I haven't been paged for a fixable issue in weeks. AgentPulse handles disk cleanup and service restarts automatically, and queues runaway-process calls for a one-command approval. I still get alerts for things that actually need my attention — but those are rare.
 
-If you're running Linux servers and tired of being the remediation layer, join the paid beta:
+If you're running Linux/macOS hosts and tired of being the remediation layer, join the paid beta:
 
 {% include install.html %}
 

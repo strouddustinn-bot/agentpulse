@@ -2,7 +2,7 @@
 
 The thin, dependency-free Python monitoring + remediation daemon.
 
-**Requirements:** Python 3.8+ · Linux (systemd for production; not required for local testing)
+**Requirements:** Python 3.10+ · Linux with systemd or macOS with launchd for production (not required for local testing)
 
 ---
 
@@ -40,15 +40,15 @@ python3 tools/run_tests.py
 Output:
 ```
 ============================================================
-PASSED: 78   FAILED: 0
+PASSED: 102   FAILED: 0
 ```
 
-78 tests including a 7,500-iteration fuzz harness asserting safety invariants.
+102 tests including a 7,500-iteration fuzz harness asserting safety invariants.
 No pytest required — the runner is self-contained.
 
 ---
 
-## Install as a systemd service (production)
+## Install as a systemd service on Linux (production)
 
 ```bash
 curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
@@ -75,6 +75,41 @@ sudo agentpulse approve /etc/agentpulse/config.json <id>
 
 ---
 
+## Install as a launchd daemon on macOS (production)
+
+Install the Python package, then run the packaged launchd installer:
+
+```bash
+python3 -m pip install agentpulse
+sudo agentpulse install-launchd
+```
+
+The installer:
+
+- renders `launchd/com.agentpulse.agent.plist` into `/Library/LaunchDaemons/com.agentpulse.agent.plist`
+- creates `/usr/local/etc/agentpulse/config.json` from the example config if missing
+- writes daemon logs to `/usr/local/var/log/agentpulse/agentpulse.log`
+- starts the daemon with `launchctl bootstrap system ...`
+
+After install:
+
+```bash
+# See what the agent finds right now
+sudo agentpulse run-once /usr/local/etc/agentpulse/config.json
+
+# Check daemon status / logs
+sudo launchctl print system/com.agentpulse.agent
+tail -f /usr/local/var/log/agentpulse/agentpulse.log
+
+# Approve a queued action (if mode = "ask")
+sudo agentpulse list-pending /usr/local/etc/agentpulse/config.json
+sudo agentpulse approve /usr/local/etc/agentpulse/config.json <id>
+```
+
+For macOS service checks, use launchd labels in config, for example `com.apple.sshd` or your own `com.company.service` label.
+
+---
+
 ## How the agent works
 
 Every auto-fix runs the **verify-or-escalate loop** — no blind destructive actions:
@@ -93,7 +128,17 @@ See [CONFIGURATION.md](CONFIGURATION.md) for all config fields.
 
 ## Uninstall
 
+Linux/systemd:
+
 ```bash
 sudo systemctl disable --now agentpulse
-sudo rm -rf /opt/agentpulse /usr/local/bin/agentpulse /etc/systemd/system/agentpulse.service
+sudo rm -rf /opt/agentpulse /usr/local/bin/agentpulse /etc/systemd/system/agentpulse.service /etc/agentpulse
+```
+
+macOS/launchd:
+
+```bash
+sudo launchctl bootout system /Library/LaunchDaemons/com.agentpulse.agent.plist
+sudo rm -f /Library/LaunchDaemons/com.agentpulse.agent.plist
+sudo rm -rf /usr/local/etc/agentpulse /usr/local/var/log/agentpulse
 ```

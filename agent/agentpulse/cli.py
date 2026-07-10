@@ -6,15 +6,22 @@ import argparse
 import sys
 from typing import List, Optional
 
-from . import __version__, config as config_mod
-from .checkin import CheckinDeliveryError, build_checkin_payload, payload_to_json, send_checkin_payload
+from . import __version__
+from . import config as config_mod
+from . import launchd as launchd_installer
+from .checkin import (
+    CheckinDeliveryError,
+    build_checkin_payload,
+    payload_to_json,
+    send_checkin_payload,
+)
 from .notify import Notifier
 from .runner import approve, run_loop, run_once
 from .state import State
 
 
 class _SilentNotifier:
-    def send(self, title, body):
+    def send(self, title: str, body: str) -> bool:
         return True
 
 
@@ -26,7 +33,9 @@ def _load(config_path: str):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="agentpulse", description="AgentPulse monitoring + remediation agent")
+    p = argparse.ArgumentParser(
+        prog="agentpulse", description="AgentPulse monitoring + remediation agent"
+    )
     p.add_argument("--version", action="version", version=f"agentpulse {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
@@ -35,24 +44,74 @@ def build_parser() -> argparse.ArgumentParser:
 
     pr = sub.add_parser("run-once", help="run a single check/remediate cycle")
     pr.add_argument("config")
-    pr.add_argument("--dry-run", action="store_true", help="never modify the system; report what would happen")
+    pr.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="never modify the system; report what would happen",
+    )
 
     pc = sub.add_parser("check-in", help="build an agent check-in payload")
     pc.add_argument("config")
-    pc.add_argument("--dry-run", action="store_true", help="print payload without sending it")
+    pc.add_argument(
+        "--dry-run", action="store_true", help="print payload without sending it"
+    )
 
     pl = sub.add_parser("run", help="run continuously on the configured interval")
     pl.add_argument("config")
     pl.add_argument("--dry-run", action="store_true")
-    pl.add_argument("--max-cycles", type=int, default=None, help="stop after N cycles (testing)")
+    pl.add_argument(
+        "--max-cycles", type=int, default=None, help="stop after N cycles (testing)"
+    )
 
     pp = sub.add_parser("list-pending", help="list ask-first actions awaiting approval")
     pp.add_argument("config")
 
-    pa = sub.add_parser("approve", help="approve and execute a pending ask-first action")
+    pa = sub.add_parser(
+        "approve", help="approve and execute a pending ask-first action"
+    )
     pa.add_argument("config")
     pa.add_argument("pending_id")
     pa.add_argument("--dry-run", action="store_true")
+
+    pil = sub.add_parser(
+        "install-launchd",
+        help="install AgentPulse as a macOS launchd daemon",
+    )
+    pil.add_argument(
+        "--label",
+        default=launchd_installer.DEFAULT_LABEL,
+        help="launchd label to install",
+    )
+    pil.add_argument(
+        "--agent-bin",
+        default=None,
+        help="path to the agentpulse executable (defaults to PATH lookup)",
+    )
+    pil.add_argument(
+        "--config",
+        default=launchd_installer.DEFAULT_CONFIG_PATH,
+        help="config path for the daemon",
+    )
+    pil.add_argument(
+        "--log",
+        default=launchd_installer.DEFAULT_LOG_PATH,
+        help="combined stdout/stderr log path for launchd",
+    )
+    pil.add_argument(
+        "--plist",
+        default=None,
+        help="plist destination (defaults to /Library/LaunchDaemons/<label>.plist)",
+    )
+    pil.add_argument(
+        "--state-dir",
+        default=launchd_installer.DEFAULT_STATE_DIR,
+        help="directory for AgentPulse state on macOS",
+    )
+    pil.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="show what would be installed without writing files or calling launchctl",
+    )
 
     return p
 
@@ -124,12 +183,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         detail_source = rec.execution if rec.execution else rec.simulation
         details = detail_source.details if detail_source else []
         if rec.outcome in ("succeeded", "executed_unverified", "simulated_only"):
-            print(f"{prefix}done ({rec.outcome}): {rec.decision.action} {rec.decision.target}")
+            print(
+                f"{prefix}done ({rec.outcome}): {rec.decision.action} {rec.decision.target}"
+            )
             for d in details:
                 print(f"  {d}")
             return 0
         if rec.outcome == "blocked":
-            print(f"BLOCKED by safety gate: {'; '.join(rec.gate_reasons)}", file=sys.stderr)
+            print(
+                f"BLOCKED by safety gate: {'; '.join(rec.gate_reasons)}",
+                file=sys.stderr,
+            )
             return 1
         if rec.outcome == "escalated":
             print(
@@ -142,6 +206,32 @@ def main(argv: Optional[List[str]] = None) -> int:
         err = rec.execution.error if rec.execution else "unknown error"
         print(f"FAILED: {err}", file=sys.stderr)
         return 1
+
+    if args.command == "install-launchd":
+        try:
+            result = launchd_installer.install_launchd(
+                label=args.label,
+                agent_bin=args.agent_bin,
+                config_path=args.config,
+                log_path=args.log,
+                plist_path=args.plist,
+                state_dir=args.state_dir,
+                dry_run=args.dry_run,
+            )
+        except launchd_installer.LaunchdInstallError as exc:
+            print(f"INSTALL-LAUNCHD FAILED: {exc}", file=sys.stderr)
+            return 2
+
+        prefix = "would install" if result.dry_run else "installed"
+        print(f"AgentPulse launchd daemon {prefix}: {result.label}")
+        print(f"  binary: {result.agent_bin}")
+        print(f"  config: {result.config_path}")
+        print(f"  log:    {result.log_path}")
+        print(f"  plist:  {result.plist_path}")
+        if result.dry_run:
+            for step in result.steps:
+                print(f"  - {step}")
+        return 0
 
     return 0  # pragma: no cover
 

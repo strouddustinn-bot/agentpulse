@@ -21,7 +21,7 @@ But they stop at **telling you something's wrong**. AgentPulse goes further — 
 | Status pages | ❌ | ✅ |
 | On-call scheduling | ❌ | ✅ |
 | Baseline learning | ✅ | ❌ |
-| Server agent | ✅ (thin Linux agent) | ❌ (external checks) |
+| Server agent | ✅ (thin Linux/macOS agent) | ❌ (external checks) |
 | Pricing from | $29/mo | Free tier, then $29/mo |
 | External monitoring | ❌ | ✅ (multi-region checks) |
 

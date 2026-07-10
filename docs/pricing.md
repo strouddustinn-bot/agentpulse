@@ -76,7 +76,7 @@ Cancel during the beta by emailing [support@agentpulse.dustinnstroud.com](mailto
 
 ## Best fit
 
-AgentPulse is strongest today for founders and small teams running 1-10 Linux servers on providers like Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail, or small EC2 fleets.
+AgentPulse is strongest today for founders and small teams running 1-10 Linux/macOS hosts on providers like Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail, small EC2 fleets, or Mac minis.
 
 ## What counts as a server?
 

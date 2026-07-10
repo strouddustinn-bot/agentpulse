@@ -2,7 +2,7 @@
 
 Every action supports dry_run. Guards refuse anything dangerous (root-level
 globs, non-allowlisted services, symlinks, directories) *before* touching the
-filesystem or systemd.
+filesystem or the host service manager.
 """
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ from __future__ import annotations
 import glob as _glob
 import os
 import re
-import subprocess
 import time
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
@@ -18,6 +17,10 @@ from typing import Callable, List, Optional
 from .models import Decision
 
 RunFn = Callable[[List[str]], "tuple[int, str]"]
+
+# Many call sites pass `run_fn=None` to use the internal default. Annotate them
+# explicitly so static type checkers accept the pattern.
+RunFnOrNone = Optional[RunFn]
 
 _SERVICE_RE = re.compile(r"^[A-Za-z0-9_.@-]+$")
 _WILDCARD_CHARS = set("*?[")
@@ -67,7 +70,24 @@ def _is_safe_cleanup_glob(pattern: str) -> bool:
         return False
     # Explicitly forbid the most dangerous bases even at depth 1: we keep /tmp
     # allowed but block obviously catastrophic roots.
-    forbidden = {"/", "/bin", "/sbin", "/lib", "/lib64", "/usr", "/etc", "/boot", "/dev", "/proc", "/sys", "/root", "/home", "/var", "/usr/bin", "/usr/sbin"}
+    forbidden = {
+        "/",
+        "/bin",
+        "/sbin",
+        "/lib",
+        "/lib64",
+        "/usr",
+        "/etc",
+        "/boot",
+        "/dev",
+        "/proc",
+        "/sys",
+        "/root",
+        "/home",
+        "/var",
+        "/usr/bin",
+        "/usr/sbin",
+    }
     if base in forbidden:
         return False
     return True
@@ -151,14 +171,16 @@ def disk_cleanup(
     result.bytes_freed = freed
     result.performed = removed_any and not dry_run
     if not removed_any:
-        result.details.append("no files matched the age/size criteria; nothing to clean")
+        result.details.append(
+            "no files matched the age/size criteria; nothing to clean"
+        )
     return result
 
 
 def service_restart(
     decision: Decision,
     dry_run: bool = False,
-    run_fn: RunFn = None,
+    run_fn: RunFnOrNone = None,
 ) -> RemediationResult:
     if run_fn is None:
         from .checks import _default_run  # local import to avoid cycle at import time
@@ -175,20 +197,31 @@ def service_restart(
         result.error = f"refusing to restart: invalid service name {svc!r}"
         return result
 
-    if dry_run:
-        result.details.append(f"WOULD run: systemctl restart {svc}")
-        return result
+    import sys  # local import to avoid cycle
 
-    rc, out = run_fn(["systemctl", "restart", svc])
+    if sys.platform.startswith("darwin"):
+        cmd = ["launchctl", "kickstart", "-k", f"system/{svc}"]
+        if dry_run:
+            result.details.append("WOULD run: " + " ".join(cmd))
+            return result
+        rc, out = run_fn(cmd)
+    else:
+        cmd = ["systemctl", "restart", svc]
+        if dry_run:
+            result.details.append("WOULD run: " + " ".join(cmd))
+            return result
+        rc, out = run_fn(cmd)
     if rc == 0:
         result.performed = True
         result.details.append(f"restarted {svc}")
     else:
-        result.error = f"systemctl restart {svc} failed (rc={rc}): {out}"
+        result.error = f"{' '.join(cmd)} failed (rc={rc}): {out}"
     return result
 
 
-def execute(decision: Decision, dry_run: bool = False, run_fn: RunFn = None) -> RemediationResult:
+def execute(
+    decision: Decision, dry_run: bool = False, run_fn: RunFnOrNone = None
+) -> RemediationResult:
     """Dispatch a decision whose action should actually run."""
     if decision.action == "disk_cleanup":
         # disk_cleanup does no subprocess work, so run_fn (the subprocess

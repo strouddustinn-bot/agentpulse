@@ -1,9 +1,14 @@
 import json
 
-import pytest
-
+import pytest  # type: ignore
 from agentpulse import __version__
-from agentpulse.checkin import CheckinDeliveryError, build_checkin_payload, payload_to_json, send_checkin_payload, status_from_summary
+from agentpulse.checkin import (
+    CheckinDeliveryError,
+    build_checkin_payload,
+    payload_to_json,
+    send_checkin_payload,
+    status_from_summary,
+)
 from agentpulse.config import Config
 from agentpulse.runner import CycleSummary
 
@@ -102,6 +107,7 @@ def test_send_checkin_payload_posts_json_with_auth_header():
 
     assert status == 202
     assert opener.timeout == 3
+    assert opener.req is not None
     assert opener.req.full_url == "https://api.example.com/api/agent/checkin"
     assert opener.req.get_method() == "POST"
     assert opener.req.headers["Content-type"] == "application/json"

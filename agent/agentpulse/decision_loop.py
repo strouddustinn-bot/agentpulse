@@ -22,7 +22,7 @@ from typing import Callable, List, Optional
 
 from . import remediation
 from .models import Decision
-from .remediation import RemediationResult
+from .remediation import RemediationResult, RunFnOrNone
 
 VerifyFn = Callable[[Decision], bool]
 
@@ -70,7 +70,9 @@ def _expected_state(decision: Decision) -> str:
     return f"expect {decision.target} condition to clear"
 
 
-def safety_gate(decision: Decision, simulation: RemediationResult) -> "tuple[bool, List[str]]":
+def safety_gate(
+    decision: Decision, simulation: RemediationResult
+) -> "tuple[bool, List[str]]":
     """Gate: executable safety predicates. Deny unless every rule passes.
 
     These are hard, code-level invariants — not config the operator can relax.
@@ -85,7 +87,9 @@ def safety_gate(decision: Decision, simulation: RemediationResult) -> "tuple[boo
 
     # Rule 2: the process check is alert-only and is never auto-executed in v1.
     if decision.action == "process_alert":
-        reasons.append("process actions are alert-only and never executed automatically")
+        reasons.append(
+            "process actions are alert-only and never executed automatically"
+        )
         return False, reasons
 
     # Rule 3: default-deny. Only explicitly allow-listed actions may execute, so
@@ -105,7 +109,7 @@ def run_cycle(
     decision: Decision,
     *,
     verify_fn: Optional[VerifyFn] = None,
-    run_fn=None,
+    run_fn: RunFnOrNone = None,
     force_dry_run: bool = False,
 ) -> CycleRecord:
     rec = CycleRecord(decision=decision)

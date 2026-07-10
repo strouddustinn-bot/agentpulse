@@ -1,13 +1,13 @@
 # Contributing to AgentPulse
 
-AgentPulse is a single-host Linux monitoring agent with hard safety invariants. PRs welcome.
+AgentPulse is a single-host Linux/macOS monitoring agent with hard safety invariants. PRs welcome.
 
 ## Before you start
 
 ```bash
 git clone https://github.com/strouddustinn-bot/agentpulse
 cd agentpulse/agent
-python3 tools/run_tests.py   # all 78 tests should pass
+python3 tools/run_tests.py   # all tests should pass
 ```
 
 ## What we want

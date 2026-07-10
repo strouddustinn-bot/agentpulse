@@ -1,8 +1,8 @@
 """Agent check-in payload generation.
 
-This module builds the JSON payload the agent will eventually send to the
-AgentPulse backend. For now, it is intentionally dry-run friendly: build the
-payload, print it, and do not require a network service.
+This module builds and delivers the JSON payload the agent sends to the
+AgentPulse backend. It stays stdlib-only so backend check-ins do not add any
+agent runtime dependencies.
 """
 
 from __future__ import annotations
@@ -11,11 +11,13 @@ import json
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from . import __version__
 from .config import Config
-from .runner import CycleSummary
+
+if TYPE_CHECKING:
+    from .runner import CycleSummary
 
 
 def utc_now_iso() -> str:
@@ -23,7 +25,7 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def status_from_summary(summary: CycleSummary) -> str:
+def status_from_summary(summary: "CycleSummary") -> str:
     """Map a cycle summary into a compact agent status."""
     if summary.errors:
         return "error"
@@ -34,7 +36,7 @@ def status_from_summary(summary: CycleSummary) -> str:
 
 def build_checkin_payload(
     cfg: Config,
-    summary: CycleSummary,
+    summary: "CycleSummary",
     timestamp: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the agent check-in payload from config + latest cycle summary."""

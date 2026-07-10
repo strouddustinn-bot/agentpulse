@@ -10,6 +10,12 @@
     "webhook_url": ""
   },
 
+  "checkin": {
+    "endpoint_url": "",
+    "auth_token": "",
+    "timeout_seconds": 10
+  },
+
   "baseline": {
     "enabled": true,
     "min_samples": 20,

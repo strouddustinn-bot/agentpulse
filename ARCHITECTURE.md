@@ -91,7 +91,7 @@ in `policy.decide()`. Covered by `test_policy.py`, `test_remediation.py`, and th
 ### 4. Execute — SHIPPED (fixed action set)
 `remediation.execute()` runs the validated action from a **fixed** set:
 `disk_cleanup` (age-bounded, glob-guarded file removal) and `service_restart`
-(allowlisted systemd restart). There is **no** dynamic skill registry, synthesis,
+(allowlisted systemd restart on Linux or launchd restart on macOS). There is **no** dynamic skill registry, synthesis,
 or cosine-similarity composition in v1 — that is the Evolve roadmap item.
 
 ### Verify — SHIPPED
