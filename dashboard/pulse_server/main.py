@@ -272,4 +272,12 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     return app
 
 
-app = create_app()
+def __getattr__(name: str):
+    # PEP 562: build the env-configured app lazily on first attribute access
+    # (i.e. when uvicorn asks for `pulse_server.main:app`). Importing this
+    # module — e.g. from tests — has no side effects: no DB file, no threads.
+    if name == "app":
+        application = create_app()
+        globals()["app"] = application
+        return application
+    raise AttributeError(name)
