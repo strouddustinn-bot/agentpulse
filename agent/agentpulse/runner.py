@@ -211,6 +211,22 @@ def approve(
     return rec
 
 
+def deny(state: State, pending_id: str) -> Optional[dict]:
+    """Reject a previously queued ask-first action without executing it."""
+    entry = state.pop_pending(pending_id)
+    if entry is None:
+        return None
+    state.record_history({
+        "action": entry.get("action"),
+        "target": entry.get("target"),
+        "outcome": "denied",
+        "reason": "denied by operator",
+        "ts": time.time(),
+    })
+    state.save()
+    return entry
+
+
 def run_loop(cfg: Config, state: State, notifier: Notifier, dry_run: bool = False, max_cycles: Optional[int] = None) -> None:  # pragma: no cover - long running
     cycles = 0
     while True:

@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from . import __version__, config as config_mod
 from .notify import Notifier
-from .runner import approve, run_loop, run_once
+from .runner import approve, deny, run_loop, run_once
 from .state import State
 
 
@@ -43,6 +43,10 @@ def build_parser() -> argparse.ArgumentParser:
     pa.add_argument("config")
     pa.add_argument("pending_id")
     pa.add_argument("--dry-run", action="store_true")
+
+    pd = sub.add_parser("deny", help="reject a pending ask-first action without executing it")
+    pd.add_argument("config")
+    pd.add_argument("pending_id")
 
     return p
 
@@ -114,6 +118,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         err = rec.execution.error if rec.execution else "unknown error"
         print(f"FAILED: {err}", file=sys.stderr)
         return 1
+
+    if args.command == "deny":
+        cfg, state, _ = _load(args.config)
+        entry = deny(state, args.pending_id)
+        if entry is None:
+            print(f"no pending action with id {args.pending_id}", file=sys.stderr)
+            return 2
+        print(f"denied: {entry['action']} {entry['target']}")
+        return 0
 
     return 0  # pragma: no cover
 
