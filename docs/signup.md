@@ -15,7 +15,7 @@ just paging you about them.
      class="btn"
      href="https://buy.stripe.com/8x228r1dXdDG7M67KJ7N601"
      style="display:inline-block;padding:14px 26px;background:#0b5fff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:1.05em;">
-     Start Pro Beta — $99/mo
+     Start Pro Beta — C$99/mo CAD
   </a>
 </p>
 
@@ -27,7 +27,7 @@ just paging you about them.
 
 <p style="font-size:0.9em;">
   Running one server, or a whole team? <a href="pricing">See all plans</a> —
-  Starter ($29/mo) and Business Beta ($299/mo) are on the pricing page.
+  Starter (C$29/mo) and Business Beta (C$299/mo) are on the pricing page.
 </p>
 
 ---
