@@ -39,7 +39,7 @@
         {
           "binding": "DB",
           "database_name": "agentpulse-staging",
-          "database_id": "REPLACE_STAGING_D1_ID",
+          "database_id": "e5b929a6-feb5-40a2-9891-d1c9e9c05a75",
           "migrations_dir": "migrations"
         }
       ]
