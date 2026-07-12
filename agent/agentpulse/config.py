@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
@@ -110,6 +111,15 @@ class FederationConfig:
 
 
 @dataclass
+class ControlPlaneConfig:
+    enabled: bool = False
+    base_url: str = ""
+    credential_file: str = "/etc/agentpulse/agent.credential"
+    timeout_seconds: int = 10
+    local_policy_ceiling: str = "alert"
+
+
+@dataclass
 class Config:
     hostname: str = "auto"
     interval_seconds: int = 60
@@ -119,6 +129,7 @@ class Config:
     baseline: BaselineConfig = field(default_factory=BaselineConfig)
     dashboard: DashboardConfig = field(default_factory=DashboardConfig)
     federation: FederationConfig = field(default_factory=FederationConfig)
+    control_plane: ControlPlaneConfig = field(default_factory=ControlPlaneConfig)
     disk: DiskCheckConfig = field(default_factory=DiskCheckConfig)
     service: ServiceCheckConfig = field(default_factory=ServiceCheckConfig)
     process: ProcessCheckConfig = field(default_factory=ProcessCheckConfig)
@@ -278,6 +289,36 @@ def from_dict(data: Dict[str, Any]) -> Config:
             push_interval_seconds=int(_positive_number(
                 "federation.push_interval_seconds", f.get("push_interval_seconds", 60)
             )),
+        )
+
+    cp = data.get("control_plane", {})
+    if cp:
+        if not isinstance(cp, dict):
+            raise ConfigError("control_plane must be a JSON object")
+        enabled = cp.get("enabled", False)
+        if not isinstance(enabled, bool):
+            raise ConfigError("control_plane.enabled must be true/false")
+        base_url = str(cp.get("base_url", "")).rstrip("/")
+        if enabled:
+            parsed = urllib.parse.urlparse(base_url)
+            local_hosts = ("127.0.0.1", "localhost", "::1")
+            if not base_url or parsed.scheme not in ("http", "https"):
+                raise ConfigError("control_plane.base_url must be an absolute HTTP(S) URL")
+            if parsed.scheme != "https" and parsed.hostname not in local_hosts:
+                raise ConfigError("control_plane.base_url must use HTTPS outside localhost")
+        ceiling = cp.get("local_policy_ceiling", "alert")
+        if ceiling not in VALID_MODES:
+            raise ConfigError("control_plane.local_policy_ceiling must be a valid mode")
+        cfg.control_plane = ControlPlaneConfig(
+            enabled=enabled,
+            base_url=base_url,
+            credential_file=str(cp.get(
+                "credential_file", "/etc/agentpulse/agent.credential"
+            )),
+            timeout_seconds=int(_positive_number(
+                "control_plane.timeout_seconds", cp.get("timeout_seconds", 10)
+            )),
+            local_policy_ceiling=str(ceiling),
         )
 
     checks = data.get("checks", {})
