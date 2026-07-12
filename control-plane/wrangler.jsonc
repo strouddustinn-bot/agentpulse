@@ -1,0 +1,67 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "agentpulse-control-plane",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "ENVIRONMENT": "development",
+    "PUBLIC_BASE_URL": "http://localhost:8787",
+    "AGENTPULSE_VERSION": "0.1.0",
+    "STRIPE_PRICE_STARTER": "",
+    "STRIPE_PRICE_PRO": "",
+    "STRIPE_PRICE_BUSINESS": ""
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "agentpulse-development",
+      "database_id": "local",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "env": {
+    "staging": {
+      "name": "agentpulse-control-plane-staging",
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "PUBLIC_BASE_URL": "https://agentpulse-control-plane-staging.workers.dev",
+        "AGENTPULSE_VERSION": "0.1.0",
+        "STRIPE_PRICE_STARTER": "",
+        "STRIPE_PRICE_PRO": "",
+        "STRIPE_PRICE_BUSINESS": ""
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "agentpulse-staging",
+          "database_id": "REPLACE_STAGING_D1_ID",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "production": {
+      "name": "agentpulse-control-plane-production",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "PUBLIC_BASE_URL": "https://api.agentpulse.dustinnstroud.com",
+        "AGENTPULSE_VERSION": "0.1.0",
+        "STRIPE_PRICE_STARTER": "",
+        "STRIPE_PRICE_PRO": "",
+        "STRIPE_PRICE_BUSINESS": ""
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "agentpulse-production",
+          "database_id": "REPLACE_PRODUCTION_D1_ID",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}

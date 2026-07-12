@@ -18,3 +18,24 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Run test suite
         run: cd agent && python3 tools/run_tests.py
+
+  control-plane:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: control-plane
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: control-plane/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Worker contract tests
+        run: npm test
+      - name: Check TypeScript
+        run: npm run typecheck
+      - name: Verify generated Worker bindings
+        run: npm run types:check
