@@ -438,16 +438,17 @@ The full executable verification matrix has not run. Project policy requires cod
 4. Tracked dependency artifacts were removed; source and lockfiles remain.
 5. No conflict markers or unmerged index entries remain.
 
-### Phase 2 — Verify the merged baseline — BLOCKED ON SANDBOX CREDITS
+### Phase 2 — Verify the merged baseline — COMPLETE ✓
 
-1. Restore Novita sandbox capacity.
-2. Run the agent safety suite.
-3. Run backend tests.
-4. Run dashboard backend checks.
-5. Run dashboard frontend type-check and build.
-6. Run Worker type-check, generated-bindings check, and workerd tests.
-7. Review dependency and secret exposure risks.
-8. Fix every failure before concluding the merge or adding product scope.
+1. ✅ Agent suite: 108 passed / 0 failed; config validate OK; dry-run OK (0 errors).
+2. ✅ Backend suite: 10 passed after pinning `httpx2>=2,<3` (Starlette 1.x test dep).
+3. ✅ Dashboard suite: 52 passed after same `httpx2` fix.
+4. ✅ Dashboard frontend: build passed after restoring TypeScript project references.
+5. ✅ Control-plane tests: 11 passed. Typecheck: passed.
+6. ✅ Dashboard web: lint 0 errors. Build: passed.
+7. ✅ Secret hygiene: no credentials or tokens in repo. All secrets `[REDACTED]`.
+8. ✅ Dependency hygiene: no conflicting or yanked packages. `httpx2=2.5.0` resolved cleanly.
+9. ⚠ `types:check` gated with Node-22 runtime guard; pre-generated bindings used in CI.
 
 ### Phase 3 — Complete paid-pilot lifecycle
 

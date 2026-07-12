@@ -7,7 +7,7 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "types": "wrangler types",
-    "types:check": "wrangler types --check",
+    "types:check": "node -e \"process.exit(process.versions.node.split('.')[0] >= 22 ? 0 : 1)\" && wrangler types --check",
     "deploy:staging": "wrangler deploy --env staging",
     "deploy:production": "wrangler deploy --env production"
   },

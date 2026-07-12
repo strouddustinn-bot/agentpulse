@@ -74,6 +74,9 @@ class BaselineConfig:
     min_samples: int = 20          # warmup before any anomaly can fire
     z_threshold: float = 3.0       # std-devs from the learned mean
     min_abs_deviation: float = 2.0  # floor (pct points) so near-constant metrics don't flap
+    ml_enabled: bool = False
+    hw_alpha: float = 0.2
+    hw_beta: float = 0.1
 
 
 @dataclass
@@ -208,11 +211,17 @@ def from_dict(data: Dict[str, Any]) -> Config:
         enabled = b.get("enabled", True)
         if not isinstance(enabled, bool):
             raise ConfigError("baseline.enabled must be true/false")
+        ml_enabled = b.get("ml_enabled", False)
+        if not isinstance(ml_enabled, bool):
+            raise ConfigError("baseline.ml_enabled must be true/false")
         cfg.baseline = BaselineConfig(
             enabled=enabled,
             min_samples=int(_positive_number("baseline.min_samples", b.get("min_samples", 20))),
             z_threshold=_positive_number("baseline.z_threshold", b.get("z_threshold", 3.0)),
             min_abs_deviation=_positive_number("baseline.min_abs_deviation", b.get("min_abs_deviation", 2.0)),
+            ml_enabled=ml_enabled,
+            hw_alpha=_positive_number("baseline.hw_alpha", b.get("hw_alpha", 0.2)),
+            hw_beta=_positive_number("baseline.hw_beta", b.get("hw_beta", 0.1)),
         )
 
     checks = data.get("checks", {})
