@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agentpulse.io/contracts/schemas/remediation-result.schema.json",
+  "title": "Remediation Result",
+  "description": "Agent reports the outcome of a remediation action back to the control plane.",
+  "type": "object",
+  "required": ["request_id", "agent_id", "status", "executed_at", "duration_ms", "idempotency_key"],
+  "additionalProperties": false,
+  "properties": {
+    "request_id":      { "type": "string", "format": "uuid" },
+    "incident_id":     { "type": "string", "format": "uuid" },
+    "agent_id":        { "type": "string", "format": "uuid" },
+    "status":          { "type": "string", "enum": ["success","failed","skipped","pending_approval"] },
+    "executed_at":     { "type": "string", "format": "date-time" },
+    "duration_ms":     { "type": "integer", "minimum": 0 },
+    "action_taken":    { "type": "string" },
+    "output":          { "type": ["string","null"], "description": "Command output (secrets redacted)." },
+    "exit_code":       { "type": ["integer","null"] },
+    "verification_passed": { "type": ["boolean","null"], "description": "Whether post-action verification confirmed recovery." },
+    "error":           { "type": ["string","null"] },
+    "rollback_available": { "type": "boolean" },
+    "idempotency_key": { "type": "string" }
+  }
+}

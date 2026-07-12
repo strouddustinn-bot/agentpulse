@@ -1,0 +1,78 @@
+{
+  "id": "default",
+  "version": "1",
+  "mode": "alert_only",
+  "max_remediations_per_hour": 3,
+  "ceiling_severity": "warning",
+  "cooldown_seconds": 300,
+  "dedupe_window_seconds": 600,
+  "checks": {
+    "disk_used": {
+      "enabled": true,
+      "warning_threshold": 80,
+      "critical_threshold": 90,
+      "consecutive_required": 2,
+      "cooldown_seconds": 300,
+      "remediation": {
+        "action": "clean_temp",
+        "risk": "low"
+      }
+    },
+    "memory_used": {
+      "enabled": true,
+      "warning_threshold": 85,
+      "critical_threshold": 95,
+      "consecutive_required": 2,
+      "cooldown_seconds": 180,
+      "remediation": {
+        "action": "clean_temp",
+        "risk": "low"
+      }
+    },
+    "cpu_used": {
+      "enabled": true,
+      "warning_threshold": 80,
+      "critical_threshold": 95,
+      "consecutive_required": 3,
+      "cooldown_seconds": 300
+    },
+    "load_avg": {
+      "enabled": true,
+      "warning_threshold": 2,
+      "critical_threshold": 4,
+      "consecutive_required": 3,
+      "cooldown_seconds": 300
+    },
+    "service_restart_loop": {
+      "enabled": true,
+      "warning_threshold": 2,
+      "critical_threshold": 3,
+      "consecutive_required": 1,
+      "cooldown_seconds": 600,
+      "remediation": {
+        "action": "restart_service",
+        "requires_approval": true,
+        "risk": "medium"
+      }
+    },
+    "docker_container_down": {
+      "enabled": true,
+      "warning_threshold": 1,
+      "critical_threshold": 1,
+      "consecutive_required": 1,
+      "cooldown_seconds": 300,
+      "remediation": {
+        "action": "restart_container",
+        "requires_approval": true,
+        "risk": "medium"
+      }
+    },
+    "tls_cert_expiry_days": {
+      "enabled": true,
+      "warning_threshold": 30,
+      "critical_threshold": 7,
+      "consecutive_required": 1,
+      "cooldown_seconds": 86400
+    }
+  }
+}

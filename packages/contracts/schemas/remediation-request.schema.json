@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agentpulse.io/contracts/schemas/remediation-request.schema.json",
+  "title": "Remediation Request",
+  "description": "Control-plane dispatches this to an agent to execute a remediation action.",
+  "type": "object",
+  "required": ["id", "incident_id", "agent_id", "action", "risk", "created_at", "idempotency_key"],
+  "additionalProperties": false,
+  "properties": {
+    "id":              { "type": "string", "format": "uuid" },
+    "incident_id":     { "type": "string", "format": "uuid" },
+    "agent_id":        { "type": "string", "format": "uuid" },
+    "action":          { "type": "string", "enum": ["restart_service","restart_container","rotate_logs","clean_temp","prune_cache"] },
+    "target":          { "type": "string", "description": "Action target (e.g. service name, container ID)." },
+    "risk":            { "type": "string", "enum": ["low","medium","high"] },
+    "preconditions":   { "type": "array", "items": { "type": "string" }, "description": "Conditions that must be true before execution." },
+    "dry_run":         { "type": "boolean", "default": false },
+    "created_at":      { "type": "string", "format": "date-time" },
+    "expires_at":      { "type": "string", "format": "date-time" },
+    "idempotency_key": { "type": "string", "description": "Agents must reject duplicate keys." }
+  }
+}

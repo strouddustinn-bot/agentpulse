@@ -1,0 +1,703 @@
+openapi: 3.1.0
+info:
+  title: AgentPulse Control-Plane API
+  version: 1.0.0
+  description: |
+    AgentPulse is a self-healing server monitoring and remediation platform.
+    The API manages agents, policies, incidents, and remediations.
+  contact:
+    name: AgentPulse Support
+    email: team@agentpulse.io
+  license:
+    name: Apache-2.0
+
+servers:
+  - url: https://api.agentpulse.io/v1
+    description: Production
+  - url: https://staging.api.agentpulse.io/v1
+    description: Staging
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+tags:
+  - name: health
+  - name: agents
+  - name: enrollment
+  - name: checkins
+  - name: incidents
+  - name: remediations
+  - name: policies
+  - name: audit
+
+paths:
+
+  /health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  timestamp: { type: string, format: date-time }
+                  version: { type: string }
+
+  /ready:
+    get:
+      tags: [health]
+      operationId: getReadiness
+      summary: Readiness probe
+      security: []
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  database: { type: string }
+                  queue: { type: string }
+        '503':
+          description: Service not ready
+
+  /agents/enroll:
+    post:
+      tags: [enrollment]
+      operationId: enrollAgent
+      summary: Enroll a new agent
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentRequest'
+      responses:
+        '201':
+          description: Agent enrolled successfully
+          headers:
+            X-Contract-Version:
+              schema: { type: string }
+              description: Negotiated contract version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentResponse'
+        '400':
+          description: Malformed request or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Agent already enrolled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents:
+    get:
+      tags: [agents]
+      operationId: listAgents
+      summary: List all agents
+      responses:
+        '200':
+          description: Paginated agent list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+        '401': { description: Unauthorized }
+
+  /agents/{agent_id}:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [agents]
+      operationId: getAgent
+      summary: Get agent details
+      responses:
+        '200':
+          description: Agent record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags: [agents]
+      operationId: updateAgent
+      summary: Update agent metadata
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentUpdate'
+      responses:
+        '200':
+          description: Updated agent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404': { description: Not found }
+
+  /agents/{agent_id}/checkins:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [checkins]
+      operationId: postCheckin
+      summary: Receive a check-in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckinRequest'
+      responses:
+        '200':
+          description: Check-in processed
+          headers:
+            X-Contract-Version:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Sequence regression
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/{agent_id}/actions:
+    parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [remediations]
+      operationId: listPendingActions
+      summary: Get pending actions for an agent
+      responses:
+        '200':
+          description: Pending actions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  actions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RemediationRequest'
+    post:
+      tags: [remediations]
+      operationId: dispatchAction
+      summary: Dispatch a remediation action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemediationRequest'
+      responses:
+        '202':
+          description: Action dispatched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  action_id: { type: string, format: uuid }
+        '404': { description: Agent not found }
+        '403': { description: Blocked by policy }
+
+  /incidents:
+    get:
+      tags: [incidents]
+      operationId: listIncidents
+      summary: List incidents
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, acknowledged, resolved, suppressed]
+        - name: agent_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [info, warning, critical]
+        - name: page_token
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated incident list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentListResponse'
+        '401': { description: Unauthorized }
+
+  /incidents/{incident_id}:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [incidents]
+      operationId: getIncident
+      summary: Get incident details
+      responses:
+        '200':
+          description: Incident record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /incidents/{incident_id}/acknowledge:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [incidents]
+      operationId: acknowledgeIncident
+      summary: Acknowledge an incident
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string }
+      responses:
+        '200':
+          description: Incident acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /incidents/{incident_id}/resolve:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [incidents]
+      operationId: resolveIncident
+      summary: Resolve an incident
+      responses:
+        '200':
+          description: Incident resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Incident'
+
+  /policies:
+    get:
+      tags: [policies]
+      operationId: listPolicies
+      summary: List policies
+      responses:
+        '200':
+          description: Policy list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Policy'
+    post:
+      tags: [policies]
+      operationId: createPolicy
+      summary: Create a policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyCreate'
+      responses:
+        '201':
+          description: Policy created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+
+  /policies/{policy_id}:
+    parameters:
+      - name: policy_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [policies]
+      operationId: getPolicy
+      summary: Get a policy
+      responses:
+        '200':
+          description: Policy record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+    patch:
+      tags: [policies]
+      operationId: updatePolicy
+      summary: Update a policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyUpdate'
+      responses:
+        '200':
+          description: Updated policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Policy'
+
+  /audit-events:
+    get:
+      tags: [audit]
+      operationId: listAuditEvents
+      summary: List audit events
+      parameters:
+        - name: agent_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: incident_id
+          in: query
+          schema: { type: string, format: uuid }
+        - name: event_type
+          in: query
+          schema: { type: string }
+        - name: page_token
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated audit events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditEvent'
+                  next_page: { type: string, nullable: true }
+
+  /webhooks/test:
+    post:
+      tags: [dashboard]
+      operationId: testWebhook
+      summary: Send a test webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+      responses:
+        '200':
+          description: Webhook test result
+        '400':
+          description: Invalid URL
+
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-AgentPulse-API-Key
+
+  schemas:
+
+    EnrollmentRequest:
+      type: object
+      required: [version, hostname, os, architecture, agent_version, timestamp, nonce, enrollment_token, signature]
+      properties:
+        version: { type: string, const: "1" }
+        hostname: { type: string }
+        os: { type: string, enum: [linux, darwin, freebsd, windows] }
+        architecture: { type: string, enum: [amd64, arm64, x86, armv7] }
+        agent_version: { type: string }
+        config_version: { type: string }
+        kernel_version: { type: string }
+        machine_id: { type: string }
+        checks_offered: { type: array, items: { type: string } }
+        timestamp: { type: string, format: date-time }
+        nonce: { type: string, minLength: 16 }
+        enrollment_token: { type: string, minLength: 16 }
+        signature: { type: string }
+
+    EnrollmentResponse:
+      type: object
+      properties:
+        agent_id: { type: string, format: uuid }
+        auth_token: { type: string }
+        backend_url: { type: string, format: uri }
+        checkin_interval: { type: integer }
+        policy: { $ref: '#/components/schemas/Policy' }
+
+    CheckinRequest:
+      type: object
+      required: [version, agent_id, timestamp, sequence, results, signature]
+      properties:
+        version: { type: string, const: "1" }
+        agent_id: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+        sequence: { type: integer, minimum: 1 }
+        agent_version: { type: string }
+        config_version: { type: string }
+        hostname: { type: string }
+        uptime_seconds: { type: integer }
+        results: { type: array, items: { $ref: '#/components/schemas/CheckResult' } }
+        pending_actions: { type: array, items: { $ref: '#/components/schemas/RemediationRequest' } }
+        action_results: { type: array, items: { $ref: '#/components/schemas/RemediationResult' } }
+        offline_queue_depth: { type: integer }
+        signature: { type: string }
+
+    CheckinResponse:
+      type: object
+      properties:
+        acknowledged: { type: boolean }
+        actions: { type: array, items: { $ref: '#/components/schemas/RemediationRequest' } }
+        policy_version: { type: string }
+        server_time: { type: string, format: date-time }
+
+    CheckResult:
+      type: object
+      required: [check_id, check_type, status, executed_at, duration_ms]
+      properties:
+        check_id: { type: string }
+        check_type: { type: string }
+        status: { type: string, enum: [pass, warn, fail, skip, error] }
+        severity: { type: string, enum: [info, warning, critical] }
+        executed_at: { type: string, format: date-time }
+        duration_ms: { type: integer }
+        value: { type: number }
+        unit: { type: string }
+        message: { type: string }
+        evidence: { type: array, items: { type: string } }
+        consecutive_failures: { type: integer }
+        is_baseline_anomaly: { type: boolean }
+
+    Agent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        hostname: { type: string }
+        os: { type: string }
+        architecture: { type: string }
+        agent_version: { type: string }
+        config_version: { type: string }
+        status: { type: string, enum: [online, offline, degraded] }
+        last_seen_at: { type: string, format: date-time }
+        enrolled_at: { type: string, format: date-time }
+        policy_id: { type: string }
+        tags: { type: array, items: { type: string } }
+
+    AgentUpdate:
+      type: object
+      properties:
+        tags: { type: array, items: { type: string } }
+        policy_id: { type: string }
+
+    AgentListResponse:
+      type: object
+      properties:
+        agents: { type: array, items: { $ref: '#/components/schemas/Agent' } }
+        next_page: { type: string, nullable: true }
+        total: { type: integer }
+
+    Incident:
+      type: object
+      required: [id, agent_id, check_id, status, severity, opened_at]
+      properties:
+        id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        check_id: { type: string }
+        check_type: { type: string }
+        status: { type: string, enum: [open, acknowledged, resolved, suppressed] }
+        severity: { type: string, enum: [info, warning, critical] }
+        title: { type: string }
+        body: { type: string }
+        evidence: { type: array, items: { type: string } }
+        opened_at: { type: string, format: date-time }
+        acknowledged_at: { type: string, format: date-time }
+        acknowledged_by: { type: string }
+        resolved_at: { type: string, format: date-time }
+        resolved_by: { type: string }
+        remediation_id: { type: string, format: uuid }
+        policy_id: { type: string }
+        is_baseline_anomaly: { type: boolean }
+        tags: { type: array, items: { type: string } }
+
+    IncidentListResponse:
+      type: object
+      properties:
+        incidents: { type: array, items: { $ref: '#/components/schemas/Incident' } }
+        next_page: { type: string, nullable: true }
+        total: { type: integer }
+
+    RemediationRequest:
+      type: object
+      required: [id, incident_id, agent_id, action, risk, created_at, idempotency_key]
+      properties:
+        id: { type: string, format: uuid }
+        incident_id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        action: { type: string, enum: [restart_service, restart_container, rotate_logs, clean_temp, prune_cache] }
+        target: { type: string }
+        risk: { type: string, enum: [low, medium, high] }
+        preconditions: { type: array, items: { type: string } }
+        dry_run: { type: boolean }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        idempotency_key: { type: string }
+
+    RemediationResult:
+      type: object
+      required: [request_id, agent_id, status, executed_at, duration_ms, idempotency_key]
+      properties:
+        request_id: { type: string, format: uuid }
+        incident_id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        status: { type: string, enum: [success, failed, skipped, pending_approval] }
+        executed_at: { type: string, format: date-time }
+        duration_ms: { type: integer }
+        action_taken: { type: string }
+        output: { type: string }
+        exit_code: { type: integer }
+        verification_passed: { type: boolean }
+        error: { type: string }
+        rollback_available: { type: boolean }
+        idempotency_key: { type: string }
+
+    Policy:
+      type: object
+      required: [id, version, mode, checks]
+      properties:
+        id: { type: string }
+        version: { type: string }
+        mode: { type: string, enum: [alert_only, ask, auto] }
+        max_remediations_per_hour: { type: integer }
+        ceiling_severity: { type: string, enum: [warning, critical] }
+        cooldown_seconds: { type: integer }
+        dedupe_window_seconds: { type: integer }
+        checks: { type: object }
+
+    PolicyCreate:
+      type: object
+      required: [id, mode, checks]
+      properties:
+        id: { type: string }
+        mode: { type: string, enum: [alert_only, ask, auto] }
+        max_remediations_per_hour: { type: integer }
+        ceiling_severity: { type: string, enum: [warning, critical] }
+        cooldown_seconds: { type: integer }
+        dedupe_window_seconds: { type: integer }
+        checks: { type: object }
+
+    PolicyUpdate:
+      type: object
+      properties:
+        mode: { type: string, enum: [alert_only, ask, auto] }
+        max_remediations_per_hour: { type: integer }
+        ceiling_severity: { type: string, enum: [warning, critical] }
+        cooldown_seconds: { type: integer }
+        dedupe_window_seconds: { type: integer }
+        checks: { type: object }
+
+    AuditEvent:
+      type: object
+      required: [id, timestamp, component, event_type, actor]
+      properties:
+        id: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+        component: { type: string, enum: [agent, backend, worker, dashboard, control-plane] }
+        event_type: { type: string }
+        actor: { type: string }
+        agent_id: { type: string, format: uuid }
+        incident_id: { type: string, format: uuid }
+        remediation_id: { type: string, format: uuid }
+        outcome: { type: string, enum: [success, failure, pending, suppressed] }
+        body: { type: object }
+
+    ErrorResponse:
+      type: object
+      required: [error_code, message, request_id]
+      properties:
+        error_code: { type: string }
+        message: { type: string }
+        request_id: { type: string }
+        details: { type: object }
+        retry_after: { type: integer }

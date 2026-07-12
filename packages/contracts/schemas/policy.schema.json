@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agentpulse.io/contracts/schemas/policy.schema.json",
+  "title": "Policy",
+  "description": "Policy served from control-plane to agent, defining check thresholds and remediation rules.",
+  "type": "object",
+  "required": ["id", "version", "mode", "checks"],
+  "additionalProperties": false,
+  "properties": {
+    "id":           { "type": "string" },
+    "version":      { "type": "string" },
+    "mode":         { "type": "string", "enum": ["alert_only","ask","auto"] },
+    "max_remediations_per_hour": { "type": "integer", "minimum": 0 },
+    "ceiling_severity": { "type": "string", "enum": ["warning","critical"] },
+    "cooldown_seconds": { "type": "integer", "minimum": 0 },
+    "dedupe_window_seconds": { "type": "integer", "minimum": 0 },
+    "checks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled":              { "type": "boolean" },
+          "warning_threshold":    { "type": ["number","null"] },
+          "critical_threshold":   { "type": ["number","null"] },
+          "consecutive_required": { "type": "integer", "minimum": 1 },
+          "cooldown_seconds":     { "type": "integer", "minimum": 0 },
+          "remediation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action":           { "type": "string" },
+              "target":           { "type": "string" },
+              "requires_approval": { "type": "boolean" },
+              "risk":             { "type": "string", "enum": ["low","medium","high"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

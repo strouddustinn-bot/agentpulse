@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agentpulse.io/contracts/schemas/checkin.schema.json",
+  "title": "Agent Check-In",
+  "description": "Periodic check-in payload sent from agent to control plane.",
+  "type": "object",
+  "required": ["version", "agent_id", "timestamp", "sequence", "results", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "version":   { "type": "string", "const": "1" },
+    "agent_id":  { "type": "string", "format": "uuid" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "sequence":  { "type": "integer", "minimum": 1, "description": "Monotonically increasing sequence number for deduplication." },
+    "agent_version": { "type": "string" },
+    "config_version": { "type": "string" },
+    "hostname":   { "type": "string" },
+    "uptime_seconds": { "type": "integer", "minimum": 0 },
+    "results": {
+      "type": "array",
+      "items": { "$ref": "check-result.schema.json" },
+      "description": "Results for all checks executed since the last check-in."
+    },
+    "pending_actions": {
+      "type": "array",
+      "items": { "$ref": "remediation-request.schema.json" },
+      "description": "Actions the agent has received but not yet executed."
+    },
+    "action_results": {
+      "type": "array",
+      "items": { "$ref": "remediation-result.schema.json" },
+      "description": "Results of actions the agent has completed since the last check-in."
+    },
+    "offline_queue_depth": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of payloads still queued for retry."
+    },
+    "signature": { "type": "string" }
+  }
+}

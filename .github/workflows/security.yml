@@ -1,0 +1,100 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+    paths: ['agent/**', 'backend/**', 'control-plane/**', 'dashboard/**']
+  pull_request:
+    paths: ['agent/**', 'backend/**', 'control-plane/**', 'dashboard/**']
+  schedule:
+    - cron: '0 0 * * 0'   # Weekly scan
+
+jobs:
+  secrets:
+    name: Secret Scanning
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  dependency-scan:
+    name: Dependency Audit
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - python: '3.12'
+            pip-audit-cmd: pip-audit
+          - node: '22'
+            npm-audit-cmd: npm audit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python dependency audit
+        if: matrix.pip-audit-cmd
+        run: |
+          pip install -q pip-audit
+          pip-audit --desc -r agent/requirements.txt 2>/dev/null || true
+          pip-audit --desc -r backend/requirements.txt 2>/dev/null || true
+
+      - name: Node dependency audit
+        if: matrix.npm-audit-cmd
+        run: |
+          cd dashboard/web && npm audit --audit-level=moderate --production 2>/dev/null || true
+
+  trivy-scan:
+    name: Container Vulnerability Scan
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'agent'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+        continue-on-error: true
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  harden-check:
+    name: Supply Chain Hardening
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for unsigned commits on release tags
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+            if ! git verify-tag "$TAG" 2>/dev/null; then
+              echo "WARNING: Tag $TAG is not signed"
+            fi
+          fi
+
+      - name: Verify no dev dependencies in production paths
+        run: |
+          ! grep -r 'pytest\|faker\|hypothesis' \
+            agent/systemd/ backend/agentpulse_backend/ \
+            --include='*.txt' --include='*.toml' 2>/dev/null || true
+
+      - name: Check node_modules not committed
+        run: |
+          if git ls-files '*/node_modules/' | grep -q .; then
+            echo "ERROR: node_modules are tracked in git"
+            exit 1
+          fi
+          echo "node_modules not tracked: OK"

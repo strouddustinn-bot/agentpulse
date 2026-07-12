@@ -1,0 +1,87 @@
+{
+  "id": "production-safe",
+  "version": "1",
+  "mode": "ask",
+  "max_remediations_per_hour": 5,
+  "ceiling_severity": "warning",
+  "cooldown_seconds": 600,
+  "dedupe_window_seconds": 900,
+  "checks": {
+    "disk_used": {
+      "enabled": true,
+      "warning_threshold": 75,
+      "critical_threshold": 85,
+      "consecutive_required": 2,
+      "cooldown_seconds": 600,
+      "remediation": {
+        "action": "clean_temp",
+        "requires_approval": false,
+        "risk": "low"
+      }
+    },
+    "memory_used": {
+      "enabled": true,
+      "warning_threshold": 80,
+      "critical_threshold": 92,
+      "consecutive_required": 2,
+      "cooldown_seconds": 300,
+      "remediation": {
+        "action": "clean_temp",
+        "requires_approval": false,
+        "risk": "low"
+      }
+    },
+    "cpu_used": {
+      "enabled": true,
+      "warning_threshold": 75,
+      "critical_threshold": 90,
+      "consecutive_required": 3,
+      "cooldown_seconds": 600
+    },
+    "load_avg": {
+      "enabled": true,
+      "warning_threshold": 2,
+      "critical_threshold": 3,
+      "consecutive_required": 3,
+      "cooldown_seconds": 600
+    },
+    "service_restart_loop": {
+      "enabled": true,
+      "warning_threshold": 2,
+      "critical_threshold": 2,
+      "consecutive_required": 1,
+      "cooldown_seconds": 1200,
+      "remediation": {
+        "action": "restart_service",
+        "requires_approval": true,
+        "risk": "medium"
+      }
+    },
+    "docker_container_down": {
+      "enabled": true,
+      "warning_threshold": 1,
+      "critical_threshold": 1,
+      "consecutive_required": 1,
+      "cooldown_seconds": 600,
+      "remediation": {
+        "action": "restart_container",
+        "requires_approval": true,
+        "risk": "medium"
+      }
+    },
+    "log_errors": {
+      "enabled": true,
+      "warning_threshold": 5,
+      "critical_threshold": 20,
+      "consecutive_required": 1,
+      "cooldown_seconds": 900
+    },
+    "tls_cert_expiry_days": {
+      "enabled": true,
+      "warning_threshold": 60,
+      "critical_threshold": 14,
+      "consecutive_required": 1,
+      "cooldown_seconds": 86400
+    }
+  }
+}

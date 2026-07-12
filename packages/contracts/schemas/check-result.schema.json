@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agentpulse.io/contracts/schemas/check-result.schema.json",
+  "title": "Check Result",
+  "description": "Result of a single check execution on the agent.",
+  "type": "object",
+  "required": ["check_id", "check_type", "status", "executed_at", "duration_ms"],
+  "additionalProperties": false,
+  "properties": {
+    "check_id":   { "type": "string", "description": "Alphanumeric check identifier from the config." },
+    "check_type": { "type": "string", "enum": ["disk","memory","cpu","load","uptime","process","systemd","docker","http","port","tls_cert","file","command","inodes","mounts","network"] },
+    "status":     { "type": "string", "enum": ["pass","warn","fail","skip","error"] },
+    "severity":   { "type": "string", "enum": ["info","warning","critical"], "description": "Computed severity based on threshold and policy." },
+    "executed_at": { "type": "string", "format": "date-time" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "value":      { "type": ["number","null"], "description": "Raw measured value (e.g. 85.3 for 85.3% disk usage)." },
+    "unit":       { "type": ["string","null"], "description": "Unit of the value (e.g. '%', 'MB', 'count')." },
+    "message":    { "type": ["string","null"], "description": "Human-readable summary of the result." },
+    "evidence":   { "type": "array", "items": { "type": "string" }, "description": "Structured evidence items (e.g. 'disk=/dev/sda used=91%')." },
+    "consecutive_failures": { "type": "integer", "minimum": 0 },
+    "is_baseline_anomaly": { "type": "boolean", "default": false }
+  }
+}

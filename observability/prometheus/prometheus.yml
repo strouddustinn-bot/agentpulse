@@ -1,0 +1,54 @@
+# Prometheus scrape configuration for AgentPulse control-plane and agents
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'agentpulse'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - 'recording-rules.yml'
+
+scrape_configs:
+
+  # ─── AgentPulse Control-Plane API ───────────────────────────────────────────
+  - job_name: 'agentpulse-api'
+    static_configs:
+      - targets: ['localhost:8088']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # ─── AgentPulse Worker ───────────────────────────────────────────────────────
+  - job_name: 'agentpulse-worker'
+    static_configs:
+      - targets: ['localhost:8089']
+    scrape_interval: 30s
+
+  # ─── Prometheus self-monitoring ──────────────────────────────────────────────
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ─── Grafana (optional) ───────────────────────────────────────────────────────
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['localhost:3000']
+    scrape_interval: 60s
+
+  # ─── Cloudflare Workers (via Prometheus metrics endpoint) ─────────────────────
+  # Note: Workers must expose /metrics for this to work. If not, use log-based metrics.
+  # Uncomment when Workers metric endpoint is live:
+  # - job_name: 'agentpulse-workers'
+  #   cloudflare_sd_configs:
+  #     - zone_id: <YOUR_ZONE_ID>
+  #         account_id: <YOUR_ACCOUNT_ID>
+  #         api_token: <CF_API_TOKEN>
+  #   metrics_path: /metrics
+  #   filter: 'APP=agentpulse'
+  #   scrape_interval: 30s

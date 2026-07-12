@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://agentpulse.io/contracts/schemas/error.schema.json",
+  "title": "Error Response",
+  "description": "Standardized error response for all API endpoints.",
+  "type": "object",
+  "required": ["error_code", "message", "request_id"],
+  "additionalProperties": true,
+  "properties": {
+    "error_code": { "type": "string", "description": "Machine-readable error identifier from the error-codes.md registry." },
+    "message":    { "type": "string", "description": "Human-readable description of the error." },
+    "request_id": { "type": "string", "description": "Correlation ID for tracing." },
+    "details":    { "type": "object", "additionalProperties": true, "description": "Structured additional context." },
+    "retry_after": { "type": ["integer","null"], "description": "Seconds to wait before retrying (for rate-limit errors)." }
+  }
+}

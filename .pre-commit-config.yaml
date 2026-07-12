@@ -1,0 +1,53 @@
+# Pre-commit hooks — https://pre-commit.com
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=5120']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.33.0
+    hooks:
+      - id: check-jsonschema
+        args: ['--builtin-schema', 'draft2020-12']
+
+  - repo: https://github.com/shellcheck-py/shellcheck-precommit
+    rev: v0.10.0
+    hooks:
+      - id: shellcheck
+
+  - repo: local
+    hooks:
+      - id: pytest-agent
+        name: pytest-agent
+        entry: python3 tools/run_tests.py
+        language: system
+        pass_filenames: false
+        stages: [push]
+        files: ^agent/
+      - id: no-secrets
+        name: no raw secrets in codebase
+        entry: python3 -c "import re,sys; pat=re.compile(r'(sk-[0-9a-zA-Z]{20,}|[\"')[0-9a-f]{32}[\"')]); [sys.exit(1) if pat.search(open(f).read()) else None for f in __import__('pathlib').Path('.').rglob('*.py') if 'node_modules' not in str(f)]"
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

@@ -1,0 +1,67 @@
+# AgentPulse — Development Compose
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Starts all services with hot-reload and debug ports exposed.
+
+services:
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    image: agentpulse/agent:0.1.0
+    container_name: agentpulse-agent-dev
+    environment:
+      AGENTPULSE_BACKEND_URL: http://backend:8088
+      AGENTPULSE_CONFIG_PATH: /etc/agentpulse/agentpulse.json
+      AGENTPULSE_CREDENTIAL_PATH: /etc/agentpulse/credentials.json
+      AGENTPULSE_STATE_DIR: /var/lib/agentpulse
+      AGENTPULSE_LOG_DIR: /var/log/agentpulse
+      AGENTPULSE_LOG_LEVEL: DEBUG
+      AGENTPULSE_DRY_RUN: "false"
+    volumes:
+      - ./agent/agentpulse:/usr/local/lib/python3.13/site-packages/agentpulse:ro
+    command: ["python3", "-m", "agentpulse", "run", "--config", "/etc/agentpulse/agentpulse.json"]
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: agentpulse/backend:0.1.0
+    container_name: agentpulse-backend-dev
+    environment:
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8088
+      DATABASE_URL: sqlite+aiosqlite:///var/lib/agentpulse/agentpulse.db
+      SECRET_KEY: dev-secret-key-not-for-production
+      ENROLLMENT_SECRET: dev-enrollment-secret-not-for-production
+    volumes:
+      - ./backend/agentpulse_backend:/app/agentpulse_backend:ro
+    ports:
+      - "8088:8088"
+      - "5678:5678"
+    command: ["uvicorn", "agentpulse_backend.app:app", "--host", "0.0.0.0", "--port", "8088", "--reload"]
+    restart: "no"
+
+  dashboard:
+    build:
+      context: ./dashboard/web
+      dockerfile: ../../Dockerfile
+    image: agentpulse/dashboard:0.1.0
+    container_name: agentpulse-dashboard-dev
+    environment:
+      VITE_API_URL: http://localhost:8088
+      VITE_WS_URL: ws://localhost:8088
+    ports:
+      - "3000:3000"
+    command: ["npm", "run", "dev"]
+    restart: "no"
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: agentpulse-prometheus-dev
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--web.enable-lifecycle"]
+    restart: "no"

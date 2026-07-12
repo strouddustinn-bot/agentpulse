@@ -1,0 +1,91 @@
+name: Agent
+
+on:
+  push:
+    branches: [main, 'productization/**']
+    paths: ['agent/**', 'configs/**', 'packages/contracts/**']
+  pull_request:
+    paths: ['agent/**', 'configs/**', 'packages/contracts/**']
+
+concurrency:
+  group: agent-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -q pytest pytest-asyncio httpx
+
+      - name: Verify config schema
+        run: |
+          python3 -c "import json, jsonschema
+          cfg = json.load(open('agent/agentpulse.config.example.json'))
+          schema = json.load(open('configs/agentpulse.config.schema.json'))
+          jsonschema.validate(cfg, schema)"
+
+      - name: Validate JSON files
+        run: |
+          python3 -c "
+          import json, glob
+          bad = []
+          for f in glob.glob('agent/**/*.json', recursive=True):
+              try: json.load(open(f))
+              except Exception as e: bad.append(f'{f}: {e}')
+          if bad: [print(b) for b in bad]; exit(1)
+          print('All JSON files valid')
+          "
+
+      - name: Run agent tests
+        run: python3 agent/tools/run_tests.py
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ruff
+        run: pip install -q ruff
+
+      - name: Lint agent
+        run: ruff check agent/ --output-format=text
+
+      - name: Check conflict markers
+        run: |
+          ! git grep -c -E '^(<<<<<<<|=======|>>>>>>>)' -- agent/
+
+  typecheck:
+    name: Schema Validation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate all JSON schemas
+        run: |
+          python3 -c "
+          import json, glob, jsonschema
+          schemas = glob.glob('packages/contracts/schemas/*.schema.json')
+          for s in schemas:
+              name = s.split('/')[-1]
+              try:
+                  jsonschema.Draft7Validator.check_schema(json.load(open(s)))
+                  print(f'OK: {name}')
+              except Exception as e:
+                  print(f'FAIL: {name}: {e}')
+                  exit(1)
+          "
