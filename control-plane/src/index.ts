@@ -188,11 +188,13 @@ async function enrollAgent(request: Request, env: WorkerEnv): Promise<Response> 
   if (!isMode(ceiling)) throw new HttpError(422, "invalid_policy_ceiling", "local_policy_ceiling is invalid");
   const timestamp = Math.floor(Date.now() / 1000);
   const token = await env.DB.prepare(
-    "SELECT e.id,e.tenant_id,s.status,s.agent_limit FROM enrollment_tokens e " +
+    "SELECT e.id,e.tenant_id,e.expires_at,e.consumed_at,s.status,s.agent_limit FROM enrollment_tokens e " +
       "JOIN subscriptions s ON s.tenant_id=e.tenant_id WHERE e.token_hash=? " +
       "ORDER BY s.updated_at DESC LIMIT 1",
-  ).bind(tokenHash).first<{ id: string; tenant_id: string; status: string; agent_limit: number }>();
+  ).bind(tokenHash).first<{ id: string; tenant_id: string; expires_at: number; consumed_at: number | null; status: string; agent_limit: number }>();
   if (token === null) throw new HttpError(401, "invalid_enrollment_token", "Enrollment token is invalid");
+  if (token.expires_at < timestamp) throw new HttpError(401, "expired_enrollment_token", "Enrollment token is expired");
+  if (token.consumed_at !== null) throw new HttpError(409, "enrollment_token_consumed", "Enrollment token was already consumed");
   if (!ACTIVE_SUBSCRIPTIONS.has(token.status)) {
     throw new HttpError(402, "subscription_inactive", "An active subscription is required");
   }
@@ -295,6 +297,15 @@ function parseStripeSignature(value: string): { timestamp: number; signatures: s
   return { timestamp, signatures };
 }
 
+function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= (left[index] ?? 0) ^ (right[index] ?? 0);
+  }
+  return difference === 0;
+}
+
 async function stripeSignatureValid(raw: Uint8Array, header: string, secret: string): Promise<boolean> {
   const parsed = parseStripeSignature(header);
   const current = Math.floor(Date.now() / 1000);
@@ -308,7 +319,7 @@ async function stripeSignatureValid(raw: Uint8Array, header: string, secret: str
   return parsed.signatures.some((candidate) => {
     if (!/^[0-9a-f]{64}$/i.test(candidate)) return false;
     const actual = new Uint8Array(candidate.match(/.{2}/g)?.map((part) => Number.parseInt(part, 16)) ?? []);
-    return actual.length === expected.length && crypto.subtle.timingSafeEqual(actual, expected);
+    return constantTimeEqual(actual, expected);
   });
 }
 
