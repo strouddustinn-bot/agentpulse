@@ -39,9 +39,9 @@ We are onboarding the first users as a paid beta so the remediation policies can
 
 | Plan | Price | Best for | Includes |
 | --- | --- | --- | --- |
-| Starter | $29/mo | 1 production VPS | Monitoring, alerts, manual remediation approvals |
-| **Pro Beta — recommended** | **$99/mo** | Up to 5 servers | All three fix classes (disk, service, memory), verify-or-escalate remediation, optional onboarding |
-| Business Beta | $299/mo | Small teams | Unlimited servers during beta, priority setup, custom policies |
+| Starter | C$29/mo CAD | 1 production VPS | Monitoring, alerts, manual remediation approvals |
+| **Pro Beta — recommended** | **C$99/mo CAD** | Up to 5 servers | All three fix classes (disk, service, memory), verify-or-escalate remediation, optional onboarding |
+| Business Beta | C$299/mo CAD | Small teams | Unlimited servers during beta, priority setup, custom policies |
 
 [Reserve your Pro Beta slot](signup) — we reply within a few hours during the launch window.
 

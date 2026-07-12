@@ -5,19 +5,18 @@ title: Join the AgentPulse Paid Beta
 
 <!--
   ========================================================================
-  DUSTINN — ONE-LINE GO-LIVE FOR REAL PAYMENT
+  DUSTINN — CHECKOUT CTA IS LIVE
   ------------------------------------------------------------------------
-  To turn on real checkout, paste your Stripe Payment Link below, replacing
-  the placeholder in the `href` of the "checkout-cta" button (search the
-  page for STRIPE_PAYMENT_LINK).
+  The main "checkout-cta" button below already points at the live Pro Beta
+  Stripe Checkout link. Only edit that href if you intentionally rotate or
+  replace the Pro Beta payment link.
 
-  To turn on a real backed lead form instead of (or alongside) checkout,
-  paste a Tally / Google Form embed URL into the iframe `src` below
-  (search for LEAD_FORM_EMBED) and delete the surrounding comment markers.
+  An optional lead form can still be added alongside checkout: paste a Tally,
+  Google Form, or Typeform embed URL into the iframe `src` below (search for
+  LEAD_FORM_EMBED) and delete the surrounding comment markers.
 
-  Until you do either, the page still works: the button and the form
-  section both fall back to a structured email capture, which is better
-  than a bare mailto because it pre-fills every field we need.
+  Until that iframe is enabled, the reserve-slot section continues to fall
+  back to structured email capture.
   ========================================================================
 -->
 
@@ -33,7 +32,7 @@ just paging you about them.
      class="btn"
      href="https://buy.stripe.com/8x228r1dXdDG7M67KJ7N601"
      style="display:inline-block;padding:14px 26px;background:#0b5fff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:1.05em;">
-     Start Pro Beta — $99/mo
+     Start Pro Beta — C$99/mo CAD
   </a>
 </p>
 
@@ -45,7 +44,7 @@ just paging you about them.
 
 <p style="font-size:0.9em;">
   Running one server, or a whole team? <a href="pricing">See all plans</a> —
-  Starter ($29/mo) and Business Beta ($299/mo) are on the pricing page.
+  Starter (C$29/mo) and Business Beta (C$299/mo) are on the pricing page.
 </p>
 
 ---

@@ -41,3 +41,10 @@ def test_deny_removes_pending_and_records_history(tmp_path):
 
 
 def test_deny_unknown_id_returns_none(tmp_path):
+    state = make_state(tmp_path)
+    queue_service_restart(state)
+
+    result = runner.deny(state, "bogus-id")
+    assert result is None
+    assert len(state.list_pending()) == 1
+    assert state.list_history() == []

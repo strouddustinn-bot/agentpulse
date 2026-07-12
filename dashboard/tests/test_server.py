@@ -101,6 +101,17 @@ class TestDb(unittest.TestCase):
         db2.close()
         db2.close()  # must not raise
 
+    def test_fleet_agent_upsert_is_persistent_and_replaces_state(self):
+        self.db.upsert_agent("node-1", "web-01", {"last_run": 1.0})
+        first = self.db.fleet_agents()
+        self.assertEqual(first["node-1"]["hostname"], "web-01")
+        self.assertEqual(first["node-1"]["state"]["last_run"], 1.0)
+
+        self.db.upsert_agent("node-1", "web-01", {"last_run": 2.0})
+        second = self.db.fleet_agents()
+        self.assertEqual(len(second), 1)
+        self.assertEqual(second["node-1"]["state"]["last_run"], 2.0)
+
 
 # ---------------------------------------------------------------------------
 # ingest.py — StateWatcher
@@ -413,6 +424,80 @@ class TestApp(unittest.TestCase):
             self.assertEqual(r.status_code, 401)
             r = client.post("/api/pending/abc123/approve")
             self.assertEqual(r.status_code, 401)
+
+    def test_heartbeat_requires_ingest_token_and_populates_fleet(self):
+        from fastapi.testclient import TestClient
+        from pulse_server.main import create_app
+        import dataclasses
+
+        settings = dataclasses.replace(
+            self.settings,
+            ingest_token="ingest-secret",
+            db_path=os.path.join(self.tmp.name, "fleet.db"),
+        )
+        app = create_app(settings)
+        payload = {
+            "agent_id": "node-1",
+            "hostname": "web-01",
+            "state": {"last_run": 123.0, "pending": [], "history": []},
+        }
+        with TestClient(app) as client:
+            self.assertEqual(client.post("/fleet/heartbeat", json=payload).status_code,
+                             401)
+            r = client.post(
+                "/fleet/heartbeat",
+                json=payload,
+                headers={"Authorization": "Bearer ingest-secret"},
+            )
+            self.assertEqual(r.status_code, 200)
+            self.assertTrue(r.json()["ok"])
+            fleet = client.get("/api/state").json()["fleet"]
+            self.assertEqual(fleet["node-1"]["hostname"], "web-01")
+            self.assertEqual(fleet["node-1"]["state"]["last_run"], 123.0)
+
+    def test_heartbeat_rejects_invalid_agent_id(self):
+        from fastapi.testclient import TestClient
+        from pulse_server.main import create_app
+        import dataclasses
+
+        settings = dataclasses.replace(
+            self.settings,
+            ingest_token="ingest-secret",
+            db_path=os.path.join(self.tmp.name, "invalid-fleet.db"),
+        )
+        app = create_app(settings)
+        with TestClient(app) as client:
+            r = client.post(
+                "/fleet/heartbeat",
+                json={"agent_id": "../../etc", "hostname": "bad", "state": {}},
+                headers={"Authorization": "Bearer ingest-secret"},
+            )
+            self.assertEqual(r.status_code, 422)
+
+    def test_read_password_protects_dashboard_but_not_health(self):
+        from fastapi.testclient import TestClient
+        from pulse_server.main import create_app
+        import dataclasses
+
+        settings = dataclasses.replace(
+            self.settings,
+            read_password="read-secret",
+            db_path=os.path.join(self.tmp.name, "protected.db"),
+        )
+        app = create_app(settings)
+        with TestClient(app) as client:
+            self.assertEqual(client.get("/api/health").status_code, 200)
+            denied = client.get("/api/state")
+            self.assertEqual(denied.status_code, 401)
+            self.assertIn("Basic", denied.headers["www-authenticate"])
+            self.assertEqual(
+                client.get("/api/state", auth=("agentpulse", "wrong")).status_code,
+                401,
+            )
+            self.assertEqual(
+                client.get("/api/state", auth=("agentpulse", "read-secret")).status_code,
+                200,
+            )
 
     def test_approve_with_token_calls_action_and_refreshes(self):
         from pulse_server import main as main_mod

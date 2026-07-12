@@ -30,7 +30,8 @@ def test_full_valid(tmp_path):
     c = cfgmod.load(write(tmp_path, data))
     assert c.disk.mode == "auto"
     assert c.service.services == ["nginx", "redis"]
-    assert c.notify.type == "webhook"
+    assert c.notify.channels[0].type == "webhook"
+    assert c.notify.channels[0].webhook_url == "https://example.com/hook"
 
 
 def test_bad_mode(tmp_path):

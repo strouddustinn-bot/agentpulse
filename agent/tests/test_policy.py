@@ -31,17 +31,30 @@ def test_auto_executes():
     assert d.execute is True and d.requires_approval is False
 
 
-def test_process_auto_is_clamped_to_ask():
+def test_process_auto_produces_execute():
+    # Process in auto mode now produces execute=True at the policy layer.
+    # Safety gates (kill_eligible, PID checks) enforce safety in the decision loop.
     d = policy.decide("process", "auto", obs("process"))
+    assert d.execute is True
+    assert d.requires_approval is False
+    assert d.action == "process_kill"
+
+
+def test_process_ask_requires_approval():
+    d = policy.decide("process", "ask", obs("process"))
     assert d.execute is False
     assert d.requires_approval is True
-    assert d.clamped_from == "auto"
-    assert "never auto-killed" in d.reason
 
 
-@pytest.mark.parametrize("check", ["disk", "service", "process"])
+@pytest.mark.parametrize("check", ["disk", "service", "process", "ssh"])
 @pytest.mark.parametrize("mode", ["off", "alert", "ask", "auto"])
-def test_process_never_auto_executes(check, mode):
+def test_mode_invariants(check, mode):
     d = policy.decide(check, mode, obs(check))
-    if check == "process" and d is not None:
-        assert d.execute is False, "process must never auto-execute"
+    if mode == "off":
+        assert d is None
+    elif mode == "alert":
+        assert d is not None and d.execute is False and d.requires_approval is False
+    elif mode == "ask":
+        assert d is not None and d.execute is False and d.requires_approval is True
+    elif mode == "auto":
+        assert d is not None and d.execute is True and d.requires_approval is False

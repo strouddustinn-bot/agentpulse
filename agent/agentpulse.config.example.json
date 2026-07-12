@@ -5,15 +5,59 @@
   "log_file": "/var/log/agentpulse/agentpulse.log",
 
   "notify": {
-    "type": "stdout",
-    "webhook_url": ""
+    "channels": [
+      {
+        "type": "stdout"
+      },
+      {
+        "_comment": "Uncomment and fill in to enable Telegram alerts",
+        "_type": "telegram",
+        "_bot_token": "123456:ABC-DEF...",
+        "_chat_id": "-100123456789"
+      },
+      {
+        "_comment": "Uncomment and fill in to enable email alerts",
+        "_type": "email",
+        "_smtp_host": "smtp.gmail.com",
+        "_smtp_port": 587,
+        "_smtp_user": "you@gmail.com",
+        "_smtp_password": "your-app-password",
+        "_from_address": "alerts@example.com",
+        "_to_addresses": ["ops@example.com"],
+        "_use_tls": true
+      },
+      {
+        "_comment": "Uncomment to send to Slack/Discord webhook",
+        "_type": "webhook",
+        "_webhook_url": "https://hooks.slack.com/services/..."
+      }
+    ]
   },
 
   "baseline": {
     "enabled": true,
     "min_samples": 20,
     "z_threshold": 3.0,
-    "min_abs_deviation": 2.0
+    "min_abs_deviation": 2.0,
+    "ml_enabled": true,
+    "hw_alpha": 0.2,
+    "hw_beta": 0.1
+  },
+
+  "dashboard": {
+    "enabled": false,
+    "port": 8765,
+    "bind": "127.0.0.1"
+  },
+
+  "federation": {
+    "enabled": false,
+    "mode": "spoke",
+    "hub_url": "",
+    "secret": "",
+    "port": 8766,
+    "bind": "0.0.0.0",
+    "push_interval_seconds": 60
   },
 
   "checks": {
@@ -32,15 +76,31 @@
 
     "process": {
       "mode": "alert",
-      "mem_percent_threshold": 85
+      "mem_percent_threshold": 85,
+      "kill_allowed_names": [],
+      "kill_grace_seconds": 10,
+      "never_kill": ["systemd", "init", "kthreadd", "sshd", "kernel"]
+    },
+
+    "ssh": {
+      "mode": "alert",
+      "log_file": "",
+      "failure_threshold": 5,
+      "window_seconds": 60,
+      "block_duration_seconds": 3600,
+      "never_block": []
     }
   },
 
   "_comments": {
-    "safety": "Every check ships in 'alert' mode. The agent only WATCHES until you change a mode to 'ask' (queue for your approval) or 'auto' (act on its own). Nothing is auto-fixed by default.",
+    "safety": "Every check ships in 'alert' mode. Nothing is auto-fixed by default.",
     "modes": "off | alert | ask | auto",
-    "disk_auto": "Set checks.disk.mode to 'auto' only after you trust cleanup_globs. The agent deletes regular files older than cleanup_older_than_days inside those globs only, never directories, never symlinks, never system paths.",
-    "service_auto": "Set checks.service.mode to 'auto' to let the agent restart a failed service in the allowlist. Use 'ask' if you'd rather approve each restart.",
-    "process_note": "The process check NEVER kills automatically in v1, even if set to 'auto' (it is clamped to 'ask'). It flags the single largest memory user above the threshold."
+    "disk_auto": "Set mode to 'auto' only after you trust cleanup_globs. The agent deletes regular files older than cleanup_older_than_days inside those globs only — never directories, never symlinks, never system paths.",
+    "service_auto": "Set mode to 'auto' to let the agent restart a failed service. Use 'ask' to approve each restart.",
+    "process_auto": "Set mode to 'auto' AND populate kill_allowed_names to let the agent kill runaway processes. Safety gates verify kill_eligible, PID existence, and name match before any signal is sent. Never kills PID 1 or names in never_kill.",
+    "ssh_auto": "Set mode to 'auto' to block brute-forcing IPs via iptables. Requires root/CAP_NET_ADMIN. Blocks expire after block_duration_seconds (0 = permanent).",
+    "dashboard": "Set dashboard.enabled to true to start the web UI on 127.0.0.1:8765. Bind to 0.0.0.0 only behind a firewall.",
+    "federation_spoke": "Set federation.enabled true, mode 'spoke', hub_url to push state to a hub agent.",
+    "federation_hub": "Set mode 'hub' on one agent to receive heartbeats from all spokes and serve /fleet/agents."
   }
 }

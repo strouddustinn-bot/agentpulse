@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from typing import List, Optional
 
 from . import __version__, config as config_mod
@@ -47,6 +48,18 @@ def build_parser() -> argparse.ArgumentParser:
     pd = sub.add_parser("deny", help="reject a pending ask-first action without executing it")
     pd.add_argument("config")
     pd.add_argument("pending_id")
+
+    ph = sub.add_parser("history", help="show recent agent action history")
+    ph.add_argument("config")
+    ph.add_argument("--limit", type=int, default=20, help="number of records to show")
+
+    pu = sub.add_parser("unblock-ip", help="remove an iptables block for an IP address")
+    pu.add_argument("config")
+    pu.add_argument("ip")
+    pu.add_argument("--dry-run", action="store_true")
+
+    pbi = sub.add_parser("list-blocked", help="list currently blocked IP addresses")
+    pbi.add_argument("config")
 
     return p
 
@@ -114,7 +127,6 @@ def main(argv: Optional[List[str]] = None) -> int:
                 file=sys.stderr,
             )
             return 1
-        # failed
         err = rec.execution.error if rec.execution else "unknown error"
         print(f"FAILED: {err}", file=sys.stderr)
         return 1
@@ -126,6 +138,61 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"no pending action with id {args.pending_id}", file=sys.stderr)
             return 2
         print(f"denied: {entry['action']} {entry['target']}")
+        return 0
+
+    if args.command == "history":
+        cfg, state, _ = _load(args.config)
+        records = state.list_history(args.limit)
+        if not records:
+            print("no history recorded yet")
+            return 0
+        for r in records:
+            ts = r.get("ts")
+            ts_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts)) if ts else "?"
+            outcome = r.get("outcome", "?")
+            action = r.get("action", "?")
+            target = r.get("target", "?")
+            verified = r.get("verified")
+            v_str = f" verified={verified}" if verified is not None else ""
+            notes = "; ".join(r.get("notes", []))
+            print(f"{ts_str}  {outcome:20s}  {action:20s}  {target}{v_str}")
+            if notes:
+                print(f"  → {notes}")
+        return 0
+
+    if args.command == "unblock-ip":
+        from .remediation import ssh_unblock
+        cfg, state, _ = _load(args.config)
+        ip = args.ip
+        res = ssh_unblock(ip, dry_run=args.dry_run)
+        if res.error:
+            print(f"ERROR: {res.error}", file=sys.stderr)
+            return 1
+        if not args.dry_run:
+            state.unblock_ip(ip)
+            state.save()
+        for d in res.details:
+            print(d)
+        return 0
+
+    if args.command == "list-blocked":
+        cfg, state, _ = _load(args.config)
+        blocked = state.list_blocked_ips()
+        if not blocked:
+            print("no blocked IPs")
+            return 0
+        now = time.time()
+        for b in blocked:
+            ip = b["ip"]
+            blocked_at = b.get("blocked_at", 0)
+            dur = b.get("duration_seconds", 0)
+            if dur == 0:
+                expires = "permanent"
+            else:
+                remaining = int(dur - (now - blocked_at))
+                expires = f"expires in {max(0, remaining)}s"
+            reason = b.get("reason", "")
+            print(f"{ip:20s}  {expires}  — {reason}")
         return 0
 
     return 0  # pragma: no cover

@@ -1,0 +1,60 @@
+# AgentPulse Dashboard Service
+#
+# FLAG TO OPERATOR: installing/enabling this unit is a root action — see
+# dashboard/README.md ("Production install") for the full install steps
+# (create the agentpulse user, copy the repo to /opt/agentpulse, build the
+# venv and frontend, create /var/lib/agentpulse, write the env file).
+#
+# Secrets: PULSE_TOKEN must go in /etc/agentpulse/dashboard.env (mode 600,
+# owned root:agentpulse or agentpulse:agentpulse) — NEVER in this unit file,
+# which is world-readable once installed.
+
+[Unit]
+Description=AgentPulse Dashboard Service (persistent FastAPI backend + built web UI)
+Documentation=file:///opt/agentpulse/dashboard/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agentpulse
+Group=agentpulse
+WorkingDirectory=/opt/agentpulse/dashboard
+
+# Defaults — override in /etc/agentpulse/dashboard.env, not here.
+Environment=PULSE_STATE_FILE=/var/lib/agentpulse/state.json
+Environment=PULSE_AGENT_DIR=/opt/agentpulse/agent
+Environment=PULSE_AGENT_CONFIG=/etc/agentpulse/config.json
+Environment=PULSE_DB=/var/lib/agentpulse/pulse.db
+Environment=PULSE_DISK_PATHS=/
+Environment=PULSE_WEB_DIST=/opt/agentpulse/dashboard/web/dist
+# PULSE_TOKEN lives ONLY in the env file below (chmod 600).
+EnvironmentFile=-/etc/agentpulse/dashboard.env
+
+ExecStart=/opt/agentpulse/dashboard/.venv/bin/uvicorn pulse_server.main:app \
+  --host 127.0.0.1 --port 8790 --app-dir /opt/agentpulse/dashboard
+
+Restart=always
+RestartSec=5
+
+# Hardening. The service reads the agent's state/config and shells out to the
+# agent CLI for approve/deny; it writes only its SQLite DB under
+# /var/lib/agentpulse. The agent CLI child (approve/deny) inherits this
+# sandbox and rewrites state.json in the same read-write directory.
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+# Explicit read-only mounts for the agent code and config (already read-only
+# under ProtectSystem=strict; listed for clarity and future-proofing).
+ReadOnlyPaths=/opt/agentpulse /etc/agentpulse
+# The only writable location: dashboard DB + the agent state file the CLI
+# rewrites on approve/deny.
+ReadWritePaths=/var/lib/agentpulse
+
+[Install]
+WantedBy=multi-user.target

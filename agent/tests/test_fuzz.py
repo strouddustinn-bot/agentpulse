@@ -3,7 +3,8 @@ invariants that matter for software that deletes files and restarts services on
 its own.
 
 Invariants under test:
-  I1  A process is NEVER auto-executed (no auto-kill), under any mode.
+  I1  process_kill is gated by kill_eligible=True in metadata; if that flag is
+      absent the safety gate blocks execution regardless of mode.
   I2  Non-breached / 'off' observations never produce an action.
   I3  The cleanup glob guard never approves a filesystem-root sweep.
   I4  Real cleanup deletes ONLY regular files, older than the cutoff, inside the
@@ -13,7 +14,7 @@ Invariants under test:
   I6  Baseline learning never flags an anomaly during warmup.
   I7  The decision-loop safety gate fails closed: it never allows an action
       without a successful simulation, and never allows an action outside the
-      executable allowlist (process / unknown actions are always refused), and
+      executable allowlist (unknown/alert-only actions are always refused), and
       always returns a non-empty reason.
 
 Total randomized iterations are asserted to exceed 3000.
@@ -35,7 +36,7 @@ ITER_BASELINE = 1000
 ITER_LOOP = 1200
 
 MODES = ["off", "alert", "ask", "auto"]
-CHECKS = ["disk", "service", "process"]
+CHECKS = ["disk", "service", "process", "ssh"]
 
 FORBIDDEN_BASES = ["/", "/etc", "/usr", "/bin", "/sbin", "/lib", "/boot",
                    "/dev", "/proc", "/sys", "/root", "/home", "/var"]
@@ -60,10 +61,7 @@ def test_I1_I2_policy_invariants():
             assert d is None
             continue
         assert d is not None
-        # I1: process never auto-executes
-        if check == "process":
-            assert d.execute is False
-        # auto on non-process executes; ask never executes; alert never executes
+        # Mode invariants hold across all check types.
         if d.mode_effective == "auto":
             assert d.execute is True and d.requires_approval is False
         if d.mode_effective == "ask":
@@ -71,6 +69,31 @@ def test_I1_I2_policy_invariants():
         if d.mode_effective == "alert":
             assert d.execute is False and d.requires_approval is False
     assert count == ITER_POLICY
+
+
+def test_I1_process_kill_requires_eligible_flag():
+    """I1: process_kill is gated at the decision loop level by kill_eligible in metadata."""
+    random.seed(11)
+    count = 0
+    for _ in range(500):
+        count += 1
+        # Observation WITHOUT kill_eligible (or with it False) — gate must block.
+        obs = Observation(
+            check="process", target="pid:1234 (myapp)", breached=True,
+            metadata={"pid": 1234, "name": "myapp", "kill_eligible": False,
+                      "kill_grace_seconds": 5},
+        )
+        dec = Decision(action="process_kill", target="pid:1234 (myapp)",
+                       mode_effective="auto", execute=True, requires_approval=False,
+                       reason="r", observation=obs)
+        sim = remediation.RemediationResult(
+            action="process_kill", target="pid:1234 (myapp)",
+            performed=False, dry_run=True, error=None,
+        )
+        allowed, reasons = decision_loop.safety_gate(dec, sim)
+        assert allowed is False, "process_kill without kill_eligible must be gated"
+        assert reasons
+    assert count == 500
 
 
 def test_I3_glob_guard_never_allows_root_sweep():
@@ -196,6 +219,9 @@ def test_I6_baseline_never_raises_or_flags_in_warmup():
     assert count == ITER_BASELINE
 
 
+_EXECUTABLE_ACTIONS = frozenset({"disk_cleanup", "service_restart", "process_kill", "ssh_block"})
+
+
 def test_I7_safety_gate_fails_closed():
     random.seed(7)
     count = 0
@@ -216,8 +242,8 @@ def test_I7_safety_gate_fails_closed():
         if not sim.ok:
             assert allowed is False, action
         # Never allow an action outside the executable allowlist, even when the
-        # simulation is clean. process_alert / unknown actions must fail closed.
-        if action not in ("disk_cleanup", "service_restart"):
+        # simulation is clean. process_alert / unknown / alert-only actions fail closed.
+        if action not in _EXECUTABLE_ACTIONS:
             assert allowed is False, action
         # The runner builds its notification body from these; never empty.
         assert reasons, action

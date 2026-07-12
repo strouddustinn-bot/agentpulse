@@ -55,13 +55,17 @@ human instead of retrying** — the loop refuses to spiral.
 
 ## What's NOT here yet (honest roadmap)
 
-- Cloud dashboard / multi-server fleet view
+- ~~Local dashboard~~ — **now exists**: a persistent local web dashboard
+  ([`dashboard/`](dashboard/README.md)) with live updates, history, metric
+  charts, and one-click approvals. Runs on your server, bound to localhost.
+- Hosted cloud dashboard / multi-server fleet control plane — still roadmap,
+  not built
 - Baseline/ML learning of "normal"
 - More remediation actions and integrations (Slack/Discord)
-- Hosted control plane
 
-v1 is a single-host agent you install and configure yourself. That's it — and
-it's real, tested, and conservative on purpose.
+v1 is a single-host agent (plus an optional local dashboard) you install and
+configure yourself. That's it — and it's real, tested, and conservative on
+purpose.
 
 ## Guard rails are tested, not promised
 
