@@ -1,4 +1,4 @@
-import { defineWorkersConfig, readD1Migrations } from "@cloudflare/vitest-pool-workers/config";
+import { defineWorkersConfig, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 
 export default defineWorkersConfig(async () => {
   const migrations = await readD1Migrations("./migrations");
