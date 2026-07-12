@@ -1,0 +1,180 @@
+"""Durable, redacted, FIFO JSON event spool."""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import tempfile
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
+
+from .redaction import redact
+
+
+class SpoolFull(RuntimeError):
+    """The queue has reached its configured capacity."""
+
+
+class SpoolCorruptEntry(ValueError):
+    """A queued file failed envelope or hash validation."""
+
+
+def _hash_payload(payload: Any) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+class Spool:
+    def __init__(
+        self,
+        directory: os.PathLike[str] | str,
+        *,
+        max_events: int = 1000,
+        max_age_seconds: float = 7 * 24 * 3600,
+    ) -> None:
+        if max_events < 1 or max_age_seconds <= 0:
+            raise ValueError("spool limits must be positive")
+        self.directory = Path(directory)
+        self.quarantine = self.directory / "quarantine"
+        self.acknowledged = self.directory / "acknowledged"
+        self.max_events = max_events
+        self.max_age_seconds = max_age_seconds
+        self._ensure_dirs()
+
+    def enqueue(self, event_type: str, payload: Any, *, event_id: Optional[str] = None) -> str:
+        self._ensure_dirs()
+        self._quarantine_expired()
+        event_id = event_id or str(uuid.uuid4())
+        if (self.acknowledged / f"{event_id}.ack").exists() or any(item["event_id"] == event_id for item in self.list_pending()):
+            raise ValueError("event_id is already queued")
+        if len(self.list_pending()) >= self.max_events:
+            raise SpoolFull("spool queue is full; caller must apply backpressure")
+        safe_payload = redact(payload)
+        event = {
+            "event_id": event_id,
+            "event_type": str(event_type),
+            "created_at": _timestamp(),
+            "attempts": 0,
+            "payload": safe_payload,
+            "payload_hash": _hash_payload(safe_payload),
+        }
+        # UUID is unique; the timestamp prefix and event ID provide stable FIFO
+        # ordering without requiring a mutable index file.
+        filename = f"{time.time_ns():020d}-{event_id}.json"
+        self._atomic_write(self.directory / filename, event)
+        return event_id
+
+    def list_pending(self) -> List[Dict[str, Any]]:
+        self._ensure_dirs()
+        items: List[Dict[str, Any]] = []
+        for path in sorted(self.directory.glob("*.json")):
+            try:
+                event = self._read_valid(path)
+            except SpoolCorruptEntry:
+                self._quarantine(path)
+                continue
+            if self._is_expired(event, path):
+                self._quarantine(path)
+                continue
+            items.append(event)
+        return items
+
+    def replay(self, acknowledge: Callable[[Dict[str, Any]], bool]) -> int:
+        delivered = 0
+        for path in sorted(self.directory.glob("*.json")):
+            try:
+                event = self._read_valid(path)
+            except SpoolCorruptEntry:
+                self._quarantine(path)
+                continue
+            if self._is_expired(event, path):
+                self._quarantine(path)
+                continue
+            try:
+                accepted = bool(acknowledge(event))
+            except Exception:
+                accepted = False
+            if accepted:
+                path.unlink(missing_ok=True)
+                marker = self.acknowledged / f"{event['event_id']}.ack"
+                self._atomic_write(marker, {"event_id": event["event_id"], "acknowledged_at": _timestamp()})
+                delivered += 1
+            else:
+                event["attempts"] = int(event.get("attempts", 0)) + 1
+                self._atomic_write(path, event)
+        return delivered
+
+    def _read_valid(self, path: Path) -> Dict[str, Any]:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            required = {"event_id", "event_type", "created_at", "attempts", "payload", "payload_hash"}
+            if not isinstance(data, dict) or set(data) != required:
+                raise ValueError("invalid event envelope")
+            if data["payload_hash"] != _hash_payload(data["payload"]):
+                raise ValueError("payload hash mismatch")
+            return data
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise SpoolCorruptEntry(str(exc)) from exc
+
+    def _is_expired(self, event: Dict[str, Any], path: Optional[Path] = None) -> bool:
+        try:
+            created = datetime.fromisoformat(str(event["created_at"]).replace("Z", "+00:00")).timestamp()
+        except (TypeError, ValueError, OverflowError):
+            return True
+        modified = path.stat().st_mtime if path is not None else created
+        return min(created, modified) < time.time() - self.max_age_seconds
+
+    def _quarantine_expired(self) -> None:
+        # list_pending performs validation and age quarantine.
+        self.list_pending()
+
+    def _quarantine(self, path: Path) -> None:
+        self.quarantine.mkdir(mode=0o700, parents=True, exist_ok=True)
+        destination = self.quarantine / path.name
+        if destination.exists():
+            destination = self.quarantine / f"{path.stem}-{uuid.uuid4().hex}.json"
+        try:
+            os.replace(path, destination)
+            os.chmod(destination, 0o600)
+        except FileNotFoundError:
+            pass
+
+    def _ensure_dirs(self) -> None:
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(self.directory, 0o700)
+        self.quarantine.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(self.quarantine, 0o700)
+        self.acknowledged.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(self.acknowledged, 0o700)
+
+    @staticmethod
+    def _atomic_write(path: Path, event: Dict[str, Any]) -> None:
+        fd, temporary = tempfile.mkstemp(prefix=".spool-", dir=str(path.parent))
+        try:
+            os.fchmod(fd, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                fd = -1
+                json.dump(event, handle, sort_keys=True, separators=(",", ":"))
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+            os.chmod(path, 0o600)
+        except Exception:
+            if fd >= 0:
+                os.close(fd)
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
+            raise
+
+
+__all__ = ["Spool", "SpoolCorruptEntry", "SpoolFull"]

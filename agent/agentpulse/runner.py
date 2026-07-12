@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
 from . import baseline, checks, control_plane, decision_loop, policy
-from .checkin import CheckinDeliveryError, build_checkin_payload, send_checkin_payload
+from .checkin import CheckinClient, CheckinDeliveryError, build_checkin_payload, send_checkin_payload
 from .config import Config
 from .models import Decision, Observation
 from .state import State
@@ -110,7 +110,18 @@ def send_backend_checkin(
         return False
     payload = build_checkin_payload(cfg, summary)
     try:
-        sender(cfg, payload)
+        if sender is send_checkin_payload and cfg.checkin.credential_file:
+            from .identity import IdentityManager
+            from .spool import Spool
+            client = CheckinClient(
+                IdentityManager(cfg.checkin.identity_file, cfg.checkin.credential_file),
+                Spool(cfg.checkin.spool_directory),
+                endpoint_url=cfg.checkin.endpoint_url,
+                timeout=cfg.checkin.timeout_seconds,
+            )
+            client.send(payload)
+        else:
+            sender(cfg, payload)
         return True
     except CheckinDeliveryError as exc:
         notifier.send("backend check-in failed", str(exc))

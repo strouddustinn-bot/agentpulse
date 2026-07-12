@@ -127,3 +127,10 @@ def test_checkin_endpoint_rejects_non_http_url(tmp_path):
 def test_checkin_timeout_must_be_positive(tmp_path):
     with pytest.raises(cfgmod.ConfigError):
         cfgmod.load(write(tmp_path, {"checkin": {"timeout_seconds": 0}}))
+
+
+def test_checkin_trust_paths_are_configurable():
+    cfg = cfgmod.from_dict({"checkin": {"identity_file": "/tmp/id", "credential_file": "/tmp/cred", "spool_directory": "/tmp/spool"}})
+    assert cfg.checkin.identity_file == "/tmp/id"
+    assert cfg.checkin.credential_file == "/tmp/cred"
+    assert cfg.checkin.spool_directory == "/tmp/spool"

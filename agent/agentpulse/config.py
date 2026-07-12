@@ -52,6 +52,9 @@ class CheckinConfig:
     endpoint_url: str = ""
     auth_token: str = ""
     timeout_seconds: float = 10.0
+    identity_file: str = "/var/lib/agentpulse/identity.json"
+    credential_file: str = "/var/lib/agentpulse/agent.credential"
+    spool_directory: str = "/var/lib/agentpulse/spool"
 
 
 @dataclass
@@ -169,6 +172,9 @@ def from_dict(data: Dict[str, Any]) -> Config:
             timeout_seconds=_positive_number(
                 "checkin.timeout_seconds", cin.get("timeout_seconds", 10.0)
             ),
+            identity_file=str(cin.get("identity_file", "/var/lib/agentpulse/identity.json")),
+            credential_file=str(cin.get("credential_file", "/var/lib/agentpulse/agent.credential")),
+            spool_directory=str(cin.get("spool_directory", "/var/lib/agentpulse/spool")),
         )
 
     cp = data.get("control_plane", {})

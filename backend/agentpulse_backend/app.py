@@ -98,6 +98,21 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
             "checkins": legacy_store.list_checkins(org_id=principal.org_id, agent_id=agent_id, limit=limit),
         }
 
+    @app.post("/api/license/verify")
+    async def legacy_license_verify(request: Request):
+        payload = await request.json()
+        result = legacy_store.verify_license(
+            license_key=str(payload.get("license_key", "")),
+            agent_id=str(payload.get("agent_id", "")),
+        )
+        return {
+            "active": result.active,
+            "reason": result.reason,
+            "org_id": result.org_id,
+            "plan": result.plan,
+            "max_agents": result.max_agents,
+        }
+
     # ── Health ──────────────────────────────────────────────────────────────────
     @app.get("/health", tags=["health"])
     def health() -> Dict[str, Any]:
