@@ -1,4 +1,5 @@
-import { env, SELF } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 
 const now = () => Math.floor(Date.now() / 1000);
