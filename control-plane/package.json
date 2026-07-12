@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "types": "wrangler types",
     "types:check": "wrangler types --check",
     "deploy:staging": "wrangler deploy --env staging",
@@ -13,6 +13,7 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.18.4",
+    "@types/node": "^26.1.1",
     "typescript": "7.0.2",
     "vitest": "4.1.10",
     "wrangler": "4.110.0"
