@@ -1,0 +1,7 @@
+{
+  "ok": true,
+  "service": "agentpulse",
+  "route": "/health.json",
+  "type": "static",
+  "status": "public-site-up"
+}

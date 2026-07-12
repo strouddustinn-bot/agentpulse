@@ -17,8 +17,8 @@ agree to these Terms.
 
 ## 1. The Service
 
-AgentPulse is a self-serve Linux monitoring and remediation agent. You install
-it on servers you own or control. It monitors system conditions and, **only
+AgentPulse is a self-serve Linux/macOS monitoring and remediation agent. You install
+it on hosts you own or control. It monitors system conditions and, **only
 where you explicitly enable it**, performs remediation actions such as removing
 files in paths you configure or restarting services you allowlist.
 

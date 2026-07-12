@@ -40,11 +40,13 @@ The first version was simple: a Python agent that monitored my servers and ran s
 
 So I rebuilt it properly:
 
-- **Baseline learning** — the agent learns what "normal" looks like for each server over time
-- **Approval gates** — auto-fix, ask-first, or alert-only per action type
-- **Real-time dashboard** — see what's happening across all your servers
-- **Telegram alerts** — get notified instantly, but only when you actually need to act
-- **Security hardening** — brute-force detection, suspicious process flagging
+- **A verify-or-escalate decision loop** — every fix is simulated first, checked against hard safety rules, executed, then re-measured. If it didn't hold, the agent escalates to me instead of retrying blindly.
+- **Approval gates** — auto-fix, ask-first, or alert-only per action type, alert-only by default
+- **Baseline learning** — the agent learns what's statistically normal for each server and flags deviations
+- **Webhook alerts** — get notified in Slack, Discord, or anything with an HTTP endpoint, but only when you actually need to act
+- **Hard safety rules in code** — never sweep system paths, never touch a process without approval, allowlisted services only
+
+(A fleet dashboard, native Telegram alerts, and SSH brute-force detection are on the roadmap — the agent came first.)
 
 ## The Install Experience I Wanted
 
@@ -58,15 +60,15 @@ Start in alert-only mode, review what the agent discovers, then promote safe rem
 
 No "contact sales." No per-GB billing that balloons unpredictably. No 14-page pricing calculator.
 
-- **Starter** — $29/mo (1 server, real-time alerts, dashboard)
-- **Pro** — $99/mo (5 servers, auto-remediation, baseline learning)
-- **Business** — $299/mo (unlimited servers, API, dedicated support)
+- **Starter** — $29/mo (1 server, alerts + approval-gated fixes)
+- **Pro** — $99/mo (5 servers, auto-remediation, baseline learning, onboarding help)
+- **Business** — $299/mo (unlimited beta servers, custom policies, priority support)
 
 ## The Result
 
-I haven't been paged for a fixable issue in weeks. AgentPulse handles disk cleanup, service restarts, and process management automatically. I still get alerts for things that actually need my attention — but those are rare.
+I haven't been paged for a fixable issue in weeks. AgentPulse handles disk cleanup and service restarts automatically, and queues runaway-process calls for a one-command approval. I still get alerts for things that actually need my attention — but those are rare.
 
-If you're running Linux servers and tired of being the remediation layer, join the paid beta:
+If you're running Linux/macOS hosts and tired of being the remediation layer, join the paid beta:
 
 {% include install.html %}
 

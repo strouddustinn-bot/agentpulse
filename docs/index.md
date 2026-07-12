@@ -5,17 +5,17 @@ title: AgentPulse - AI Server Monitoring That Fixes Incidents
 
 # AI server monitoring that fixes repeat incidents before they page you
 
-AgentPulse is a self-serve Linux agent for founders and small teams running 1-10 servers. Install it on one box, start in alert-only mode, then promote the incidents you already know how to resolve to ask-first or auto-fix.
+AgentPulse is a self-serve Linux/macOS agent for founders and small teams running 1-10 hosts. Install it on one host, start in alert-only mode, then promote the incidents you already know how to resolve to ask-first or auto-fix.
 
 > **Self-serve agent, alert-only by default.** You install it; it watches and (when you allow it) acts. Every auto-fix runs a verify-or-escalate loop — simulate, validate, execute, then **verify**, and escalate to you if the fix didn't hold. It never blind-retries a destructive action. [How it works →](install)
 
-[Install the agent](install) | [See pricing](pricing) | [Request beta access](signup)
+[Install the agent](install) | [Backend API](backend) | [See pricing](pricing) | [Request beta access](signup)
 
-*Best for founders running 1–10 Linux servers on Hetzner, DigitalOcean, Linode, Vultr, or AWS Lightsail.*
+*Best for founders running 1–10 Linux/macOS hosts on Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail, or Mac minis.*
 
 ## What you get tonight
 
-- **Stop being the remediation layer:** cover disk pressure, crashed services, runaway processes, and other repeat Linux incidents.
+- **Stop being the remediation layer:** cover disk pressure, crashed services, runaway processes, and other repeat host incidents.
 - **Start conservative:** begin alert-only, then promote trusted actions to ask-first or auto-fix.
 - **Get setup help:** use paid beta onboarding to protect the first server instead of configuring another dashboard alone.
 - **Keep control:** scope every policy by server and action type before anything runs automatically.
@@ -27,11 +27,11 @@ Most monitoring products stop at alerts. AgentPulse focuses on the repeat incide
 | Pain | Standard monitoring | AgentPulse |
 | --- | --- | --- |
 | Disk fills at 3 AM | Sends an alert | Removes old files inside the cleanup paths you configure, then reports what changed |
-| Worker crashes | Tells you it is down | Restarts the systemd service from your allowlist, then verifies it came back |
+| Worker crashes | Tells you it is down | Restarts the systemd/launchd service from your allowlist, then verifies it came back |
 | Memory runaway | Shows a spike | Flags the largest offender (never auto-kills in v1) |
 | Fix didn't hold | — | Re-checks after acting and escalates to you instead of retrying |
 
-*Everything ships alert-only. You choose what AgentPulse may auto-fix, and every auto-fix is simulated and verified before and after it runs. Baseline learning and a fleet dashboard are on the roadmap.*
+*Everything ships alert-only. You choose what AgentPulse may auto-fix, and every auto-fix is simulated and verified before and after it runs. Statistical baseline learning is built in (advisory anomaly alerts); backend check-ins are wired now and a polished fleet dashboard UI is on the roadmap.*
 
 ## Paid beta offer
 

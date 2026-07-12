@@ -7,23 +7,50 @@ from agentpulse.models import Decision, Observation
 
 def _disk_decision(globs, days=3):
     obs = Observation(
-        check="disk", target="/", breached=True,
+        check="disk",
+        target="/",
+        breached=True,
         metadata={"cleanup_globs": globs, "cleanup_older_than_days": days},
     )
-    return Decision(action="disk_cleanup", target="/", mode_effective="auto",
-                    execute=True, requires_approval=False, reason="r", observation=obs)
+    return Decision(
+        action="disk_cleanup",
+        target="/",
+        mode_effective="auto",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
+    )
 
 
 def _service_decision(name):
-    obs = Observation(check="service", target=name, breached=True, metadata={"service": name})
-    return Decision(action="service_restart", target=name, mode_effective="auto",
-                    execute=True, requires_approval=False, reason="r", observation=obs)
+    obs = Observation(
+        check="service", target=name, breached=True, metadata={"service": name}
+    )
+    return Decision(
+        action="service_restart",
+        target=name,
+        mode_effective="auto",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
+    )
 
 
 def _process_decision():
-    obs = Observation(check="process", target="pid:1 (init)", breached=True, metadata={"pid": 1})
-    return Decision(action="process_alert", target="pid:1", mode_effective="ask",
-                    execute=True, requires_approval=False, reason="r", observation=obs)
+    obs = Observation(
+        check="process", target="pid:1 (init)", breached=True, metadata={"pid": 1}
+    )
+    return Decision(
+        action="process_alert",
+        target="pid:1",
+        mode_effective="ask",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
+    )
 
 
 def test_cycle_simulates_before_executing(tmp_path):
@@ -71,7 +98,7 @@ def test_failed_verification_escalates():
     rec = decision_loop.run_cycle(
         dec, verify_fn=lambda d: False, run_fn=lambda argv: (0, "")
     )
-    assert rec.execution.performed is True
+    assert rec.execution is not None and rec.execution.performed is True
     assert rec.verified is False
     assert rec.outcome == "escalated"
     assert any("escalat" in n.lower() for n in rec.notes)
@@ -79,13 +106,17 @@ def test_failed_verification_escalates():
 
 def test_execution_failure_reported():
     dec = _service_decision("nginx")
-    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True, run_fn=lambda argv: (1, "boom"))
+    rec = decision_loop.run_cycle(
+        dec, verify_fn=lambda d: True, run_fn=lambda argv: (1, "boom")
+    )
     assert rec.outcome == "failed"
 
 
 def test_record_is_serializable():
     dec = _service_decision("nginx")
-    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True, run_fn=lambda argv: (0, ""))
+    rec = decision_loop.run_cycle(
+        dec, verify_fn=lambda d: True, run_fn=lambda argv: (0, "")
+    )
     d = rec.as_dict()
     assert d["action"] == "service_restart"
     assert d["outcome"] in ("succeeded", "executed_unverified")
@@ -95,10 +126,24 @@ def test_record_is_serializable():
 
 
 def _unknown_decision(action):
-    obs = Observation(check="disk", target="x", breached=True,
-                      metadata={"cleanup_globs": ["/tmp/agentpulse-test/*"], "cleanup_older_than_days": 3})
-    return Decision(action=action, target="x", mode_effective="auto",
-                    execute=True, requires_approval=False, reason="r", observation=obs)
+    obs = Observation(
+        check="disk",
+        target="x",
+        breached=True,
+        metadata={
+            "cleanup_globs": ["/tmp/agentpulse-test/*"],
+            "cleanup_older_than_days": 3,
+        },
+    )
+    return Decision(
+        action=action,
+        target="x",
+        mode_effective="auto",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
+    )
 
 
 def test_gate_default_denies_unknown_action():
@@ -107,7 +152,9 @@ def test_gate_default_denies_unknown_action():
     sim = decision_loop.RemediationResult(
         action="network_block", target="x", performed=False, dry_run=True
     )
-    allowed, reasons = decision_loop.safety_gate(_unknown_decision("network_block"), sim)
+    allowed, reasons = decision_loop.safety_gate(
+        _unknown_decision("network_block"), sim
+    )
     assert allowed is False
     assert reasons and "allowlist" in "; ".join(reasons)
 
@@ -125,7 +172,9 @@ def test_noop_execution_escalates_instead_of_false_success():
     # Disk cleanup that matches zero eligible files performs nothing; the breach
     # can't have cleared, so the cycle must escalate rather than report success.
     dec = _disk_decision([str("/tmp/agentpulse-nonexistent-dir/*.log")])
-    rec = decision_loop.run_cycle(dec, verify_fn=lambda d: True, run_fn=lambda argv: (0, ""))
+    rec = decision_loop.run_cycle(
+        dec, verify_fn=lambda d: True, run_fn=lambda argv: (0, "")
+    )
     assert rec.execution is not None and rec.execution.ok
     assert rec.execution.performed is False
     assert rec.outcome == "escalated"

@@ -28,16 +28,18 @@ These aren't judgment calls. They're rote operations you've done dozens of times
 It doesn't have to be. Good auto-remediation systems use **approval gates**:
 
 - ✅ **Auto-fix** — "Always clean /tmp when disk > 90%"
-- ⚠️ **Ask first** — "Restart nginx? Y/N" (via Telegram, email, etc.)
+- ⚠️ **Ask first** — "Restart nginx? Y/N" (the fix is queued until you approve it with one command)
 - 🚨 **Alert only** — "Database process is using too much RAM, but don't touch it"
 
 You decide the policy per action. Start conservative — alert-only for everything — then promote actions to auto-fix as you build trust.
 
 ## Setting Up Auto-Remediation with AgentPulse
 
-1. **Join the paid beta and install the agent:**
+1. **Join the paid beta and install the agent** (download it, read it — it runs as root — then run it):
    ```bash
-   curl -fsSL https://agentpulse.dustinnstroud.com/install.sh | bash
+   curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
+   less install.sh
+   sudo bash install.sh
    ```
 
 2. **Let it learn your baseline** (2-3 days) — AgentPulse observes what "normal" looks like for each server
@@ -48,16 +50,16 @@ You decide the policy per action. Start conservative — alert-only for everythi
 
 ## What to Auto-Fix First
 
-Based on data from early AgentPulse users, these are the most common auto-remediation wins:
+These are the most common auto-remediation wins for small Linux fleets:
 
 | Issue | Fix | Recommended Policy |
 |-------|-----|-------------------|
 | /tmp or /var/log filling up | Clean old files | Auto-fix ✅ |
 | nginx/apache crashed | Restart service | Auto-fix ✅ |
-| Single process OOM | Kill process | Ask-first ⚠️ |
+| Single process OOM | Kill process | Ask-first ⚠️ (AgentPulse enforces this — it never auto-kills) |
 | Disk > 95% | Emergency cleanup | Auto-fix ✅ |
 | Database process issues | Don't touch | Alert-only 🚨 |
-| Brute-force SSH attempts | Block IP | Auto-fix ✅ |
+| Brute-force SSH attempts | Block IP | Ask-first ⚠️ (fail2ban today; on the AgentPulse roadmap) |
 
 ## The ROI of Sleeping Through the Night
 

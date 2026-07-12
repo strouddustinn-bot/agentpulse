@@ -3,13 +3,14 @@ invariants that matter for software that deletes files and restarts services on
 its own.
 
 Invariants under test:
-  I1  process_kill is gated by kill_eligible=True in metadata; if that flag is
-      absent the safety gate blocks execution regardless of mode.
+  I1  Process remediation is never executable in v1, even after approval.
   I2  Non-breached / 'off' observations never produce an action.
-  I3  The cleanup glob guard never approves a filesystem-root sweep.
+  I3  The cleanup glob guard never approves a filesystem-root sweep — including
+      patterns hiding behind a doubled leading slash ('//etc/*').
   I4  Real cleanup deletes ONLY regular files, older than the cutoff, inside the
       configured globs — never new files, never files outside the globs, never
-      directories or symlinks — and never raises.
+      directories or symlinks, and never through a symlinked directory that
+      resolves outside the cleanup base — and never raises.
   I5  Service restart refuses any name containing shell/injection characters.
   I6  Baseline learning never flags an anomaly during warmup.
   I7  The decision-loop safety gate fails closed: it never allows an action
@@ -71,27 +72,25 @@ def test_I1_I2_policy_invariants():
     assert count == ITER_POLICY
 
 
-def test_I1_process_kill_requires_eligible_flag():
-    """I1: process_kill is gated at the decision loop level by kill_eligible in metadata."""
+def test_I1_process_actions_are_never_executable():
+    """I1: the decision loop default-denies all process actions in v1."""
     random.seed(11)
     count = 0
     for _ in range(500):
         count += 1
-        # Observation WITHOUT kill_eligible (or with it False) — gate must block.
         obs = Observation(
             check="process", target="pid:1234 (myapp)", breached=True,
-            metadata={"pid": 1234, "name": "myapp", "kill_eligible": False,
-                      "kill_grace_seconds": 5},
+            metadata={"pid": 1234, "name": "myapp"},
         )
-        dec = Decision(action="process_kill", target="pid:1234 (myapp)",
+        dec = Decision(action="process_alert", target="pid:1234 (myapp)",
                        mode_effective="auto", execute=True, requires_approval=False,
                        reason="r", observation=obs)
         sim = remediation.RemediationResult(
-            action="process_kill", target="pid:1234 (myapp)",
+            action="process_alert", target="pid:1234 (myapp)",
             performed=False, dry_run=True, error=None,
         )
         allowed, reasons = decision_loop.safety_gate(dec, sim)
-        assert allowed is False, "process_kill without kill_eligible must be gated"
+        assert allowed is False, "process actions must be blocked in v1"
         assert reasons
     assert count == 500
 
@@ -105,9 +104,15 @@ def test_I3_glob_guard_never_allows_root_sweep():
         base = random.choice(FORBIDDEN_BASES)
         suffix = random.choice(["/*", "/**", "/*.log", "", "/" + _rand_name() + "/*"])
         pattern = base + suffix
+        if random.random() < 0.25:
+            # '//etc/*' — POSIX normpath preserves the doubled slash, but glob
+            # still expands it into the real /etc. Must still be refused.
+            pattern = "/" + pattern
         allowed = remediation._is_safe_cleanup_glob(pattern)
         # Anything whose fixed base is a forbidden root must be refused.
         fixed_base = os.path.normpath(remediation._glob_base_dir(pattern))
+        if fixed_base.startswith("//"):
+            fixed_base = "/" + fixed_base.lstrip("/")
         if fixed_base in FORBIDDEN_BASES or fixed_base == "/":
             assert allowed is False, pattern
         # Relative patterns always refused.
@@ -160,9 +165,33 @@ def test_I4_cleanup_only_old_files_in_globs(tmp_path):
         canary.write_text("do not touch")
         must_survive.add(str(canary))
 
+        # a symlinked directory inside the glob path: the second glob matches
+        # regular files *through* it, which resolve outside the cleanup base
+        # and must survive
+        victim = outside_dir / "victim.log"
+        victim.write_text("reachable only through the symlinked dir")
+        os.utime(victim, (now - 100 * 86400, now - 100 * 86400))
+        os.symlink(outside_dir, target_dir / "sneaky")
+        must_survive.add(str(victim))
+
+        # an honest subdirectory whose old file SHOULD be cleaned by the
+        # second glob, proving containment doesn't over-block
+        real_sub = target_dir / "realsub"
+        real_sub.mkdir()
+        doomed = real_sub / "doomed.log"
+        doomed.write_text("x")
+        os.utime(doomed, (now - 100 * 86400, now - 100 * 86400))
+        expected_deleted.add(str(doomed))
+
         obs = Observation(
             check="disk", target="/", breached=True,
-            metadata={"cleanup_globs": [str(target_dir / "*.log")], "cleanup_older_than_days": 3},
+            metadata={
+                "cleanup_globs": [
+                    str(target_dir / "*.log"),
+                    str(target_dir / "*" / "*.log"),
+                ],
+                "cleanup_older_than_days": 3,
+            },
         )
         dec = Decision(action="disk_cleanup", target="/", mode_effective="auto",
                        execute=True, requires_approval=False, reason="r", observation=obs)
@@ -219,7 +248,7 @@ def test_I6_baseline_never_raises_or_flags_in_warmup():
     assert count == ITER_BASELINE
 
 
-_EXECUTABLE_ACTIONS = frozenset({"disk_cleanup", "service_restart", "process_kill", "ssh_block"})
+_EXECUTABLE_ACTIONS = frozenset({"disk_cleanup", "service_restart"})
 
 
 def test_I7_safety_gate_fails_closed():

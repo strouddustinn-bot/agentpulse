@@ -1,6 +1,8 @@
 """The remediation decision loop.
 
-Every auto-fix flows through a full cycle:
+Every auto-fix flows through a full cycle so the agent never takes a destructive
+action it hasn't first simulated, validated against safety predicates, and then
+verified:
 
     Reason   -> _expected_state(): state the expected post-fix outcome
     Simulate -> dry-run the action, capture the predicted effect
@@ -20,22 +22,20 @@ from typing import Callable, List, Optional
 
 from . import remediation
 from .models import Decision
-from .remediation import RemediationResult
+from .remediation import RemediationResult, RunFnOrNone
 
 VerifyFn = Callable[[Decision], bool]
 
-# Actions that may be green-lit for real execution. Default-deny: a new action
-# must be deliberately reviewed and added here before the loop will ever run it.
-_EXECUTABLE_ACTIONS = frozenset({
-    "disk_cleanup",
-    "service_restart",
-    "process_kill",
-    "ssh_block",
-})
+# Actions the gate may green-light for real execution. Anything not in this set
+# is denied by default: a new action type must be deliberately reviewed and
+# added here before the loop will ever run it. This is fail-closed on purpose.
+_EXECUTABLE_ACTIONS = frozenset({"disk_cleanup", "service_restart"})
 
 
 @dataclass
 class CycleRecord:
+    """A full decision-loop pass over one remediation Decision."""
+
     decision: Decision
     expectation: str = ""
     simulation: Optional[RemediationResult] = None
@@ -43,7 +43,7 @@ class CycleRecord:
     gate_reasons: List[str] = field(default_factory=list)
     execution: Optional[RemediationResult] = None
     verified: Optional[bool] = None
-    outcome: str = "pending"
+    outcome: str = "pending"  # blocked|simulated_only|failed|escalated|succeeded|executed_unverified
     notes: List[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
@@ -62,60 +62,44 @@ class CycleRecord:
 
 
 def _expected_state(decision: Decision) -> str:
+    """Reason: state the expected outcome before acting."""
     if decision.action == "disk_cleanup":
-        return f"expect disk usage on {decision.target} to drop below threshold after removing old files"
+        return f"expect disk usage on {decision.target} to drop below its threshold after removing old files"
     if decision.action == "service_restart":
         return f"expect service {decision.target} to be 'active' after restart"
-    if decision.action == "process_kill":
-        obs = decision.observation
-        name = obs.metadata.get("name", decision.target) if obs else decision.target
-        return f"expect process {name} to be absent from /proc after kill + grace period"
-    if decision.action == "ssh_block":
-        return f"expect IP {decision.target} to be blocked in iptables INPUT chain"
     return f"expect {decision.target} condition to clear"
 
 
-def safety_gate(decision: Decision, simulation: RemediationResult) -> "tuple[bool, List[str]]":
-    """Gate: deny unless every safety predicate passes. Fail-closed."""
+def safety_gate(
+    decision: Decision, simulation: RemediationResult
+) -> "tuple[bool, List[str]]":
+    """Gate: executable safety predicates. Deny unless every rule passes.
+
+    These are hard, code-level invariants — not config the operator can relax.
+    """
     reasons: List[str] = []
 
-    # Rule 1: never act without a successful simulation.
+    # Rule 1: never act without a successful simulation. (A failed simulation
+    # already carries its own error in simulation.error; .ok encodes that.)
     if simulation is None or not simulation.ok:
-        err = simulation.error if simulation else "no simulation"
-        reasons.append(f"no successful dry-run simulation ({err}); refusing to execute blind")
+        reasons.append("no successful dry-run simulation; refusing to execute blind")
         return False, reasons
 
-    # Rule 2: default-deny for unrecognised or alert-only actions.
+    # Rule 2: the process check is alert-only and is never auto-executed in v1.
+    if decision.action == "process_alert":
+        reasons.append(
+            "process actions are alert-only and never executed automatically"
+        )
+        return False, reasons
+
+    # Rule 3: default-deny. Only explicitly allow-listed actions may execute, so
+    # any future or unrecognized action is refused until it is reviewed and added
+    # to _EXECUTABLE_ACTIONS. Fail closed rather than silently letting it run.
     if decision.action not in _EXECUTABLE_ACTIONS:
         reasons.append(
             f"action {decision.action!r} is not in the executable allowlist; refusing to execute"
         )
         return False, reasons
-
-    # Rule 3: process_kill requires kill_eligible flag from the check.
-    if decision.action == "process_kill":
-        obs = decision.observation
-        meta = obs.metadata if obs else {}
-        if not meta.get("kill_eligible", False):
-            reasons.append(
-                "process is not kill-eligible "
-                "(not in kill_allowed_names or in never_kill list); "
-                "refusing to kill"
-            )
-            return False, reasons
-        pid = meta.get("pid")
-        if not pid or int(pid) <= 1:
-            reasons.append("invalid or missing PID; refusing to kill")
-            return False, reasons
-
-    # Rule 4: ssh_block requires a valid non-empty IP in the observation.
-    if decision.action == "ssh_block":
-        obs = decision.observation
-        meta = obs.metadata if obs else {}
-        ip = meta.get("ip") or decision.target
-        if not ip or ip in ("0.0.0.0", "::", "127.0.0.1", "::1"):
-        	reasons.append(f"refusing to block IP {ip!r}: loopback or empty address")
-        	return False, reasons
 
     reasons.append("all safety predicates satisfied")
     return True, reasons
@@ -125,15 +109,19 @@ def run_cycle(
     decision: Decision,
     *,
     verify_fn: Optional[VerifyFn] = None,
-    run_fn=None,
+    run_fn: RunFnOrNone = None,
     force_dry_run: bool = False,
 ) -> CycleRecord:
     rec = CycleRecord(decision=decision)
 
+    # 1. Reason — state the intended end-state.
     rec.expectation = _expected_state(decision)
-    rec.simulation = remediation.execute(decision, dry_run=True, run_fn=run_fn)
-    rec.gate_allowed, rec.gate_reasons = safety_gate(decision, rec.simulation)
 
+    # 2. Simulate — dry-run before any real change.
+    rec.simulation = remediation.execute(decision, dry_run=True, run_fn=run_fn)
+
+    # 3. Gate — validate against executable safety predicates.
+    rec.gate_allowed, rec.gate_reasons = safety_gate(decision, rec.simulation)
     if not rec.gate_allowed:
         rec.outcome = "blocked"
         rec.notes.append("blocked by safety gate before execution")
@@ -144,21 +132,26 @@ def run_cycle(
         rec.notes.append("dry-run only; no changes made")
         return rec
 
+    # 4. Act — execute the validated action for real.
     rec.execution = remediation.execute(decision, dry_run=False, run_fn=run_fn)
     if not rec.execution.ok:
         rec.outcome = "failed"
         rec.notes.append(f"execution failed: {rec.execution.error}")
         return rec
 
+    # A call that succeeded but changed nothing (e.g. disk cleanup matched no
+    # eligible files) cannot have cleared the breach. Don't report success for a
+    # no-op — escalate so a human looks instead of giving a false all-clear.
     if not rec.execution.performed:
         rec.verified = False
         rec.outcome = "escalated"
         rec.notes.append(
-            "action completed without changing anything; "
+            "action completed without changing anything (nothing matched); "
             "the breach cannot have been resolved — escalating to a human"
         )
         return rec
 
+    # 5. Verify — confirm the condition actually cleared. Never blind-retry.
     if verify_fn is not None:
         rec.verified = bool(verify_fn(decision))
         if rec.verified:
@@ -172,4 +165,5 @@ def run_cycle(
     else:
         rec.outcome = "executed_unverified"
 
+    # 6. Record — the cycle record is the unit of future analysis.
     return rec

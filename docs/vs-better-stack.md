@@ -14,14 +14,14 @@ But they stop at **telling you something's wrong**. AgentPulse goes further — 
 
 | Feature | AgentPulse | Better Stack |
 |---------|-----------|-------------|
-| Uptime monitoring | ✅ | ✅ |
-| Incident management | ✅ | ✅ |
+| Service up/down detection | ✅ (from inside the server) | ✅ (external checks) |
+| Incident management / on-call | ❌ | ✅ |
 | Auto-remediation | ✅ | ❌ |
-| Log management | ❌ (coming) | ✅ |
-| Status pages | ❌ (coming) | ✅ |
+| Log management | ❌ | ✅ |
+| Status pages | ❌ | ✅ |
 | On-call scheduling | ❌ | ✅ |
 | Baseline learning | ✅ | ❌ |
-| Server agent | ✅ (thin Linux agent) | ❌ (external checks) |
+| Server agent | ✅ (thin Linux/macOS agent) | ❌ (external checks) |
 | Pricing from | $29/mo | Free tier, then $29/mo |
 | External monitoring | ❌ | ✅ (multi-region checks) |
 
@@ -37,8 +37,8 @@ But they stop at **telling you something's wrong**. AgentPulse goes further — 
 
 - **Auto-remediation** — this is the big one. Better Stack tells you your service is down. AgentPulse restarts it.
 - **Server-side agent** — AgentPulse runs inside your server, so it can actually take action. Better Stack monitors from outside.
-- **Baseline learning** — AgentPulse learns what's normal for each server and catches anomalies before they become outages.
-- **Security hardening** — brute-force detection, suspicious process monitoring, port scanning alerts.
+- **Baseline learning** — AgentPulse learns what's statistically normal for each server and flags anomalies before a hard threshold trips.
+- **Verify-or-escalate** — every fix is simulated first, checked against hard safety rules, and re-measured after it runs. If it didn't hold, AgentPulse escalates to you instead of retrying blindly.
 
 ## When to Choose Each
 

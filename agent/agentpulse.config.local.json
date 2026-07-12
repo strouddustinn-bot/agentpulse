@@ -4,50 +4,50 @@
   "interval_seconds": 60,
   "state_file": "/tmp/agentpulse/state.json",
   "log_file": "/tmp/agentpulse/agentpulse.log",
+
   "notify": {
     "type": "stdout",
     "webhook_url": ""
   },
+
+  "checkin": {
+    "endpoint_url": "",
+    "auth_token": "",
+    "timeout_seconds": 10
+  },
+
+  "control_plane": {
+    "enabled": false,
+    "base_url": "http://127.0.0.1:8787",
+    "credential_file": "/tmp/agentpulse/agent.credential",
+    "timeout_seconds": 10,
+    "local_policy_ceiling": "alert"
+  },
+
   "baseline": {
     "enabled": true,
     "min_samples": 20,
     "z_threshold": 3.0,
     "min_abs_deviation": 2.0
   },
+
   "checks": {
     "disk": {
       "mode": "alert",
       "threshold_percent": 90,
-      "paths": [
-        "/"
-      ],
-      "cleanup_globs": [
-        "/tmp/*",
-        "/var/tmp/*"
-      ],
+      "paths": ["/"],
+      "cleanup_globs": ["/tmp/*", "/var/tmp/*"],
       "cleanup_older_than_days": 3
     },
+
     "service": {
       "mode": "alert",
       "services": []
     },
+
     "process": {
       "mode": "alert",
       "mem_percent_threshold": 85
     }
-  },
-  "dashboard": {
-    "enabled": true,
-    "port": 8765,
-    "bind": "127.0.0.1"
-  },
-  "federation": {
-    "enabled": true,
-    "mode": "spoke",
-    "hub_url": "https://agentpulse-stroud.fly.dev",
-    "secret": "a1a7ba2b5a2acbbc5c946b437ee21731397df29d5feff39cb8425edd2ace0072",
-    "port": 8766,
-    "bind": "127.0.0.1",
-    "push_interval_seconds": 60
   }
 }

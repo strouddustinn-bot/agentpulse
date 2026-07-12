@@ -1,8 +1,7 @@
-"""Durable state: pending approvals, execution history, blocked IPs, baselines.
+"""Durable state: pending ask-first approvals and last-run bookkeeping.
 
 Stored as JSON. Pending actions get a short id a human approves out-of-band
-via the CLI (`agentpulse approve <id>`). History is capped at 200 records.
-Blocked IPs store timestamp + duration for auto-expiry.
+via the CLI (`agentpulse approve <id>`).
 """
 
 from __future__ import annotations
@@ -31,8 +30,6 @@ class State:
             "last_run": None,
             "baselines": {},
             "history": [],
-            "blocked_ips": {},
-            "alert_cooldowns": {},
         }
 
     @classmethod
@@ -43,12 +40,14 @@ class State:
                 with open(path, "r", encoding="utf-8") as fh:
                     st.data = json.load(fh)
             except (OSError, json.JSONDecodeError):
-                pass
+                st.data = {"pending": {}, "last_run": None, "baselines": {}, "history": []}
+        if not isinstance(st.data, dict):
+            # Valid JSON but not an object (e.g. a list or string): treat it
+            # like corruption rather than crashing on the first access.
+            st.data = {"pending": {}, "last_run": None, "baselines": {}, "history": []}
         st.data.setdefault("pending", {})
         st.data.setdefault("baselines", {})
         st.data.setdefault("history", [])
-        st.data.setdefault("blocked_ips", {})
-        st.data.setdefault("alert_cooldowns", {})
         return st
 
     @property
@@ -61,10 +60,6 @@ class State:
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(self.data, fh, indent=2)
         os.replace(tmp, self.path)
-
-    # ------------------------------------------------------------------
-    # Pending approval queue
-    # ------------------------------------------------------------------
 
     def queue_pending(self, decision: Decision) -> str:
         pid = _pending_id(decision)
@@ -87,14 +82,11 @@ class State:
         return list(self.data["pending"].values())
 
     def get_pending(self, pid: str) -> Optional[Dict[str, Any]]:
+        """Peek at a pending entry without removing it (e.g. for a dry-run preview)."""
         return self.data["pending"].get(pid)
 
     def pop_pending(self, pid: str) -> Optional[Dict[str, Any]]:
         return self.data["pending"].pop(pid, None)
-
-    # ------------------------------------------------------------------
-    # Execution history (circular buffer)
-    # ------------------------------------------------------------------
 
     def record_history(self, entry: Dict[str, Any]) -> None:
         entry.setdefault("ts", time.time())
@@ -105,64 +97,6 @@ class State:
 
     def list_history(self, limit: int = 50) -> List[Dict[str, Any]]:
         return list(reversed(self.data["history"][-limit:]))
-
-    # ------------------------------------------------------------------
-    # Blocked IPs (SSH brute-force)
-    # ------------------------------------------------------------------
-
-    def block_ip(self, ip: str, duration_seconds: int, reason: str) -> None:
-        self.data["blocked_ips"][ip] = {
-            "ip": ip,
-            "blocked_at": time.time(),
-            "duration_seconds": duration_seconds,
-            "reason": reason,
-        }
-
-    def unblock_ip(self, ip: str) -> bool:
-        return self.data["blocked_ips"].pop(ip, None) is not None
-
-    def is_ip_blocked(self, ip: str) -> bool:
-        entry = self.data["blocked_ips"].get(ip)
-        if not entry:
-            return False
-        duration = entry.get("duration_seconds", 0)
-        if duration == 0:
-            return True  # permanent
-        return (time.time() - entry["blocked_at"]) < duration
-
-    def list_blocked_ips(self) -> List[Dict[str, Any]]:
-        return list(self.data["blocked_ips"].values())
-
-    def expire_blocked_ips(self) -> List[str]:
-        """Remove expired IP blocks. Returns list of unblocked IPs."""
-        now = time.time()
-        expired = []
-        for ip, entry in list(self.data["blocked_ips"].items()):
-            duration = entry.get("duration_seconds", 0)
-            if duration > 0 and (now - entry["blocked_at"]) >= duration:
-                del self.data["blocked_ips"][ip]
-                expired.append(ip)
-        return expired
-
-    # ------------------------------------------------------------------
-    # Alert deduplication cooldowns
-    # ------------------------------------------------------------------
-
-    def is_on_cooldown(self, key: str, cooldown_seconds: int = 300) -> bool:
-        last = self.data["alert_cooldowns"].get(key)
-        if last is None:
-            return False
-        return (time.time() - last) < cooldown_seconds
-
-    def set_cooldown(self, key: str) -> None:
-        self.data["alert_cooldowns"][key] = time.time()
-
-    def clear_cooldown(self, key: str) -> None:
-        self.data["alert_cooldowns"].pop(key, None)
-
-    # ------------------------------------------------------------------
-    # Bookkeeping
-    # ------------------------------------------------------------------
 
     def mark_run(self) -> None:
         self.data["last_run"] = time.time()

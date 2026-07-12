@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 from agentpulse import remediation
@@ -13,20 +14,33 @@ def _decision_cleanup(globs, days=3, target="/"):
         metadata={"cleanup_globs": globs, "cleanup_older_than_days": days},
     )
     return Decision(
-        action="disk_cleanup", target=target, mode_effective="auto",
-        execute=True, requires_approval=False, reason="r", observation=obs,
+        action="disk_cleanup",
+        target=target,
+        mode_effective="auto",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
     )
 
 
 def _decision_service(name):
-    obs = Observation(check="service", target=name, breached=True, metadata={"service": name})
+    obs = Observation(
+        check="service", target=name, breached=True, metadata={"service": name}
+    )
     return Decision(
-        action="service_restart", target=name, mode_effective="auto",
-        execute=True, requires_approval=False, reason="r", observation=obs,
+        action="service_restart",
+        target=name,
+        mode_effective="auto",
+        execute=True,
+        requires_approval=False,
+        reason="r",
+        observation=obs,
     )
 
 
 # ---- safety guard on globs -------------------------------------------------
+
 
 def test_unsafe_root_globs_refused():
     for bad in ["/", "/*", "/etc/*", "/usr/*", "/bin/*", "relative/*", ""]:
@@ -38,6 +52,21 @@ def test_safe_globs_allowed():
         assert remediation._is_safe_cleanup_glob(good) is True, good
 
 
+def test_double_slash_globs_refused():
+    # POSIX normpath keeps '//etc' as-is, but glob('//etc/*') expands into the
+    # real /etc — the guard must see through the doubled leading slash.
+    for bad in ["//etc/*", "//usr/*", "//var/*", "//*", "//"]:
+        assert remediation._is_safe_cleanup_glob(bad) is False, bad
+
+    # Double-slash globs for allowed locations must still be accepted.
+    for good in ["//tmp/*"]:
+        assert remediation._is_safe_cleanup_glob(good) is True, good
+
+    # Triple-slash globs should behave consistently with double-slash ones.
+    for bad_triple in ["///etc/*"]:
+        assert remediation._is_safe_cleanup_glob(bad_triple) is False, bad_triple
+
+
 def test_cleanup_refuses_when_all_globs_unsafe(tmp_path):
     d = _decision_cleanup(["/etc/*", "/*"])
     res = remediation.disk_cleanup(d)
@@ -46,6 +75,7 @@ def test_cleanup_refuses_when_all_globs_unsafe(tmp_path):
 
 
 # ---- real filesystem behavior ---------------------------------------------
+
 
 def test_cleanup_deletes_only_old_files(tmp_path):
     old = tmp_path / "old.log"
@@ -92,7 +122,38 @@ def test_cleanup_never_touches_directories_or_symlinks(tmp_path):
     assert target.exists(), "symlink target must be untouched"
 
 
+def test_cleanup_never_escapes_through_symlinked_dir(tmp_path):
+    # A symlinked directory inside the cleanup path must not let the glob
+    # reach files outside it: the matched file is a regular file (not a
+    # symlink), so only realpath containment can catch the escape.
+    victim_dir = tmp_path / "victim"
+    victim_dir.mkdir()
+    victim = victim_dir / "important.log"
+    victim.write_text("keep me")
+    now = time.time()
+    os.utime(victim, (now - 30 * 86400, now - 30 * 86400))
+
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    os.symlink(victim_dir, clean / "sub")
+
+    # An honest subdirectory whose old file SHOULD still be cleaned, proving
+    # the containment check doesn't over-block.
+    real_sub = clean / "realsub"
+    real_sub.mkdir()
+    doomed = real_sub / "old.log"
+    doomed.write_text("x")
+    os.utime(doomed, (now - 30 * 86400, now - 30 * 86400))
+
+    d = _decision_cleanup([str(clean / "*" / "*.log")], days=3)
+    res = remediation.disk_cleanup(d)
+    assert victim.exists(), "must never delete through a symlinked directory"
+    assert not doomed.exists(), "genuine in-tree old file should still be cleaned"
+    assert any("resolves outside the cleanup base" in line for line in res.details)
+
+
 # ---- service name validation ----------------------------------------------
+
 
 def test_service_restart_rejects_injection():
     for bad in ["nginx; rm -rf /", "a b", "$(reboot)", "x|y", ""]:
@@ -108,10 +169,54 @@ def test_service_restart_dry_run():
 
 
 def test_service_restart_success():
-    res = remediation.service_restart(_decision_service("nginx"), run_fn=lambda argv: (0, ""))
+    res = remediation.service_restart(
+        _decision_service("nginx"), run_fn=lambda argv: (0, "")
+    )
     assert res.performed is True
 
 
 def test_service_restart_failure():
-    res = remediation.service_restart(_decision_service("nginx"), run_fn=lambda argv: (1, "boom"))
+    res = remediation.service_restart(
+        _decision_service("nginx"), run_fn=lambda argv: (1, "boom")
+    )
     assert res.performed is False and res.error is not None
+
+
+def test_service_restart_uses_launchctl_on_macos():
+    calls = []
+    original_platform = sys.platform
+
+    def fake_run(argv):
+        calls.append(argv)
+        return 0, ""
+
+    try:
+        sys.platform = "darwin"
+        res = remediation.service_restart(
+            _decision_service("com.example.agent"), run_fn=fake_run
+        )
+    finally:
+        sys.platform = original_platform
+
+    assert res.ok
+    assert res.performed is True
+    assert calls == [["launchctl", "kickstart", "-k", "system/com.example.agent"]]
+
+
+def test_service_restart_uses_systemctl_off_macos():
+    calls = []
+    original_platform = sys.platform
+
+    def fake_run(argv):
+        calls.append(argv)
+        return 0, ""
+
+    try:
+        sys.platform = "linux"
+        res = remediation.service_restart(_decision_service("nginx"), run_fn=fake_run)
+    finally:
+        sys.platform = original_platform
+
+    assert res.ok
+    assert res.performed is True
+    assert calls == [["systemctl", "restart", "nginx"]]

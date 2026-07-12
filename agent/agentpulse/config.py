@@ -39,75 +39,19 @@ class ServiceCheckConfig:
 class ProcessCheckConfig:
     mode: str = "alert"
     mem_percent_threshold: float = 85.0
-    kill_allowed_names: List[str] = field(default_factory=list)
-    kill_grace_seconds: float = 10.0
-    never_kill: List[str] = field(
-        default_factory=lambda: ["systemd", "init", "kthreadd", "sshd", "kernel"]
-    )
-
-
-@dataclass
-class SshCheckConfig:
-    mode: str = "alert"
-    log_file: str = ""  # empty = auto-detect
-    failure_threshold: int = 5
-    window_seconds: int = 60
-    block_duration_seconds: int = 3600  # 0 = permanent
-    never_block: List[str] = field(default_factory=list)
-
-
-@dataclass
-class NotifyChannel:
-    type: str = "stdout"
-    # webhook
-    webhook_url: str = ""
-    # email
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_user: str = ""
-    smtp_password: str = ""
-    from_address: str = ""
-    to_addresses: List[str] = field(default_factory=list)
-    use_tls: bool = True
-    # telegram
-    bot_token: str = ""
-    chat_id: str = ""
 
 
 @dataclass
 class NotifyConfig:
-    channels: List[NotifyChannel] = field(
-        default_factory=lambda: [NotifyChannel(type="stdout")]
-    )
+    type: str = "stdout"  # stdout | webhook
+    webhook_url: str = ""
 
 
 @dataclass
-class BaselineConfig:
-    enabled: bool = True
-    min_samples: int = 20
-    z_threshold: float = 3.0
-    min_abs_deviation: float = 2.0
-    ml_enabled: bool = True
-    hw_alpha: float = 0.2   # Holt-Winters level smoothing
-    hw_beta: float = 0.1    # Holt-Winters trend smoothing
-
-
-@dataclass
-class DashboardConfig:
-    enabled: bool = False
-    port: int = 8765
-    bind: str = "127.0.0.1"
-
-
-@dataclass
-class FederationConfig:
-    enabled: bool = False
-    mode: str = "spoke"      # "spoke" | "hub" | "both"
-    hub_url: str = ""
-    secret: str = ""
-    port: int = 8766
-    bind: str = "0.0.0.0"
-    push_interval_seconds: int = 60
+class CheckinConfig:
+    endpoint_url: str = ""
+    auth_token: str = ""
+    timeout_seconds: float = 10.0
 
 
 @dataclass
@@ -120,20 +64,31 @@ class ControlPlaneConfig:
 
 
 @dataclass
+class BaselineConfig:
+    """Statistical baseline learning (per-metric mean/variance, z-score anomalies).
+
+    Advisory only: anomalies raise alerts, never trigger auto-fix.
+    """
+
+    enabled: bool = True
+    min_samples: int = 20          # warmup before any anomaly can fire
+    z_threshold: float = 3.0       # std-devs from the learned mean
+    min_abs_deviation: float = 2.0  # floor (pct points) so near-constant metrics don't flap
+
+
+@dataclass
 class Config:
     hostname: str = "auto"
     interval_seconds: int = 60
     state_file: str = "/var/lib/agentpulse/state.json"
     log_file: str = "/var/log/agentpulse/agentpulse.log"
     notify: NotifyConfig = field(default_factory=NotifyConfig)
-    baseline: BaselineConfig = field(default_factory=BaselineConfig)
-    dashboard: DashboardConfig = field(default_factory=DashboardConfig)
-    federation: FederationConfig = field(default_factory=FederationConfig)
+    checkin: CheckinConfig = field(default_factory=CheckinConfig)
     control_plane: ControlPlaneConfig = field(default_factory=ControlPlaneConfig)
+    baseline: BaselineConfig = field(default_factory=BaselineConfig)
     disk: DiskCheckConfig = field(default_factory=DiskCheckConfig)
     service: ServiceCheckConfig = field(default_factory=ServiceCheckConfig)
     process: ProcessCheckConfig = field(default_factory=ProcessCheckConfig)
-    ssh: SshCheckConfig = field(default_factory=SshCheckConfig)
 
     def resolved_hostname(self) -> str:
         if self.hostname and self.hostname != "auto":
@@ -155,73 +110,14 @@ def _positive_number(name: str, value: Any) -> float:
     return float(value)
 
 
-def _nonneg_number(name: str, value: Any) -> float:
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
-        raise ConfigError(f"{name} must be a non-negative number, got {value!r}")
-    return float(value)
-
-
 def _str_list(name: str, value: Any) -> List[str]:
     if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
         raise ConfigError(f"{name} must be a list of strings, got {value!r}")
     return list(value)
 
 
-def _parse_notify_channel(raw: Dict[str, Any], prefix: str) -> NotifyChannel:
-    ctype = raw.get("type", "stdout")
-    valid_types = ("stdout", "webhook", "email", "telegram")
-    if ctype not in valid_types:
-        raise ConfigError(f"{prefix}.type must be one of {valid_types}, got {ctype!r}")
-    ch = NotifyChannel(type=ctype)
-    if ctype == "webhook":
-        url = raw.get("webhook_url", "")
-        if not url:
-            raise ConfigError(f"{prefix}.webhook_url is required when type is 'webhook'")
-        ch.webhook_url = str(url)
-    elif ctype == "email":
-        for required in ("smtp_host", "from_address"):
-            if not raw.get(required):
-                raise ConfigError(f"{prefix}.{required} is required when type is 'email'")
-        if not raw.get("to_addresses"):
-            raise ConfigError(f"{prefix}.to_addresses is required when type is 'email'")
-        ch.smtp_host = str(raw.get("smtp_host", ""))
-        ch.smtp_port = int(raw.get("smtp_port", 587))
-        ch.smtp_user = str(raw.get("smtp_user", ""))
-        ch.smtp_password = str(raw.get("smtp_password", ""))
-        ch.from_address = str(raw.get("from_address", ""))
-        ch.to_addresses = _str_list(f"{prefix}.to_addresses", raw.get("to_addresses", []))
-        ch.use_tls = bool(raw.get("use_tls", True))
-    elif ctype == "telegram":
-        for required in ("bot_token", "chat_id"):
-            if not raw.get(required):
-                raise ConfigError(f"{prefix}.{required} is required when type is 'telegram'")
-        ch.bot_token = str(raw.get("bot_token", ""))
-        ch.chat_id = str(raw.get("chat_id", ""))
-    return ch
-
-
-def _parse_notify(raw: Any) -> NotifyConfig:
-    if raw is None:
-        return NotifyConfig()
-    if not isinstance(raw, dict):
-        raise ConfigError("notify must be a JSON object")
-
-    # New multi-channel format: {"channels": [...]}
-    if "channels" in raw:
-        channels_raw = raw["channels"]
-        if not isinstance(channels_raw, list):
-            raise ConfigError("notify.channels must be a list")
-        channels = [
-            _parse_notify_channel(ch, f"notify.channels[{i}]")
-            for i, ch in enumerate(channels_raw)
-        ]
-        return NotifyConfig(channels=channels)
-
-    # Legacy single-channel format: {"type": "...", "webhook_url": "..."}
-    return NotifyConfig(channels=[_parse_notify_channel(raw, "notify")])
-
-
 def from_dict(data: Dict[str, Any]) -> Config:
+    """Build and validate a Config from a parsed JSON dict."""
     if not isinstance(data, dict):
         raise ConfigError("config root must be a JSON object")
 
@@ -240,55 +136,36 @@ def from_dict(data: Dict[str, Any]) -> Config:
     if "log_file" in data:
         cfg.log_file = str(data["log_file"])
 
-    cfg.notify = _parse_notify(data.get("notify"))
+    n = data.get("notify", {})
+    if n:
+        ntype = n.get("type", "stdout")
+        if ntype not in ("stdout", "webhook"):
+            raise ConfigError(f"notify.type must be 'stdout' or 'webhook', got {ntype!r}")
+        url = n.get("webhook_url", "")
+        if ntype == "webhook":
+            if not url:
+                raise ConfigError("notify.webhook_url is required when notify.type is 'webhook'")
+            # The URL is handed to urllib verbatim; only web schemes make sense
+            # (file:// or ftp:// here is a misconfiguration at best).
+            if not str(url).startswith(("http://", "https://")):
+                raise ConfigError(
+                    f"notify.webhook_url must be an http:// or https:// URL, got {url!r}"
+                )
+        cfg.notify = NotifyConfig(type=ntype, webhook_url=str(url))
 
-    b = data.get("baseline", {})
-    if b:
-        enabled = b.get("enabled", True)
-        if not isinstance(enabled, bool):
-            raise ConfigError("baseline.enabled must be true/false")
-        ml_enabled = b.get("ml_enabled", True)
-        if not isinstance(ml_enabled, bool):
-            raise ConfigError("baseline.ml_enabled must be true/false")
-        cfg.baseline = BaselineConfig(
-            enabled=enabled,
-            min_samples=int(_positive_number("baseline.min_samples", b.get("min_samples", 20))),
-            z_threshold=_positive_number("baseline.z_threshold", b.get("z_threshold", 3.0)),
-            min_abs_deviation=_positive_number("baseline.min_abs_deviation", b.get("min_abs_deviation", 2.0)),
-            ml_enabled=ml_enabled,
-            hw_alpha=_positive_number("baseline.hw_alpha", b.get("hw_alpha", 0.2)),
-            hw_beta=_positive_number("baseline.hw_beta", b.get("hw_beta", 0.1)),
-        )
-
-    d = data.get("dashboard", {})
-    if d:
-        enabled = d.get("enabled", False)
-        if not isinstance(enabled, bool):
-            raise ConfigError("dashboard.enabled must be true/false")
-        cfg.dashboard = DashboardConfig(
-            enabled=enabled,
-            port=int(_positive_number("dashboard.port", d.get("port", 8765))),
-            bind=str(d.get("bind", "127.0.0.1")),
-        )
-
-    f = data.get("federation", {})
-    if f:
-        enabled = f.get("enabled", False)
-        if not isinstance(enabled, bool):
-            raise ConfigError("federation.enabled must be true/false")
-        fmode = f.get("mode", "spoke")
-        if fmode not in ("spoke", "hub", "both"):
-            raise ConfigError("federation.mode must be 'spoke', 'hub', or 'both'")
-        cfg.federation = FederationConfig(
-            enabled=enabled,
-            mode=fmode,
-            hub_url=str(f.get("hub_url", "")),
-            secret=str(f.get("secret", "")),
-            port=int(_positive_number("federation.port", f.get("port", 8766))),
-            bind=str(f.get("bind", "0.0.0.0")),
-            push_interval_seconds=int(_positive_number(
-                "federation.push_interval_seconds", f.get("push_interval_seconds", 60)
-            )),
+    cin = data.get("checkin", {})
+    if cin:
+        endpoint_url = str(cin.get("endpoint_url", ""))
+        if endpoint_url and not endpoint_url.startswith(("http://", "https://")):
+            raise ConfigError(
+                f"checkin.endpoint_url must be an http:// or https:// URL, got {endpoint_url!r}"
+            )
+        cfg.checkin = CheckinConfig(
+            endpoint_url=endpoint_url,
+            auth_token=str(cin.get("auth_token", "")),
+            timeout_seconds=_positive_number(
+                "checkin.timeout_seconds", cin.get("timeout_seconds", 10.0)
+            ),
         )
 
     cp = data.get("control_plane", {})
@@ -301,10 +178,13 @@ def from_dict(data: Dict[str, Any]) -> Config:
         base_url = str(cp.get("base_url", "")).rstrip("/")
         if enabled:
             parsed = urllib.parse.urlparse(base_url)
-            local_hosts = ("127.0.0.1", "localhost", "::1")
             if not base_url or parsed.scheme not in ("http", "https"):
                 raise ConfigError("control_plane.base_url must be an absolute HTTP(S) URL")
-            if parsed.scheme != "https" and parsed.hostname not in local_hosts:
+            if parsed.scheme != "https" and parsed.hostname not in (
+                "127.0.0.1",
+                "localhost",
+                "::1",
+            ):
                 raise ConfigError("control_plane.base_url must use HTTPS outside localhost")
         ceiling = cp.get("local_policy_ceiling", "alert")
         if ceiling not in VALID_MODES:
@@ -312,13 +192,27 @@ def from_dict(data: Dict[str, Any]) -> Config:
         cfg.control_plane = ControlPlaneConfig(
             enabled=enabled,
             base_url=base_url,
-            credential_file=str(cp.get(
-                "credential_file", "/etc/agentpulse/agent.credential"
-            )),
-            timeout_seconds=int(_positive_number(
-                "control_plane.timeout_seconds", cp.get("timeout_seconds", 10)
-            )),
+            credential_file=str(
+                cp.get("credential_file", "/etc/agentpulse/agent.credential")
+            ),
+            timeout_seconds=int(
+                _positive_number(
+                    "control_plane.timeout_seconds", cp.get("timeout_seconds", 10)
+                )
+            ),
             local_policy_ceiling=str(ceiling),
+        )
+
+    b = data.get("baseline", {})
+    if b:
+        enabled = b.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ConfigError("baseline.enabled must be true/false")
+        cfg.baseline = BaselineConfig(
+            enabled=enabled,
+            min_samples=int(_positive_number("baseline.min_samples", b.get("min_samples", 20))),
+            z_threshold=_positive_number("baseline.z_threshold", b.get("z_threshold", 3.0)),
+            min_abs_deviation=_positive_number("baseline.min_abs_deviation", b.get("min_abs_deviation", 2.0)),
         )
 
     checks = data.get("checks", {})
@@ -326,16 +220,16 @@ def from_dict(data: Dict[str, Any]) -> Config:
         raise ConfigError("checks must be a JSON object")
 
     if "disk" in checks:
-        dk = checks["disk"]
+        d = checks["disk"]
         cfg.disk = DiskCheckConfig(
-            mode=_check_mode("checks.disk", dk.get("mode", "alert")),
+            mode=_check_mode("checks.disk", d.get("mode", "alert")),
             threshold_percent=_positive_number(
-                "checks.disk.threshold_percent", dk.get("threshold_percent", 90)
+                "checks.disk.threshold_percent", d.get("threshold_percent", 90)
             ),
-            paths=_str_list("checks.disk.paths", dk.get("paths", ["/"])),
-            cleanup_globs=_str_list("checks.disk.cleanup_globs", dk.get("cleanup_globs", [])),
+            paths=_str_list("checks.disk.paths", d.get("paths", ["/"])),
+            cleanup_globs=_str_list("checks.disk.cleanup_globs", d.get("cleanup_globs", [])),
             cleanup_older_than_days=_positive_number(
-                "checks.disk.cleanup_older_than_days", dk.get("cleanup_older_than_days", 3)
+                "checks.disk.cleanup_older_than_days", d.get("cleanup_older_than_days", 3)
             ),
         )
         if cfg.disk.threshold_percent > 100:
@@ -355,47 +249,21 @@ def from_dict(data: Dict[str, Any]) -> Config:
 
     if "process" in checks:
         p = checks["process"]
+        mode = _check_mode("checks.process", p.get("mode", "alert"))
         cfg.process = ProcessCheckConfig(
-            mode=_check_mode("checks.process", p.get("mode", "alert")),
+            mode=mode,
             mem_percent_threshold=_positive_number(
                 "checks.process.mem_percent_threshold", p.get("mem_percent_threshold", 85)
-            ),
-            kill_allowed_names=_str_list(
-                "checks.process.kill_allowed_names", p.get("kill_allowed_names", [])
-            ),
-            kill_grace_seconds=_nonneg_number(
-                "checks.process.kill_grace_seconds", p.get("kill_grace_seconds", 10)
-            ),
-            never_kill=_str_list(
-                "checks.process.never_kill",
-                p.get("never_kill", ["systemd", "init", "kthreadd", "sshd", "kernel"]),
             ),
         )
         if cfg.process.mem_percent_threshold > 100:
             raise ConfigError("checks.process.mem_percent_threshold cannot exceed 100")
 
-    if "ssh" in checks:
-        sh = checks["ssh"]
-        threshold = sh.get("failure_threshold", 5)
-        if not isinstance(threshold, int) or threshold < 1:
-            raise ConfigError("checks.ssh.failure_threshold must be a positive integer")
-        cfg.ssh = SshCheckConfig(
-            mode=_check_mode("checks.ssh", sh.get("mode", "alert")),
-            log_file=str(sh.get("log_file", "")),
-            failure_threshold=threshold,
-            window_seconds=int(_positive_number(
-                "checks.ssh.window_seconds", sh.get("window_seconds", 60)
-            )),
-            block_duration_seconds=int(_nonneg_number(
-                "checks.ssh.block_duration_seconds", sh.get("block_duration_seconds", 3600)
-            )),
-            never_block=_str_list("checks.ssh.never_block", sh.get("never_block", [])),
-        )
-
     return cfg
 
 
 def load(path: str) -> Config:
+    """Load and validate config from a JSON file path."""
     if not os.path.exists(path):
         raise ConfigError(f"config file not found: {path}")
     try:

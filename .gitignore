@@ -7,5 +7,12 @@ Gemfile.lock
 __pycache__/
 *.pyc
 *.pyo
+build/
+dist/
+*.egg-info/
 /tmp/agentpulse/
 .pytest_cache/
+load-tests/archive/
+
+# Dependencies
+node_modules/

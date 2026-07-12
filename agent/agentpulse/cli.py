@@ -3,14 +3,29 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from typing import List, Optional
 
-from . import __version__, config as config_mod
+from . import __version__
+from . import config as config_mod
+from . import control_plane
+from . import launchd as launchd_installer
+from .checkin import (
+    CheckinDeliveryError,
+    build_checkin_payload,
+    payload_to_json,
+    send_checkin_payload,
+)
 from .notify import Notifier
 from .runner import approve, deny, run_loop, run_once
 from .state import State
+
+
+class _SilentNotifier:
+    def send(self, title: str, body: str) -> bool:
+        return True
 
 
 def _load(config_path: str):
@@ -21,7 +36,9 @@ def _load(config_path: str):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="agentpulse", description="AgentPulse monitoring + remediation agent")
+    p = argparse.ArgumentParser(
+        prog="agentpulse", description="AgentPulse monitoring + remediation agent"
+    )
     p.add_argument("--version", action="version", version=f"agentpulse {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
@@ -30,36 +47,87 @@ def build_parser() -> argparse.ArgumentParser:
 
     pr = sub.add_parser("run-once", help="run a single check/remediate cycle")
     pr.add_argument("config")
-    pr.add_argument("--dry-run", action="store_true", help="never modify the system; report what would happen")
+    pr.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="never modify the system; report what would happen",
+    )
+
+    pc = sub.add_parser("check-in", help="build an agent check-in payload")
+    pc.add_argument("config")
+    pc.add_argument(
+        "--dry-run", action="store_true", help="print payload without sending it"
+    )
 
     pl = sub.add_parser("run", help="run continuously on the configured interval")
     pl.add_argument("config")
     pl.add_argument("--dry-run", action="store_true")
-    pl.add_argument("--max-cycles", type=int, default=None, help="stop after N cycles (testing)")
+    pl.add_argument(
+        "--max-cycles", type=int, default=None, help="stop after N cycles (testing)"
+    )
 
     pp = sub.add_parser("list-pending", help="list ask-first actions awaiting approval")
     pp.add_argument("config")
 
-    pa = sub.add_parser("approve", help="approve and execute a pending ask-first action")
+    pa = sub.add_parser(
+        "approve", help="approve and execute a pending ask-first action"
+    )
     pa.add_argument("config")
     pa.add_argument("pending_id")
     pa.add_argument("--dry-run", action="store_true")
 
-    pd = sub.add_parser("deny", help="reject a pending ask-first action without executing it")
+    pd = sub.add_parser("deny", help="reject a pending ask-first action")
     pd.add_argument("config")
     pd.add_argument("pending_id")
 
-    ph = sub.add_parser("history", help="show recent agent action history")
+    ph = sub.add_parser("history", help="show recent action history")
     ph.add_argument("config")
-    ph.add_argument("--limit", type=int, default=20, help="number of records to show")
+    ph.add_argument("--limit", type=int, default=20)
 
-    pu = sub.add_parser("unblock-ip", help="remove an iptables block for an IP address")
-    pu.add_argument("config")
-    pu.add_argument("ip")
-    pu.add_argument("--dry-run", action="store_true")
+    pe = sub.add_parser("enroll", help="enroll this host with the SaaS control plane")
+    pe.add_argument("config")
+    pe.add_argument("enrollment_token")
+    pe.add_argument("--agent-key", default=None)
 
-    pbi = sub.add_parser("list-blocked", help="list currently blocked IP addresses")
-    pbi.add_argument("config")
+    pil = sub.add_parser(
+        "install-launchd",
+        help="install AgentPulse as a macOS launchd daemon",
+    )
+    pil.add_argument(
+        "--label",
+        default=launchd_installer.DEFAULT_LABEL,
+        help="launchd label to install",
+    )
+    pil.add_argument(
+        "--agent-bin",
+        default=None,
+        help="path to the agentpulse executable (defaults to PATH lookup)",
+    )
+    pil.add_argument(
+        "--config",
+        default=launchd_installer.DEFAULT_CONFIG_PATH,
+        help="config path for the daemon",
+    )
+    pil.add_argument(
+        "--log",
+        default=launchd_installer.DEFAULT_LOG_PATH,
+        help="combined stdout/stderr log path for launchd",
+    )
+    pil.add_argument(
+        "--plist",
+        default=None,
+        help="plist destination (defaults to /Library/LaunchDaemons/<label>.plist)",
+    )
+    pil.add_argument(
+        "--state-dir",
+        default=launchd_installer.DEFAULT_STATE_DIR,
+        help="directory for AgentPulse state on macOS",
+    )
+    pil.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="show what would be installed without writing files or calling launchctl",
+    )
 
     return p
 
@@ -88,6 +156,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
         return 1 if summary.errors else 0
 
+    if args.command == "check-in":
+        cfg, state, _ = _load(args.config)
+        summary = run_once(cfg, state, _SilentNotifier(), dry_run=True)
+        payload = build_checkin_payload(cfg, summary)
+
+        if args.dry_run:
+            print(payload_to_json(payload))
+            return 1 if summary.errors else 0
+
+        try:
+            status = send_checkin_payload(cfg, payload)
+        except CheckinDeliveryError as exc:
+            print(f"CHECK-IN FAILED: {exc}", file=sys.stderr)
+            return 2
+
+        print(f"check-in delivered status={status}")
+        return 1 if summary.errors else 0
+
     if args.command == "run":
         cfg, state, notifier = _load(args.config)
         run_loop(cfg, state, notifier, dry_run=args.dry_run, max_cycles=args.max_cycles)
@@ -113,12 +199,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         detail_source = rec.execution if rec.execution else rec.simulation
         details = detail_source.details if detail_source else []
         if rec.outcome in ("succeeded", "executed_unverified", "simulated_only"):
-            print(f"{prefix}done ({rec.outcome}): {rec.decision.action} {rec.decision.target}")
+            print(
+                f"{prefix}done ({rec.outcome}): {rec.decision.action} {rec.decision.target}"
+            )
             for d in details:
                 print(f"  {d}")
             return 0
         if rec.outcome == "blocked":
-            print(f"BLOCKED by safety gate: {'; '.join(rec.gate_reasons)}", file=sys.stderr)
+            print(
+                f"BLOCKED by safety gate: {'; '.join(rec.gate_reasons)}",
+                file=sys.stderr,
+            )
             return 1
         if rec.outcome == "escalated":
             print(
@@ -127,12 +218,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                 file=sys.stderr,
             )
             return 1
+        # failed
         err = rec.execution.error if rec.execution else "unknown error"
         print(f"FAILED: {err}", file=sys.stderr)
         return 1
 
     if args.command == "deny":
-        cfg, state, _ = _load(args.config)
+        _, state, _ = _load(args.config)
         entry = deny(state, args.pending_id)
         if entry is None:
             print(f"no pending action with id {args.pending_id}", file=sys.stderr)
@@ -141,58 +233,61 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
 
     if args.command == "history":
-        cfg, state, _ = _load(args.config)
-        records = state.list_history(args.limit)
-        if not records:
-            print("no history recorded yet")
-            return 0
-        for r in records:
-            ts = r.get("ts")
-            ts_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts)) if ts else "?"
-            outcome = r.get("outcome", "?")
-            action = r.get("action", "?")
-            target = r.get("target", "?")
-            verified = r.get("verified")
-            v_str = f" verified={verified}" if verified is not None else ""
-            notes = "; ".join(r.get("notes", []))
-            print(f"{ts_str}  {outcome:20s}  {action:20s}  {target}{v_str}")
-            if notes:
-                print(f"  → {notes}")
+        _, state, _ = _load(args.config)
+        for record in state.list_history(args.limit):
+            ts = record.get("ts")
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts)) if ts else "?"
+            print(
+                f"{timestamp}  {record.get('outcome', '?'):20s}  "
+                f"{record.get('action', '?'):20s}  {record.get('target', '?')}"
+            )
         return 0
 
-    if args.command == "unblock-ip":
-        from .remediation import ssh_unblock
-        cfg, state, _ = _load(args.config)
-        ip = args.ip
-        res = ssh_unblock(ip, dry_run=args.dry_run)
-        if res.error:
-            print(f"ERROR: {res.error}", file=sys.stderr)
-            return 1
-        if not args.dry_run:
-            state.unblock_ip(ip)
-            state.save()
-        for d in res.details:
-            print(d)
+    if args.command == "enroll":
+        cfg = config_mod.load(args.config)
+        if not cfg.control_plane.enabled:
+            print("control_plane.enabled must be true before enrollment", file=sys.stderr)
+            return 2
+        try:
+            result = control_plane.enroll(
+                base_url=cfg.control_plane.base_url,
+                enrollment_token=args.enrollment_token,
+                agent_key=args.agent_key or cfg.resolved_hostname(),
+                hostname=cfg.resolved_hostname(),
+                local_policy_ceiling=cfg.control_plane.local_policy_ceiling,
+                credential_file=cfg.control_plane.credential_file,
+                timeout=cfg.control_plane.timeout_seconds,
+            )
+        except (control_plane.ControlPlaneError, control_plane.CredentialError) as exc:
+            print(f"ENROLLMENT FAILED: {exc}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, sort_keys=True))
         return 0
 
-    if args.command == "list-blocked":
-        cfg, state, _ = _load(args.config)
-        blocked = state.list_blocked_ips()
-        if not blocked:
-            print("no blocked IPs")
-            return 0
-        now = time.time()
-        for b in blocked:
-            ip = b["ip"]
-            blocked_at = b.get("blocked_at", 0)
-            dur = b.get("duration_seconds", 0)
-            if dur == 0:
-                expires = "permanent"
-            else:
-                remaining = int(dur - (now - blocked_at))
-                expires = f"expires in {max(0, remaining)}s"
-            reason = b.get("reason", "")
-            print(f"{ip:20s}  {expires}  — {reason}")
+    if args.command == "install-launchd":
+        try:
+            result = launchd_installer.install_launchd(
+                label=args.label,
+                agent_bin=args.agent_bin,
+                config_path=args.config,
+                log_path=args.log,
+                plist_path=args.plist,
+                state_dir=args.state_dir,
+                dry_run=args.dry_run,
+            )
+        except launchd_installer.LaunchdInstallError as exc:
+            print(f"INSTALL-LAUNCHD FAILED: {exc}", file=sys.stderr)
+            return 2
+
+        prefix = "would install" if result.dry_run else "installed"
+        print(f"AgentPulse launchd daemon {prefix}: {result.label}")
+        print(f"  binary: {result.agent_bin}")
+        print(f"  config: {result.config_path}")
+        print(f"  log:    {result.log_path}")
+        print(f"  plist:  {result.plist_path}")
+        if result.dry_run:
+            for step in result.steps:
+                print(f"  - {step}")
         return 0
 
     return 0  # pragma: no cover

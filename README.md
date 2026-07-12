@@ -2,7 +2,7 @@
 
 # 🛡️ AgentPulse
 
-### A self-serve Linux agent that monitors your servers and runs the first fix — safely
+### A self-serve Linux/macOS agent that monitors your hosts and runs the first fix — safely
 
 *Alerts wake you. AgentPulse acts, verifies, and escalates if the fix didn't hold.*
 
@@ -30,11 +30,11 @@ Every monitoring tool will happily wake you at 3 AM. Almost none will fix the pr
 ## What AgentPulse Does (today, for real)
 
 AgentPulse is a thin, **dependency-free Python agent** that runs as a systemd
-service on one Linux box. It watches three classes of repeat incident and, when
+service on Linux or a launchd daemon on macOS. It watches three classes of repeat incident and, when
 you allow it, runs the first safe fix:
 
 - **Disk pressure** → removes old files inside cleanup paths *you* configure (never directories, never symlinks, never system paths).
-- **Crashed service** → restarts a systemd service from *your* allowlist.
+- **Crashed service** → restarts a systemd service on Linux or launchd service on macOS from *your* allowlist.
 - **Memory runaway** → flags the largest offender. (It never kills a process automatically in v1.)
 
 ### Safe by default
@@ -53,23 +53,28 @@ No blind destructive actions. Each auto-fix goes through a full cycle:
 If the verify step shows the condition didn't clear, the agent **escalates to a
 human instead of retrying** — the loop refuses to spiral.
 
-## What's NOT here yet (honest roadmap)
+## What ships today vs. what's roadmap
 
-- ~~Local dashboard~~ — **now exists**: a persistent local web dashboard
-  ([`dashboard/`](dashboard/README.md)) with live updates, history, metric
-  charts, and one-click approvals. Runs on your server, bound to localhost.
-- Hosted cloud dashboard / multi-server fleet control plane — still roadmap,
-  not built
-- Baseline/ML learning of "normal"
-- More remediation actions and integrations (Slack/Discord)
+Shipped today:
 
-v1 is a single-host agent (plus an optional local dashboard) you install and
-configure yourself. That's it — and it's real, tested, and conservative on
-purpose.
+- Linux/macOS agent with safe local remediation
+- Agent-to-backend check-ins (`/api/agent/checkin`)
+- Backend fleet status API (`/api/agents`, recent check-ins)
+- License key storage/verification API
+- Docker packaging for agent and backend
+
+Still roadmap:
+
+- Browser dashboard / polished multi-server fleet UI
+- Stripe billing portal integration
+- ML-grade pattern learning (a statistical baseline — per-metric mean/variance with advisory anomaly alerts — ships today in `baseline.py`)
+- More remediation actions and native integrations (Slack/Discord webhooks work today via `notify.webhook_url`)
+
+v1 is conservative on purpose: the agent keeps working locally even if the backend is down.
 
 ## Guard rails are tested, not promised
 
-The agent ships with a **73-test suite, including a 7,500-iteration fuzz harness**
+The agent ships with a **102-test suite, including a 7,500-iteration fuzz harness**
 asserting the safety invariants: never sweep a system path, never delete new
 files / directories / symlinks, never auto-kill a process (even when approved),
 refuse injection in service names, and fail the safety gate closed on any action
@@ -85,10 +90,13 @@ python3 -m agentpulse run-once --dry-run agentpulse.config.local.json
 
 Reads your actual disk/process state, prints what it found, makes zero changes.
 
-See **[agent/README.md](agent/README.md)** for the full local quickstart and
-**[agent/CONFIGURATION.md](agent/CONFIGURATION.md)** for all config fields.
+See **[agent/README.md](agent/README.md)** for the full local quickstart,
+**[agent/CONFIGURATION.md](agent/CONFIGURATION.md)** for all config fields, and
+**[backend/README.md](backend/README.md)** for the backend API.
 
-## Install on a server
+## Install on a host
+
+Linux production installs use systemd:
 
 ```bash
 curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
@@ -98,6 +106,16 @@ sudo bash install.sh     # installs the agent in alert-only mode
 
 Then edit `/etc/agentpulse/config.json`, run `sudo agentpulse run-once /etc/agentpulse/config.json`
 to see what it finds, and promote actions to `ask`/`auto` when you trust them.
+
+macOS production installs use launchd:
+
+```bash
+python3 -m pip install agentpulse
+sudo agentpulse install-launchd
+sudo agentpulse run-once /usr/local/etc/agentpulse/config.json
+```
+
+Then edit `/usr/local/etc/agentpulse/config.json` and use launchd labels in `checks.service.services`.
 
 ## Pricing (paid beta)
 
@@ -111,7 +129,7 @@ to see what it finds, and promote actions to `ask`/`auto` when you trust them.
 
 ## Who It's For
 
-- Indie SaaS founders running 1–10 Linux servers who get paged for the same fixes
+- Indie SaaS founders running 1–10 Linux/macOS hosts who get paged for the same fixes
 - Solo developers on a VPS who can't justify enterprise monitoring pricing
 - Small teams tired of being the on-call remediation layer
 
@@ -124,8 +142,8 @@ to see what it finds, and promote actions to `ask`/`auto` when you trust them.
 
 ## License
 
-See [LICENSE](LICENSE). This repository contains the AgentPulse website and the
-v1 agent (`agent/`). The hosted dashboard is in development.
+See [LICENSE](LICENSE). This repository contains the AgentPulse website, the
+v1 agent (`agent/`), and the backend API (`backend/`). The hosted dashboard UI is in development.
 
 ---
 

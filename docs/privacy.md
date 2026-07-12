@@ -17,7 +17,7 @@ information in connection with the AgentPulse website
 
 ## Who we are
 
-AgentPulse is a self-serve Linux monitoring and remediation agent operated by
+AgentPulse is a self-serve Linux/macOS monitoring and remediation agent operated by
 Dustinn Stroud. Contact: **support@agentpulse.dustinnstroud.com**.
 
 ## Information we collect
