@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # install-agent.sh — Install AgentPulse on Linux (systemd) or macOS (launchd)
-# Usage: curl -fsSL https://install.agentpulse.io | bash
-# Or:    ./install-agent.sh --enrollment-token <token> --backend-url https://api.agentpulse.io
+# Usage: curl -fsSL https://agentpulse.ca/install.sh | bash
+# Or:    ./install-agent.sh --enrollment-token <token> --api-url https://api.agentpulse.ca
 #
 # Options:
 #   --enrollment-token <token>    Token from the dashboard [required]
-#   --backend-url <url>           Control-plane API URL [default: https://api.agentpulse.io]
+#   --api-url <url>           Control-plane API URL [default: https://api.agentpulse.ca]
 #   --config-url <url>            URL to fetch pre-generated config [optional]
 #   --interactive                 Ask for confirmation before system changes
 #   --unattended                  Skip all prompts (assumes --interactive was not passed)
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────
-BACKEND_URL="${BACKEND_URL:-https://api.agentpulse.io}"
+API_URL="${API_URL:-https://api.agentpulse.ca}"
 ENROLLMENT_TOKEN=""
 CONFIG_URL=""
 INTERACTIVE=false
@@ -49,7 +49,7 @@ require_root() {
   [[ $EUID -eq 0 ]] || die "Must be run as root. Hint: sudo $0 $*"
 }
 require_token() {
-  [[ -n "$ENROLLMENT_TOKEN" ]] || die "Missing --enrollment-token. Get one from ${BACKEND_URL}/enrollment"
+  [[ -n "$ENROLLMENT_TOKEN" ]] || die "Missing --enrollment-token. Get one from ${API_URL}/enrollment"
 }
 http_fetch() {
   command -v curl >/dev/null && curl -fsSL "$1" || command -v wget >/dev/null && wget -qO- "$1" || die "Neither curl nor wget found"
@@ -67,7 +67,7 @@ parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --enrollment-token) ENROLLMENT_TOKEN="$2"; shift 2;;
-      --backend-url)      BACKEND_URL="$2"; shift 2;;
+      --api-url)      API_URL="$2"; shift 2;;
       --config-url)       CONFIG_URL="$2"; shift 2;;
       --interactive)       INTERACTIVE=true; shift;;
       --unattended)       UNATTENDED=true; shift;;
@@ -77,7 +77,7 @@ Usage: install-agent.sh [options]
 
 Options:
   --enrollment-token <tok>   Dashboard enrollment token [required]
-  --backend-url <url>        Control-plane API [default: https://api.agentpulse.io]
+  --api-url <url>        Control-plane API [default: https://api.agentpulse.ca]
   --config-url <url>         Pre-generated config to fetch [optional]
   --interactive              Confirm before system changes
   --unattended               Assume yes to all prompts
@@ -136,7 +136,7 @@ install_linux() {
 {
   "version": "1",
   "control_plane": {
-    "backend_url": "$BACKEND_URL",
+    "base_url": "$API_URL",
     "enrollment_token": "$ENROLLMENT_TOKEN",
     "auth_token": "",
     "checkin_interval": 60
@@ -212,7 +212,7 @@ install_macos() {
     > "$plist_src"
   sed -i '' "s|__CONFIG_DIR__|$CONFIG_DIR|g" "$plist_src"
   sed -i '' "s|__LOG_DIR__|$LOG_DIR|g" "$plist_src"
-  sed -i '' "s|__BACKEND_URL__|$BACKEND_URL|g" "$plist_src"
+  sed -i '' "s|__API_URL__|$API_URL|g" "$plist_src"
   sed -i '' "s|__ENROLLMENT_TOKEN__|$ENROLLMENT_TOKEN|g" "$plist_src"
   chown root:wheel "$plist_src"
   chmod 0644 "$plist_src"

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agentpulse.io/contracts/schemas/checkin.schema.json",
+  "$id": "https://agentpulse.ca/contracts/schemas/checkin.schema.json",
   "title": "Agent Check-In",
   "description": "Periodic check-in payload sent from agent to control plane.",
   "type": "object",

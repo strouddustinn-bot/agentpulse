@@ -93,4 +93,4 @@ updated" date above. Continued use after changes means you accept them.
 
 ## 11. Contact
 
-**support@agentpulse.dustinnstroud.com**
+**support@agentpulse.ca**

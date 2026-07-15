@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agentpulse.io/schemas/agentpulse.config.schema.json",
+  "$id": "https://agentpulse.ca/schemas/agentpulse.config.schema.json",
   "title": "AgentPulse Agent Configuration",
   "description": "Schema for the AgentPulse agent configuration file. All paths support variable substitution with ${ENV_VAR} syntax.",
   "type": "object",

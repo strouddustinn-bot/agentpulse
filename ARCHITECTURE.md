@@ -1,147 +1,62 @@
-# AgentPulse Internal Architecture
+# AgentPulse Architecture
 
-This document is the canonical internal reference connecting AgentPulse's v1
-remediation engine to the Ouroboros pillar framework (from the
-[Sovereign-Ouroboros-OS](https://github.com/strouddustinn-bot/Sovereign-Ouroboros-OS)
-research project). It is the **north-star architecture**, with an honest,
-code-checked status per pillar.
+## Product boundary
 
-**Rule for this document:** a stage is only marked `SHIPPED` if it exists in the
-`agent/agentpulse/` code and is covered by the test suite. Everything else is
-`ROADMAP`, even if the Ouroboros research repo prototypes it. Do not mark a
-stage shipped because the vision describes it.
+AgentPulse is a local-first server-remediation platform, not a generic observability system, remote-shell service, or unsupervised LLM infrastructure agent.
 
-Lives alongside `README.md` and `SECURITY.md`. Not a docs-site page.
-
----
-
-## Implemented loop (v1 agent, as built)
-
-What the shipped agent actually does on every auto-fix, in `agentpulse/decision_loop.py`:
-
-```
-[IMAGINE] --> [SIMULATE] --> [VALIDATE] --> [EXECUTE] --> [VERIFY] --> [RECORD]
- expected      dry-run        ethos gate     real fix     re-measure   cycle log
- state                                                        |
-                                              escalate to human if not cleared
+```text
+Host agent → authenticated Worker/D1 control plane → React console
 ```
 
-The loop "eats its tail" through **VERIFY**: after acting, the agent re-measures
-the same signal and, if the condition did not clear, **escalates to a human
-instead of retrying**. There is no automatic re-loop on a failed fix — that is a
-deliberate safety property, verified by `tests/test_decision_loop.py`.
+## Components
 
-The full closed feedback loop (writing outcomes back into a learned baseline) is
-ROADMAP, not v1 — see Recall and Expand below.
+### `agent/`
 
----
+The dependency-light Python runtime owns host observation, bounded reasoning, simulation, local policy ceilings, allowlisted remediation, post-action verification, evidence, local state, offline operation, and outbound replay. It remains useful when the network or control plane is unavailable.
 
-## Pillars: status checked against the code
+### `control-plane/`
 
-| # | Ouroboros pillar | AgentPulse role | Status | Real module |
-|---|------------------|-----------------|--------|-------------|
-| — | Recall (knowledge) | Baseline learning / anomaly detection | **SHIPPED (statistical)** | `baseline.py` |
-| 1 | NeuroSynth (Imagine) | Name the expected end-state | **SHIPPED (minimal)** | `decision_loop._expected_state` |
-| 2 | ChronoWeave (Simulate) | Dry-run the fix first | **SHIPPED (as dry-run)** | `remediation.execute(dry_run=True)` |
-| 3 | EthosCompiler (Validate) | Executable safety gate | **SHIPPED** | `decision_loop.safety_gate`, `policy`, `remediation` guards |
-| 4 | MetaMorph (Execute) | Run the validated fix | **SHIPPED (fixed actions)** | `remediation.disk_cleanup`, `service_restart` |
-| — | Verify (the tail) | Re-measure, escalate | **SHIPPED** | `decision_loop.run_cycle` + `runner.make_verify` |
-| 5 | MetaMorph (Evolve) | Skill synthesis/composition | **ROADMAP** | none yet |
-| 6 | HiveMind (Expand) | Multi-server federation | **ROADMAP** | none yet |
+The Cloudflare Worker is the only hosted authority. D1 stores tenant metadata, subscription state, enrollment tokens, agent identities, heartbeats, materialized incidents, policies, and audit-relevant evidence. It authenticates requests and narrows policy intent. It does not run shell commands, dispatch arbitrary code, or provide remote execution.
 
----
+Surviving API routes are documented in `packages/contracts/openapi.yaml`:
 
-## Stages (honest detail)
+- `GET /health`
+- `POST /v1/enrollment-tokens`
+- `POST /v1/agents/enroll`
+- `POST /v1/agents/heartbeat`
+- `GET /v1/agents/policy`
+- `GET /v1/fleet`
+- `POST /v1/stripe/webhook`
 
-### Recall — SHIPPED (statistical), ML ROADMAP
-The agent learns each metric's normal behavior over time and flags deviations.
-`baseline.py` maintains an online mean/variance (Welford) per metric — disk
-percent per path and host memory percent — persisted in `state.py` under
-`baselines`. After a warmup window it raises an **advisory anomaly alert** when a
-value deviates beyond a z-score threshold (with an absolute floor so
-near-constant metrics don't flap). This catches "this host is behaving
-abnormally" *before* a hard threshold is crossed, and it lowers false alerts on
-hosts whose normal is naturally high.
+Heartbeats are bounded and idempotent. Incident fingerprints are upserted per tenant and agent. Fleet reads are tenant-scoped and include recent incidents.
 
-It is **statistical, deterministic, dependency-free — not a neural model**.
-Anomalies never trigger remediation; they are alert-only. Covered by
-`test_baseline.py` and the fuzz suite. The richer vision — RAG over incident
-history, BM25+dense retrieval, ML-learned baselines — remains ROADMAP.
+### `dashboard/`
 
-### 1. Imagine — SHIPPED (minimal)
-`decision_loop._expected_state()` produces a one-line expected end-state (e.g. "expect disk
-on /var to drop below threshold after removing old files"). It is a single
-expectation, not a set of ranked candidate strategies. ML-ranked candidates are
-ROADMAP; the interface can carry them later without changing callers.
+One React console presents fleet and incident state from `GET /v1/fleet`. It is read-only: no approval endpoint, arbitrary command path, local state mutation, or second backend exists in the dashboard. The current beta connection form uses a tab-scoped credential and explicitly marks secure browser sessions as a production prerequisite.
 
-### 2. Simulate — SHIPPED (as dry-run)
-Before any real change, `remediation.execute(dry_run=True)` produces the exact
-plan — which files would be removed, which service would be restarted — without
-touching the system. This is a deterministic dry-run, **not** multi-timeline
-counterfactual scoring. Timeline diversity/scoring is ROADMAP.
+### `packages/contracts/`
 
-### 3. Validate — SHIPPED
-`decision_loop.safety_gate()` plus the guards in `policy.py` and `remediation.py`
-enforce hard, code-level safety predicates before execution: no system-path
-sweeps, no auto process-kill, allowlisted services only, no action without a
-successful dry-run. Per-action operator policy (off/alert/ask/auto) is evaluated
-in `policy.decide()`. Covered by `test_policy.py`, `test_remediation.py`, and the
-4,100-iteration fuzz suite in `test_fuzz.py`.
+OpenAPI and JSON Schema are the shared contract source. Fixtures and `scripts/validate-contracts.py` validate the active Worker surface, local references, schemas, and representative payloads. Do not add an endpoint to a client or documentation page without adding it to the contract and Worker tests.
 
-### 4. Execute — SHIPPED (fixed action set)
-`remediation.execute()` runs the validated action from a **fixed** set:
-`disk_cleanup` (age-bounded, glob-guarded file removal) and `service_restart`
-(allowlisted systemd restart on Linux or launchd restart on macOS). There is **no** dynamic skill registry, synthesis,
-or cosine-similarity composition in v1 — that is the Evolve roadmap item.
+### `docs/`
 
-### Verify — SHIPPED
-After execution, `runner.make_verify()` re-runs the relevant check. If the
-condition cleared → `succeeded`. If not → `escalated` (notify a human; do not
-retry). This is the safety backbone of autonomous operation and is explicitly
-tested.
+The public website, product documentation, installation guidance, privacy/terms pages, and comparison content live here. The site is not a second dashboard or API implementation.
 
-### 5. Evolve — ROADMAP
-On-demand skill synthesis and composition within a bounded registry. **No
-production code exists.** When built, the bounded-registry + LRU-eviction cap is
-a required safety property.
+## Safety invariants
 
-### 6. Expand — ROADMAP
-Multi-server federation (e.g. GF(256) secret-shared pattern sharing across
-nodes). **No production code exists.** This is where anonymized, consenting
-production telemetry would later feed a shared baseline — the legitimate ML data
-path, distinct from the test suite.
+1. Cloud policy may reduce local authority but never increase it.
+2. Unknown action names and malformed payloads fail closed.
+3. The cloud cannot execute arbitrary host commands.
+4. The agent remains functional during control-plane outages.
+5. Remediation follows `Observe → Reason → Simulate → Gate → Act → Verify → Record or Escalate`.
+6. Verification failure escalates once and never begins an autonomous repair loop.
+7. Credentials and sensitive values are stored as hashes or protected local files and never emitted into logs, fixtures, or reports.
+8. Tenant identifiers are enforced on every hosted read and write.
 
----
+## Deliberate removals
 
-## Public vocabulary
+The generic FastAPI backend, Python dashboard service, duplicate React dashboard, realtime Worker, Fly configuration, generic Docker production stack, load-test scaffolding, and premature Prometheus/Grafana stack were retired. They created competing authorities and were not required by the paid-pilot contract.
 
-User-facing copy uses plain words; this doc and code use the loop's stage names.
-Keep them consistent with the **shipped** loop:
+## Future expansion
 
-| Public term (site/copy) | Loop stage | Status |
-|-------------------------|-----------|--------|
-| (plan) | Imagine | shipped (minimal) |
-| Simulate / dry-run | Simulate | shipped |
-| Safety gate | Validate | shipped |
-| Fix / act | Execute | shipped |
-| Verify / escalate | Verify | shipped |
-| Learn across servers | Expand | roadmap |
-| Remember normal | Recall | shipped (statistical) |
-
-Do not describe Recall, Evolve, or Expand as available in user-facing copy until
-they ship. Current site copy (README, `docs/index.md`, `docs/install.md`) is
-aligned to the shipped loop only.
-
----
-
-## Roadmap priority
-
-1. **Recall / baseline** — gives the agent a notion of "normal" so detection
-   isn't purely threshold-based. Highest product leverage.
-2. **Simulate depth** — richer consequence modeling to cut false-positive
-   auto-fixes.
-3. **Evolve / Expand** — dynamic skills and fleet federation; largest builds,
-   sequenced last.
-
-Until those ship, v1 stands on its own as an honest, tested, single-host agent:
-fixed actions, hard safety guards, dry-run + verify on every change.
+Secure browser sessions, complete checkout/account claim, billing portal, richer audit/event routes, and staging lifecycle automation are separate release gates. They must extend this boundary rather than reintroduce a second backend or remote-shell capability.

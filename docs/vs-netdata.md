@@ -49,4 +49,4 @@ If you want your servers to **heal themselves** — free disk space, restart cra
 
 **Netdata shows you the fire. AgentPulse puts it out.**
 
-[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.ca/signup)

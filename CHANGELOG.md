@@ -18,14 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Agent: control-plane enrollment and heartbeat transport (hmac-signed, replay-resistant)
 - Agent: CLI with install, enroll, start, stop, status, check-in, check, remediate, doctor, config, baseline, update, version, uninstall commands
 - Agent: 108-passing test suite including a 7,500-iteration fuzz harness
-- Backend: FastAPI app with health, readiness, version, and ingestion endpoints
-- Backend: SQLite store with agent inventory, check-in log, and incident tables
-- Backend: enrollment token validation, agent credential management, HMAC verification
-- Dashboard: React 19 + TypeScript frontend with server inventory and incident views
-- Dashboard: backend Flask API with billing integration and Stripe webhooks
-- Control-plane: Cloudflare Worker with D1 database and email routing
-- CI: GitHub Actions workflow for lint, typecheck, and test across all components
-- Observability: Prometheus metrics endpoint, Grafana dashboard JSON, alert rules
+- Control-plane: Cloudflare Worker + D1 tenant isolation, enrollment, policy narrowing, heartbeat ingestion, incident materialization, fleet reads, and Stripe signature verification
+- Dashboard: one read-only React console consuming the authenticated Worker fleet contract
+- Contracts: versioned OpenAPI, JSON Schema, and representative fixtures
+- CI: GitHub Actions workflows for agent, Worker, dashboard, contract, shell, and security verification
 - Security: fail-closed enrollment, HMAC-signed payloads, mode-0600 credential files,
   bounded offline spool, deduplication, and cooldown enforcement
 

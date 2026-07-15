@@ -1,9 +1,5 @@
-# pnpm workspace — https://pnpm.io/workspaces
-# Groups all Node.js packages for monorepo-style installation.
-
+# Node workspace packages
 packages:
   - "control-plane"
-  - "dashboard/web"
-  - "dashboard/frontend"
-  - "apps/email-router"
+  - "dashboard"
   - "packages/*"

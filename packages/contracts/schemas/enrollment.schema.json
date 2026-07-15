@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agentpulse.io/contracts/schemas/enrollment.schema.json",
+  "$id": "https://agentpulse.ca/contracts/schemas/enrollment.schema.json",
   "title": "Agent Enrollment",
   "description": "Payload sent when an agent first enrolls with the control plane.",
   "type": "object",

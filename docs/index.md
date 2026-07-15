@@ -9,7 +9,7 @@ AgentPulse is a self-serve Linux/macOS agent for founders and small teams runnin
 
 > **Self-serve agent, alert-only by default.** You install it; it watches and (when you allow it) acts. Every auto-fix runs a verify-or-escalate loop — simulate, validate, execute, then **verify**, and escalate to you if the fix didn't hold. It never blind-retries a destructive action. [How it works →](install)
 
-[Install the agent](install) | [Backend API](backend) | [See pricing](pricing) | [Request beta access](signup)
+[Install the agent](install) | [Control-plane API](https://api.agentpulse.ca) | [See pricing](pricing) | [Request beta access](signup)
 
 *Best for founders running 1–10 Linux/macOS hosts on Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail, or Mac minis.*
 
@@ -72,4 +72,4 @@ AgentPulse is designed to start conservative. Beta onboarding begins in alert-on
 
 ---
 
-<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.dustinnstroud.com</sub>
+<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.ca</sub>

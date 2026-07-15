@@ -75,4 +75,4 @@ AgentPulse is designed to avoid that trap. Simple pricing from day one. No honey
 
 **Datadog is a Swiss Army knife. AgentPulse is a scalpel.** Pick the tool that matches your problem.
 
-[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.ca/signup)

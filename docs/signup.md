@@ -64,7 +64,7 @@ just paging you about them.
 
 <!-- FORM-FALLBACK START (delete this block once the iframe above is live) -->
 The fastest way in tonight: hit the button above, or send the details below to
-[support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20paid%20beta%20request).
+[support@agentpulse.ca](mailto:support@agentpulse.ca?subject=AgentPulse%20paid%20beta%20request).
 We reply within a few hours during the launch window with your recommended
 first-server setup and the payment link for your plan.
 <!-- FORM-FALLBACK END -->
@@ -102,8 +102,8 @@ Every policy is visible, reversible, and scoped to the server it runs on.
   automation is enabled.
 
 For urgent setup, email
-[support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com).
+[support@agentpulse.ca](mailto:support@agentpulse.ca).
 
 ---
 
-<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.dustinnstroud.com</sub>
+<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.ca</sub>

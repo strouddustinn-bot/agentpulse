@@ -10,7 +10,7 @@ on Linux or a launchd daemon on macOS. It installs in **alert-only** mode — it
 nothing until you say so.
 
 ```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
+curl -fsSL https://agentpulse.ca/install.sh -o install.sh
 less install.sh          # review it — it runs as root
 sudo bash install.sh
 ```

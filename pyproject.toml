@@ -5,39 +5,31 @@ build-backend = "hatchling.build"
 [project]
 name = "agentpulse"
 version = "0.1.0"
-description = "Self-healing server monitoring and remediation"
+description = "Local-first server remediation with a bounded Cloudflare control plane"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
-authors = [{ name = "AgentPulse Team", email = "team@agentpulse.io" }]
-homepage = "https://github.com/strouddustinn-bot/agentpulse"
+authors = [{ name = "AgentPulse Team", email = "support@agentpulse.ca" }]
+homepage = "https://agentpulse.ca"
 repository = "https://github.com/strouddustinn-bot/agentpulse"
-keywords = ["monitoring", "remediation", "devops", "sre", "infrastructure"]
+keywords = ["server-remediation", "sre", "infrastructure", "incident-response"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux",
-    "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
-    "Topic :: System :: Systems Administration",
 ]
 
 [tool.hatch.build.targets.sdist]
-include = ["/agent", "/backend", "/control-plane", "/dashboard", "/configs", "/scripts"]
+include = ["/agent", "/control-plane", "/dashboard", "/packages", "/configs", "/scripts", "/docs"]
 
 [tool.hatch.build.targets.wheel]
 packages = []
 
 [tool.ci]
-# Per-component workspaces tested by individual workflows
 agent = { path = "agent", python = "3.10-3.13" }
-backend = { path = "backend", python = "3.10-3.13" }
 control-plane = { path = "control-plane" }
-dashboard-frontend = { path = "dashboard/frontend" }
-dashboard-web = { path = "dashboard/web" }
+dashboard = { path = "dashboard" }
+contracts = { path = "packages/contracts" }

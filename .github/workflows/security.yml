@@ -3,98 +3,57 @@ name: Security
 on:
   push:
     branches: [main]
-    paths: ['agent/**', 'backend/**', 'control-plane/**', 'dashboard/**']
+    paths: ['agent/**', 'control-plane/**', 'dashboard/**', 'packages/**', 'scripts/**']
   pull_request:
-    paths: ['agent/**', 'backend/**', 'control-plane/**', 'dashboard/**']
+    paths: ['agent/**', 'control-plane/**', 'dashboard/**', 'packages/**', 'scripts/**']
   schedule:
-    - cron: '0 0 * * 0'   # Weekly scan
+    - cron: '0 0 * * 0'
 
 jobs:
   secrets:
-    name: Secret Scanning
+    name: Secret scanning
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Scan for secrets
-        uses: trufflesecurity/trufflehog@main
+      - uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
 
   dependency-scan:
-    name: Dependency Audit
-    runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        include:
-          - python: '3.12'
-            pip-audit-cmd: pip-audit
-          - node: '22'
-            npm-audit-cmd: npm audit
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Python dependency audit
-        if: matrix.pip-audit-cmd
-        run: |
-          pip install -q pip-audit
-          pip-audit --desc -r agent/requirements.txt 2>/dev/null || true
-          pip-audit --desc -r backend/requirements.txt 2>/dev/null || true
-
-      - name: Node dependency audit
-        if: matrix.npm-audit-cmd
-        run: |
-          cd dashboard/web && npm audit --audit-level=moderate --production 2>/dev/null || true
-
-  trivy-scan:
-    name: Container Vulnerability Scan
+    name: Dependency audit
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Run Trivy scanner
-        uses: aquasecurity/trivy-action@master
+      - uses: actions/setup-python@v5
         with:
-          scan-type: 'fs'
-          scan-ref: 'agent'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-        continue-on-error: true
-
-      - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v3
+          python-version: '3.12'
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install pip-audit
+          pip-audit -r agent/requirements.txt
+      - uses: actions/setup-node@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          node-version: '22'
+      - name: Audit Worker dependencies
+        working-directory: control-plane
+        run: npm audit --audit-level=high
+      - name: Audit dashboard dependencies
+        working-directory: dashboard
+        run: npm audit --audit-level=high
 
   harden-check:
-    name: Supply Chain Hardening
+    name: Repository hardening
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Check for unsigned commits on release tags
+      - name: Check shell syntax
+        run: find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+      - name: Check node_modules are not tracked
+        run: test -z "$(git ls-files '*/node_modules/*')"
+      - name: Check credentials are not committed
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG=${GITHUB_REF#refs/tags/}
-            if ! git verify-tag "$TAG" 2>/dev/null; then
-              echo "WARNING: Tag $TAG is not signed"
-            fi
-          fi
-
-      - name: Verify no dev dependencies in production paths
-        run: |
-          ! grep -r 'pytest\|faker\|hypothesis' \
-            agent/systemd/ backend/agentpulse_backend/ \
-            --include='*.txt' --include='*.toml' 2>/dev/null || true
-
-      - name: Check node_modules not committed
-        run: |
-          if git ls-files '*/node_modules/' | grep -q .; then
-            echo "ERROR: node_modules are tracked in git"
-            exit 1
-          fi
-          echo "node_modules not tracked: OK"
+          ! grep -RInE '(sk_live_|whsec_[A-Za-z0-9]|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH) PRIVATE KEY)' \
+            agent/agentpulse control-plane/src dashboard/src packages/contracts configs scripts docs \
+            --exclude='*.md' --exclude-dir='node_modules'

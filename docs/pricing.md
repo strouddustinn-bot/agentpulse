@@ -79,7 +79,7 @@ If AgentPulse does not catch or reduce at least one repeat operational incident 
 ## Cancellation
 
 Cancel during the beta by emailing
-[support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com).
+[support@agentpulse.ca](mailto:support@agentpulse.ca).
 If AgentPulse does not reduce a repeat incident in the first 30 days, the next
 month is free.
 
@@ -93,8 +93,8 @@ A server is one Linux machine or VPS running the AgentPulse agent. Containers on
 
 ## Need something custom?
 
-Email [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com?subject=AgentPulse%20Business%20Beta) with the number of servers, the stack you run, and the incidents you want remediated.
+Email [support@agentpulse.ca](mailto:support@agentpulse.ca?subject=AgentPulse%20Business%20Beta) with the number of servers, the stack you run, and the incidents you want remediated.
 
 ---
 
-<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.dustinnstroud.com</sub>
+<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.ca</sub>

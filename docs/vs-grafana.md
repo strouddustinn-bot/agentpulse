@@ -157,4 +157,4 @@ That said, if you're a small team choosing one tool: pick based on whether you n
 
 Grafana shows you the fire. AgentPulse puts it out.
 
-[Join the AgentPulse paid beta →](https://agentpulse.dustinnstroud.com/signup) — 30-day guarantee: if it doesn't catch or reduce one repeat incident, the next month is free.
+[Join the AgentPulse paid beta →](https://agentpulse.ca/signup) — 30-day guarantee: if it doesn't catch or reduce one repeat incident, the next month is free.

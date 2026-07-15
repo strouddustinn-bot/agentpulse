@@ -29,7 +29,7 @@
       "name": "agentpulse-control-plane-staging",
       "vars": {
         "ENVIRONMENT": "staging",
-        "PUBLIC_BASE_URL": "https://agentpulse-control-plane-staging.workers.dev",
+        "PUBLIC_BASE_URL": "https://staging-api.agentpulse.ca",
         "AGENTPULSE_VERSION": "0.1.0",
         "STRIPE_PRICE_STARTER": "",
         "STRIPE_PRICE_PRO": "",
@@ -48,7 +48,7 @@
       "name": "agentpulse-control-plane-production",
       "vars": {
         "ENVIRONMENT": "production",
-        "PUBLIC_BASE_URL": "https://api.agentpulse.dustinnstroud.com",
+        "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
         "AGENTPULSE_VERSION": "0.1.0",
         "STRIPE_PRICE_STARTER": "",
         "STRIPE_PRICE_PRO": "",

@@ -1,4 +1,0 @@
-fastapi
-httpx2>=2,<3
-uvicorn[standard]
-pydantic

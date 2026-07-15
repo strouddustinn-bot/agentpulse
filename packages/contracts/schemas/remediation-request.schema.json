@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agentpulse.io/contracts/schemas/remediation-request.schema.json",
+  "$id": "https://agentpulse.ca/contracts/schemas/remediation-request.schema.json",
   "title": "Remediation Request",
   "description": "Control-plane dispatches this to an agent to execute a remediation action.",
   "type": "object",

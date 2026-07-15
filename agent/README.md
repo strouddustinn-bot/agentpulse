@@ -51,7 +51,7 @@ No pytest required — the runner is self-contained.
 ## Install as a systemd service on Linux (production)
 
 ```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
+curl -fsSL https://agentpulse.ca/install.sh -o install.sh
 less install.sh          # review it — it runs as root
 sudo bash install.sh
 ```

@@ -53,4 +53,4 @@ Paid beta onboarding starts with one Linux server in alert-only mode, then promo
 
 If you're still getting paged at 3AM to run the same fix, you don't have a monitoring problem — you have a remediation problem. And in 2026, that problem has an affordable solution.
 
-[Join the AgentPulse paid beta →](https://agentpulse.dustinnstroud.com/signup)
+[Join the AgentPulse paid beta →](https://agentpulse.ca/signup)

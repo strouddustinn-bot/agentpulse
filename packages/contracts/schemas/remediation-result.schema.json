@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agentpulse.io/contracts/schemas/remediation-result.schema.json",
+  "$id": "https://agentpulse.ca/contracts/schemas/remediation-result.schema.json",
   "title": "Remediation Result",
   "description": "Agent reports the outcome of a remediation action back to the control plane.",
   "type": "object",

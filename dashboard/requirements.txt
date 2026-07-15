@@ -1,4 +1,0 @@
-fastapi>=0.115
-httpx2>=2,<3
-uvicorn[standard]>=0.30
-stripe>=14.0

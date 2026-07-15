@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agentpulse.io/contracts/schemas/check-result.schema.json",
+  "$id": "https://agentpulse.ca/contracts/schemas/check-result.schema.json",
   "title": "Check Result",
   "description": "Result of a single check execution on the agent.",
   "type": "object",

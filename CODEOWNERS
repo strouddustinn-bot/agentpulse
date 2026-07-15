@@ -1,21 +1,8 @@
-# CODEOWNERS
-
-# Default owner for everything
-*       @strouddustinn-bot
-
-# Agent
+# AgentPulse code ownership
 /agent/         @strouddustinn-bot
-
-# Backend
-/backend/       @strouddustinn-bot
-
-# Dashboard
-/dashboard/     @strouddustinn-bot
-
-# Control-plane (Cloudflare Workers)
 /control-plane/ @strouddustinn-bot
-
-# Infrastructure
-/.github/workflows/   @strouddustinn-bot
-/deploy/             @strouddustinn-bot
-/observability/       @strouddustinn-bot
+/dashboard/     @strouddustinn-bot
+/packages/      @strouddustinn-bot
+/configs/       @strouddustinn-bot
+/scripts/       @strouddustinn-bot
+/docs/          @strouddustinn-bot

@@ -146,4 +146,4 @@ For a lot of small teams, that math is pretty easy.
 
 {% include install.html %}
 
-[See pricing and join the paid beta →](https://agentpulse.dustinnstroud.com/pricing)
+[See pricing and join the paid beta →](https://agentpulse.ca/pricing)

@@ -60,4 +60,4 @@ AgentPulse is built for teams that want their servers to **heal themselves** wit
 
 **$99/mo for 5 servers with auto-remediation.** No per-GB billing. No surprise charges. No sales calls.
 
-[Join the paid beta →](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta →](https://agentpulse.ca/signup)

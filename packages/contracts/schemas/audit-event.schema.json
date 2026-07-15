@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://agentpulse.io/contracts/schemas/audit-event.schema.json",
+  "$id": "https://agentpulse.ca/contracts/schemas/audit-event.schema.json",
   "title": "Audit Event",
   "description": "Immutable event record for compliance and debugging.",
   "type": "object",

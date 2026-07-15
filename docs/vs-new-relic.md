@@ -115,4 +115,4 @@ If you are tired of being the remediation layer yourself, AgentPulse is the more
 
 {% include install.html %}
 
-[Join the paid beta](https://agentpulse.dustinnstroud.com/signup)
+[Join the paid beta](https://agentpulse.ca/signup)

@@ -9,7 +9,7 @@ title: AgentPulse Privacy Policy
 
 This Privacy Policy explains how AgentPulse ("AgentPulse", "we", "us") handles
 information in connection with the AgentPulse website
-(agentpulse.dustinnstroud.com) and the AgentPulse agent software (the
+(agentpulse.ca) and the AgentPulse agent software (the
 "Service"). AgentPulse is operated from Ontario, Canada.
 
 > This is a starting template provided in good faith, not legal advice. Please
@@ -18,7 +18,7 @@ information in connection with the AgentPulse website
 ## Who we are
 
 AgentPulse is a self-serve Linux/macOS monitoring and remediation agent operated by
-Dustinn Stroud. Contact: **support@agentpulse.dustinnstroud.com**.
+Dustinn Stroud. Contact: **support@agentpulse.ca**.
 
 ## Information we collect
 
@@ -69,7 +69,7 @@ retain by law) by emailing us.
 
 Depending on where you live, you may have rights to access, correct, delete, or
 port your personal information, or to object to certain processing. To exercise
-these, email **support@agentpulse.dustinnstroud.com**.
+these, email **support@agentpulse.ca**.
 
 ## Security
 
@@ -89,4 +89,4 @@ updated" date above.
 
 ## Contact
 
-Questions about this policy: **support@agentpulse.dustinnstroud.com**.
+Questions about this policy: **support@agentpulse.ca**.
