@@ -222,6 +222,30 @@ async function enrollAgent(request: Request, env: WorkerEnv): Promise<Response> 
   return responseJson({ agent_id: agentId, agent_credential: credential, agent_key: agentKey }, 201);
 }
 
+type IncidentStatus = "open" | "resolved" | "escalated";
+type IncidentSeverity = "info" | "warning" | "critical";
+
+interface NormalizedIncident {
+  fingerprint: string;
+  kind: string;
+  status: IncidentStatus;
+  severity: IncidentSeverity;
+  detail: string;
+}
+
+function normalizeIncident(value: unknown, index: number): NormalizedIncident {
+  const item = objectValue(value);
+  const kind = stringField(item.kind ?? `incident-${index}`, "incident.kind", 128);
+  const detail = typeof item.detail === "string" ? item.detail.slice(0, 2048) : "";
+  const rawStatus = typeof item.status === "string" ? item.status : "open";
+  const status: IncidentStatus = rawStatus === "succeeded" ? "resolved" : rawStatus === "escalated" ? "escalated" : rawStatus === "resolved" ? "resolved" : "open";
+  const rawSeverity = item.severity;
+  const severity: IncidentSeverity = rawSeverity === "critical" || status === "escalated" ? "critical" : rawSeverity === "info" ? "info" : "warning";
+  const suppliedFingerprint = typeof item.fingerprint === "string" ? item.fingerprint : `${kind}:${detail}`;
+  const fingerprint = stringField(suppliedFingerprint || `incident-${index}`, "incident.fingerprint", 255);
+  return { fingerprint, kind, status, severity, detail };
+}
+
 async function heartbeat(request: Request, env: WorkerEnv): Promise<Response> {
   const agent = await agentAuth(request, env);
   const body = objectValue(parseJson(await readBody(request)));
@@ -235,13 +259,23 @@ async function heartbeat(request: Request, env: WorkerEnv): Promise<Response> {
   if (!Array.isArray(body.incidents) || body.incidents.length > 50) {
     throw new HttpError(422, "invalid_payload", "incidents must be an array of at most 50 items");
   }
+  const incidents = body.incidents.map((value, index) => normalizeIncident(value, index));
   const received = Math.floor(Date.now() / 1000);
-  const inserted = await env.DB.prepare(
+  const heartbeatStatement = env.DB.prepare(
     "INSERT OR IGNORE INTO heartbeat_events (id,tenant_id,agent_id,observed_at,received_at,payload,idempotency_key) VALUES (?,?,?,?,?,?,?)",
-  ).bind(crypto.randomUUID(), agent.tenantId, agent.id, Math.floor(body.observed_at), received, JSON.stringify(body), idempotency).run();
-  await env.DB.prepare("UPDATE agents SET last_seen_at=? WHERE id=? AND tenant_id=?")
-    .bind(received, agent.id, agent.tenantId).run();
+  ).bind(crypto.randomUUID(), agent.tenantId, agent.id, Math.floor(body.observed_at), received, JSON.stringify(body), idempotency);
+  const inserted = await heartbeatStatement.run();
   const first = (inserted.meta.changes ?? 0) === 1;
+  if (first) {
+    const statements: D1PreparedStatement[] = [
+      env.DB.prepare("UPDATE agents SET last_seen_at=? WHERE id=? AND tenant_id=?").bind(received, agent.id, agent.tenantId),
+      ...incidents.map((incident) => env.DB.prepare(
+        "INSERT INTO incidents (id,tenant_id,agent_id,fingerprint,kind,status,severity,detail,opened_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?) " +
+          "ON CONFLICT(agent_id,fingerprint) DO UPDATE SET kind=excluded.kind,status=excluded.status,severity=excluded.severity,detail=excluded.detail,updated_at=excluded.updated_at",
+      ).bind(crypto.randomUUID(), agent.tenantId, agent.id, incident.fingerprint, incident.kind, incident.status, incident.severity, incident.detail, received, received)),
+    ];
+    await env.DB.batch(statements);
+  }
   return responseJson({ ok: true, duplicate: !first }, first ? 202 : 200);
 }
 
@@ -277,10 +311,25 @@ async function policy(request: Request, env: WorkerEnv): Promise<Response> {
 async function fleet(request: Request, env: WorkerEnv): Promise<Response> {
   const account = await accountAuth(request, env);
   const result = await env.DB.prepare(
-    "SELECT agent_key,hostname,enrolled_at,last_seen_at,local_policy_ceiling FROM agents " +
+    "SELECT id,agent_key,hostname,enrolled_at,last_seen_at,local_policy_ceiling FROM agents " +
       "WHERE tenant_id=? AND revoked_at IS NULL ORDER BY agent_key",
-  ).bind(account.tenantId).all<{ agent_key: string; hostname: string; enrolled_at: number; last_seen_at: number | null; local_policy_ceiling: string }>();
-  return responseJson({ agents: result.results });
+  ).bind(account.tenantId).all<{ id: string; agent_key: string; hostname: string; enrolled_at: number; last_seen_at: number | null; local_policy_ceiling: string }>();
+  const agents = [];
+  for (const agent of result.results) {
+    const incidents = await env.DB.prepare(
+      "SELECT id,fingerprint,kind,status,severity,detail,opened_at,updated_at FROM incidents " +
+        "WHERE tenant_id=? AND agent_id=? ORDER BY updated_at DESC LIMIT 50",
+    ).bind(account.tenantId, agent.id).all();
+    agents.push({
+      agent_key: agent.agent_key,
+      hostname: agent.hostname,
+      enrolled_at: agent.enrolled_at,
+      last_seen_at: agent.last_seen_at,
+      local_policy_ceiling: agent.local_policy_ceiling,
+      incidents: incidents.results,
+    });
+  }
+  return responseJson({ agents });
 }
 
 function parseStripeSignature(value: string): { timestamp: number; signatures: string[] } {

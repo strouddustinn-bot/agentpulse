@@ -89,6 +89,39 @@ describe("AgentPulse control-plane contract", () => {
     expect(body.agents.map((agent) => agent.agent_key)).toEqual(["node-a"]);
   });
 
+  it("materializes heartbeat incidents and exposes them in tenant-scoped fleet reads", async () => {
+    await seedTenant({ tenantId: "tenant-a", email: "a@example.com", accountKey: "ap_account_a" });
+    await seedTenant({ tenantId: "tenant-b", email: "b@example.com", accountKey: "ap_account_b" });
+    const enrolledA = await enroll(await mintEnrollment("ap_account_a"), "node-a", "host-a");
+    const enrolledB = await enroll(await mintEnrollment("ap_account_b"), "node-b", "host-b");
+    const send = (credential: string, idempotency_key: string, fingerprint: string) => SELF.fetch("https://agentpulse.test/v1/agents/heartbeat", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${credential}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ idempotency_key, observed_at: now(), summary: {}, incidents: [{ fingerprint, kind: "disk", status: "open", severity: "critical", detail: "disk pressure" }] }),
+    });
+    expect((await send(enrolledA.credential ?? "", "cycle-a", "disk:/var")).status).toBe(202);
+    expect((await send(enrolledA.credential ?? "", "cycle-a", "disk:/var")).status).toBe(200);
+    expect((await send(enrolledB.credential ?? "", "cycle-b", "disk:/tmp")).status).toBe(202);
+    const count = await env.DB.prepare("SELECT COUNT(*) AS count FROM incidents WHERE tenant_id='tenant-a'").first<{ count: number }>();
+    expect(count?.count).toBe(1);
+    const fleet = await SELF.fetch("https://agentpulse.test/v1/fleet", { headers: { Authorization: "Bearer ap_account_a" } });
+    expect(fleet.status).toBe(200);
+    const body = await fleet.json<{ agents: Array<{ agent_key: string; incidents: Array<{ fingerprint: string; severity: string }> }> }>();
+    expect(body.agents).toHaveLength(1);
+    expect(body.agents[0]?.incidents).toEqual([expect.objectContaining({ fingerprint: "disk:/var", severity: "critical" })]);
+  });
+
+  it("bounds and fails closed on malformed heartbeat incidents", async () => {
+    await seedTenant({ tenantId: "tenant-a", email: "a@example.com", accountKey: "ap_account_a" });
+    const enrolled = await enroll(await mintEnrollment("ap_account_a"), "node-a", "host-a");
+    const response = await SELF.fetch("https://agentpulse.test/v1/agents/heartbeat", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${enrolled.credential}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ idempotency_key: "cycle-invalid", observed_at: now(), summary: {}, incidents: [null] }),
+    });
+    expect(response.status).toBe(422);
+  });
+
   it("mints an expiring one-time enrollment token for an active account", async () => {
     await seedTenant({ tenantId: "tenant-a", email: "a@example.com", accountKey: "ap_account_a" });
     const response = await SELF.fetch("https://agentpulse.test/v1/enrollment-tokens", {

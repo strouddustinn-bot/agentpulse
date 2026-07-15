@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "subscription_inactive",
+    "message": "An active subscription is required"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "agents": [
+    {
+      "agent_key": "node-a",
+      "hostname": "host-a",
+      "enrolled_at": 1784140000,
+      "last_seen_at": 1784140300,
+      "local_policy_ceiling": "ask",
+      "incidents": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "fingerprint": "disk:/var",
+          "kind": "disk",
+          "status": "open",
+          "severity": "critical",
+          "detail": "disk pressure",
+          "opened_at": 1784140200,
+          "updated_at": 1784140300
+        }
+      ]
+    }
+  ]
+}

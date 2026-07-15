@@ -1,0 +1,14 @@
+{
+  "idempotency_key": "cycle-a",
+  "observed_at": 1784140300,
+  "summary": {"observations": 3, "breaches": 1},
+  "incidents": [
+    {
+      "fingerprint": "disk:/var",
+      "kind": "disk",
+      "status": "open",
+      "severity": "critical",
+      "detail": "disk pressure"
+    }
+  ]
+}
