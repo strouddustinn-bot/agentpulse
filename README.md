@@ -55,11 +55,11 @@ The dashboard is read-only in this consolidation. It displays authenticated flee
 
 ## Agent safety
 
-The local agent is the authority for host actions. Every remediation must be simulated, policy-gated, allowlisted, verified, and recorded. Failed verification escalates once; it never starts an autonomous retry loop. Read `agent/README.md`, `SECURITY.md`, and `docs/architecture.md` before changing remediation behavior.
+The local agent is the authority for host actions. Every remediation must be simulated, policy-gated, allowlisted, verified, and recorded. Failed verification escalates once; it never starts an autonomous retry loop. Read `agent/README.md`, `SECURITY.md`, and `ARCHITECTURE.md` before changing remediation behavior.
 
-## Verification
+## Verification and archives
 
-The consolidation branch records its independent baseline and receipts under `docs/consolidation/`. Reports imported from earlier work are provenance only; their claimed results are not treated as proof until reproduced locally.
+Current local verification receipts and explicit production release gates are summarized in `STATUS.md`. Superseded implementations, exact dirty patches, consolidation evidence, and a complete recovery bundle live in the separate archive repository documented by `ARCHIVES.md`.
 
 ```bash
 make agent-test

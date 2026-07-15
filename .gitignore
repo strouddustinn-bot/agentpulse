@@ -16,3 +16,13 @@ load-tests/archive/
 
 # Dependencies
 node_modules/
+.venv/
+
+# Local environment and secret files
+.env
+.env.local
+.env.*.local
+.dev.vars
+.dev.vars.*
+!.env.example
+!.dev.vars.example

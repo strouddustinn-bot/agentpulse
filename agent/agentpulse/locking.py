@@ -6,11 +6,10 @@ import fcntl
 import json
 import os
 import re
-import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 
 class LockBusy(TimeoutError):

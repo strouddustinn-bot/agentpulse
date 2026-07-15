@@ -46,7 +46,7 @@ So I rebuilt it properly:
 - **Webhook alerts** — get notified in Slack, Discord, or anything with an HTTP endpoint, but only when you actually need to act
 - **Hard safety rules in code** — never sweep system paths, never touch a process without approval, allowlisted services only
 
-(A fleet dashboard, native Telegram alerts, and SSH brute-force detection are on the roadmap — the agent came first.)
+(The read-only fleet console is available now. Native Telegram alerts and SSH brute-force detection remain on the roadmap.)
 
 ## The Install Experience I Wanted
 

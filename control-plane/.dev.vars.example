@@ -1,0 +1,4 @@
+# Local Worker development only. Never commit real values.
+# Copy to .dev.vars and fill from Stripe test mode.
+STRIPE_API_KEY=
+STRIPE_WEBHOOK_SECRET=

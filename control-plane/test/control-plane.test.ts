@@ -122,6 +122,26 @@ describe("AgentPulse control-plane contract", () => {
     expect(response.status).toBe(422);
   });
 
+  it("rejects malformed identifiers and heartbeat summaries", async () => {
+    await seedTenant({ tenantId: "tenant-a", email: "a@example.com", accountKey: "ap_account_a" });
+    const enrollment = await enroll(await mintEnrollment("ap_account_a"), "   ", "host-a");
+    expect(enrollment.response.status).toBe(422);
+
+    const enrolled = await enroll(await mintEnrollment("ap_account_a"), "node-a", "host-a");
+    const submit = (idempotencyKey: string, summary: Record<string, unknown>) => SELF.fetch(
+      "https://agentpulse.test/v1/agents/heartbeat",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${enrolled.credential}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ idempotency_key: idempotencyKey, observed_at: now(), summary, incidents: [] }),
+      },
+    );
+
+    expect((await submit("cycle-invalid-counter", { observations: 3, breaches: -1, errors: [] })).status).toBe(422);
+    expect((await submit("cycle-invalid-errors", { observations: 3, breaches: 0, errors: ["safe", 1] })).status).toBe(422);
+    expect((await submit(" padded-cycle ", { observations: 3, breaches: 0, errors: [] })).status).toBe(422);
+  });
+
   it("mints an expiring one-time enrollment token for an active account", async () => {
     await seedTenant({ tenantId: "tenant-a", email: "a@example.com", accountKey: "ap_account_a" });
     const response = await SELF.fetch("https://agentpulse.test/v1/enrollment-tokens", {

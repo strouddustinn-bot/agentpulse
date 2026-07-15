@@ -1,9 +1,6 @@
 import json
 import multiprocessing
 import os
-import subprocess
-import sys
-import time
 
 import pytest
 

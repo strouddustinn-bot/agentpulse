@@ -16,7 +16,7 @@ But here's the thing: **showing you the problem isn't the same as fixing it.**
 |---------|-----------|---------|
 | Auto-remediation | ✅ | ❌ |
 | Baseline learning | ✅ (statistical, advisory) | ✅ (ML in paid tier) |
-| Real-time dashboards | 🔜 roadmap | ✅ (best in class) |
+| Fleet dashboard | ✅ (read-only beta console) | ✅ (best in class) |
 | Pricing model | Per plan ($29-299/mo) | Per node ($4.50/node/mo Business) |
 | Beta access | Paid beta | 5 nodes free |
 | Install | `curl \| bash` | `curl \| bash` |

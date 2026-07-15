@@ -196,7 +196,7 @@ def test_I4_cleanup_only_old_files_in_globs(tmp_path):
         dec = Decision(action="disk_cleanup", target="/", mode_effective="auto",
                        execute=True, requires_approval=False, reason="r", observation=obs)
         # must never raise
-        res = remediation.disk_cleanup(dec)
+        remediation.disk_cleanup(dec)
 
         for p in expected_deleted:
             assert not os.path.exists(p), f"old in-glob file should be gone: {p}"

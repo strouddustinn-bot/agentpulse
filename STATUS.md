@@ -1,50 +1,59 @@
 # AgentPulse Status
 
 **Status date:** 2026-07-15
-**Candidate branch:** `agent/consolidate-agentpulse-v2`
-**Source baseline:** `origin/productization/cloudflare-paid-pilot` at `f2593dbd6201949866c4a35587e4666864c813ac`
+**Master branch:** `master/consolidated`
+**Master worktree:** `/home/desktopdusty/workspace/worktrees/agentpulse-master`
+**Archive repository:** `/home/desktopdusty/workspace/repos/agentpulse-archives`
 
-## Consolidation status
-
-| Area | Status | Evidence |
-|---|---|---|
-| Local agent | PASS | `agent/tools/run_tests.py`: 170 passed, 0 failed |
-| Worker control plane | PASS | 13 Vitest tests, TypeScript, Wrangler bindings |
-| Incident materialization | PASS | Worker test covers idempotency, upsert, tenant isolation |
-| Shared contracts | PASS | `scripts/validate-contracts.py` |
-| React dashboard | PASS | `cd dashboard && npm run build` |
-| Duplicate runtime removal | PASS | FastAPI, duplicate dashboards, Fly/Docker/observability paths removed |
-| CI paths | PASS | Workflows point at `agent`, `control-plane`, `dashboard`, and `packages/contracts` |
-| Browser authentication | BLOCKED | Beta sessionStorage credential only; secure browser sessions not implemented |
-| Paid billing lifecycle | BLOCKED | Checkout claim and billing portal remain outside this consolidation scope |
-| Staging deployment | NOT RUN | Requires Cloudflare account configuration and redacted secrets |
-
-## Active architecture
+## Consolidated product
 
 ```text
-agent/ → control-plane/ (Cloudflare Worker + D1) → dashboard/
-             ↑
-       packages/contracts/
+agent/                    dependency-light local monitoring/remediation agent
+control-plane/            Cloudflare Worker + D1 hosted authority
+dashboard/                single React fleet and incident console
+packages/contracts/       canonical OpenAPI, JSON Schema, and fixtures
+configs/                  current agent schema and safe policy examples
+scripts/                  bootstrap, install, and contract validation
+docs/                     public product, pricing, legal, and support site
 ```
 
-The agent remains locally authoritative and offline-capable. The Worker can narrow policy intent and store evidence but cannot execute arbitrary host commands. The dashboard is read-only and calls only the authenticated `/v1/fleet` route.
+Superseded source, exact dirty patches, recovery evidence, and a complete Git bundle are stored in the separate archive repository. See `ARCHIVES.md`.
 
-## Verification commands
+## Local verification
 
-```bash
-cd agent && python3 tools/run_tests.py
-cd .. && .venv/bin/python scripts/validate-contracts.py
-cd control-plane && npm test && npm run typecheck && npm run types:check
-cd ../dashboard && npm run build
-cd .. && find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+| Area | Result | Evidence |
+|---|---|---|
+| Local agent behavior | PASS | `python3 agent/tools/run_tests.py`: 170 passed, 0 failed |
+| Agent lint | PASS | `ruff check agent/` |
+| Agent config contract | PASS | Draft 7 schema and current example validated with format checks |
+| Worker control plane | PASS | 14 Vitest tests; TypeScript and Wrangler generated bindings current |
+| Worker dependency audit | PASS | no high-severity npm findings |
+| Shared contracts | PASS | 7 OpenAPI paths, 19 local references, 9 JSON schemas, 3 fixtures |
+| React dashboard | PASS | TypeScript and Vite production build |
+| Dashboard dependency audit | PASS | no high-severity npm findings |
+| Repository hardening | PASS | shell syntax, workflow YAML, credential patterns, tracked dependencies, and retired paths |
+| Archive integrity | PASS | checksums, tar snapshots, and complete Git bundle verified |
+
+## Supported boundary
+
+The agent remains locally authoritative and useful during control-plane outages. It follows:
+
+```text
+Observe → Reason → Simulate → Gate → Act → Verify → Record or Escalate
 ```
 
-The imported reports in `docs/consolidation/` are historical provenance, not independent proof. The current receipts are recorded in the candidate commit history and must be rerun by CI before publication.
+Cloud policy can narrow but cannot increase the local authority ceiling. Unknown actions fail closed. The Worker does not expose arbitrary host commands or unrestricted remote shell access. The dashboard is read-only for fleet and incident evidence.
 
-## Release blockers intentionally preserved
+## Paid-beta operations
 
-- Replace the beta browser credential with secure cookie/session authentication.
-- Complete checkout-to-account claim and billing portal lifecycle.
-- Deploy staging and exercise enrollment → heartbeat → incident → fleet read with real Cloudflare resources.
-- Configure DNS and secrets for `agentpulse.ca`, `app.agentpulse.ca`, and `api.agentpulse.ca`.
-- Perform browser-level verification against staging.
+The repository supports the current manually onboarded paid-beta model: public Stripe Payment Links, manual account confirmation, local agent installation, Worker enrollment/heartbeat/fleet APIs, and a read-only console.
+
+The following are not represented as finished production capabilities:
+
+- secure browser cookie/session authentication; the current console connection credential is beta-only;
+- automatic Stripe checkout-to-account claim;
+- self-service billing portal and complete automated subscription lifecycle;
+- independently exercised Cloudflare staging deployment, DNS, D1 migrations, and browser acceptance in this local consolidation;
+- production rollback evidence from a live deployment.
+
+These are explicit release gates for fully self-serve public production, not hidden or duplicate implementations elsewhere in the local source tree.

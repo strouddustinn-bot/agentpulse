@@ -77,7 +77,7 @@ class IdentityManager:
         opener: Callable[..., Any] = urllib.request.urlopen,
     ) -> Dict[str, Any]:
         """Enroll once and persist the returned agent UUID and credential."""
-        agent_id = self.ensure_agent_id(hostname=hostname)
+        self.ensure_agent_id(hostname=hostname)
         payload = {
             "version": "1",
             "hostname": hostname,

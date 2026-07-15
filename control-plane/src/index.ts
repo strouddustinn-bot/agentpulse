@@ -107,10 +107,38 @@ function objectValue(value: unknown): Record<string, unknown> {
 }
 
 function stringField(value: unknown, name: string, max: number): string {
-  if (typeof value !== "string" || value.length < 1 || value.length > max) {
+  if (typeof value !== "string") {
     throw new HttpError(422, "invalid_payload", `${name} must be a non-empty string of at most ${max} characters`);
   }
+  const normalized = value.trim();
+  if (normalized.length < 1 || normalized.length > max || normalized !== value) {
+    throw new HttpError(422, "invalid_payload", `${name} must be a trimmed, non-empty string of at most ${max} characters`);
+  }
   return value;
+}
+
+const SUMMARY_COUNTERS = [
+  "observations",
+  "breaches",
+  "actions",
+  "queued",
+  "alerts",
+  "anomalies",
+  "escalations",
+  "blocked",
+] as const;
+
+function validateSummary(summary: Record<string, unknown>): void {
+  for (const field of SUMMARY_COUNTERS) {
+    const value = summary[field];
+    if (value !== undefined && (typeof value !== "number" || !Number.isInteger(value) || value < 0)) {
+      throw new HttpError(422, "invalid_payload", `summary.${field} must be a nonnegative integer`);
+    }
+  }
+  const errors = summary.errors;
+  if (errors !== undefined && (!Array.isArray(errors) || !errors.every((error) => typeof error === "string"))) {
+    throw new HttpError(422, "invalid_payload", "summary.errors must be an array of strings");
+  }
 }
 
 function isMode(value: unknown): value is Mode {
@@ -253,9 +281,8 @@ async function heartbeat(request: Request, env: WorkerEnv): Promise<Response> {
   if (typeof body.observed_at !== "number" || !Number.isFinite(body.observed_at)) {
     throw new HttpError(422, "invalid_payload", "observed_at must be a finite timestamp");
   }
-  if (typeof body.summary !== "object" || body.summary === null || Array.isArray(body.summary)) {
-    throw new HttpError(422, "invalid_payload", "summary must be an object");
-  }
+  const summary = objectValue(body.summary);
+  validateSummary(summary);
   if (!Array.isArray(body.incidents) || body.incidents.length > 50) {
     throw new HttpError(422, "invalid_payload", "incidents must be an array of at most 50 items");
   }

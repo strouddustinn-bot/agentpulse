@@ -37,7 +37,8 @@ For **$99/month** (Pro plan, 5 servers):
 - ✅ Verify-or-escalate — every fix is simulated, safety-gated, and re-measured after it runs
 - ✅ Baseline learning — statistical anomaly detection tuned to *your* server's normal
 - ✅ Webhook alerts — wire into Slack, Discord, PagerDuty, or anything that accepts HTTP
-- 🔜 Dashboard, fleet view, and SSH brute-force blocking are on the roadmap — priced-in, not upsold, when they land
+- ✅ Read-only fleet and incident console — bounded heartbeat evidence without remote shell access
+- 🔜 Native Telegram alerts and SSH brute-force blocking remain on the roadmap
 
 The same feature set on Datadog? **$300-500+/month.**
 

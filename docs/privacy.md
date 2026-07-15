@@ -38,16 +38,19 @@ serving the site, per [GitHub's Privacy Statement](https://docs.github.com/site-
 
 ## Data handled by the agent software
 
-The AgentPulse agent runs **on your own server**. By default it processes
-operational data locally — disk usage, service status, process and memory
-metrics, and its own action logs — to do its job. In v1:
+The AgentPulse agent runs **on your own server** and processes operational data
+locally — disk usage, service status, process and memory metrics, and its own
+action logs. When you enable the cloud control plane:
 
-- This operational data **stays on your server** unless you configure the agent
-  to send notifications to an external endpoint (for example a webhook you
-  provide), in which case alert text is sent to that endpoint at your direction.
-- We do **not** collect your servers' operational telemetry centrally in v1.
-- Any future fleet/telemetry features that would share data off your server will
-  be **opt-in** and described before you enable them.
+- The agent sends bounded heartbeat summaries, incident evidence, agent identity,
+  hostname, software version, and policy state needed to operate the fleet
+  console. It does not send arbitrary files or provide a remote shell.
+- Detailed remediation authority and raw host state remain local. Cloud policy
+  may narrow, but cannot increase, the agent's configured local authority.
+- Notification text is sent to an external webhook only when you configure that
+  endpoint.
+- Heartbeat and incident records are retained to provide fleet history and
+  support; request deletion by emailing support@agentpulse.ca.
 
 ## How we use information
 

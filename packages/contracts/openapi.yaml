@@ -221,8 +221,8 @@ components:
       required: [agent_key, hostname, local_policy_ceiling]
       additionalProperties: false
       properties:
-        agent_key: { type: string, minLength: 1, maxLength: 128 }
-        hostname: { type: string, minLength: 1, maxLength: 255 }
+        agent_key: { type: string, minLength: 1, maxLength: 128, pattern: '^\S(?:.*\S)?$' }
+        hostname: { type: string, minLength: 1, maxLength: 255, pattern: '^\S(?:.*\S)?$' }
         local_policy_ceiling:
           type: string
           enum: [off, alert, ask, auto]
@@ -246,14 +246,30 @@ components:
         severity: { type: string, enum: [info, warning, critical] }
         detail: { type: string, maxLength: 2048 }
 
+    HeartbeatSummary:
+      type: object
+      additionalProperties: true
+      properties:
+        observations: { type: integer, minimum: 0 }
+        breaches: { type: integer, minimum: 0 }
+        actions: { type: integer, minimum: 0 }
+        queued: { type: integer, minimum: 0 }
+        alerts: { type: integer, minimum: 0 }
+        anomalies: { type: integer, minimum: 0 }
+        escalations: { type: integer, minimum: 0 }
+        blocked: { type: integer, minimum: 0 }
+        errors:
+          type: array
+          items: { type: string }
+
     HeartbeatRequest:
       type: object
       required: [idempotency_key, observed_at, summary, incidents]
       additionalProperties: false
       properties:
-        idempotency_key: { type: string, minLength: 1, maxLength: 128 }
+        idempotency_key: { type: string, minLength: 1, maxLength: 128, pattern: '^\S(?:.*\S)?$' }
         observed_at: { type: number }
-        summary: { type: object, additionalProperties: true }
+        summary: { $ref: '#/components/schemas/HeartbeatSummary' }
         incidents:
           type: array
           maxItems: 50

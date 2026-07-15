@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from agentpulse.spool import Spool, SpoolCorruptEntry, SpoolFull
+from agentpulse.spool import Spool, SpoolFull
 
 
 def test_failed_checkin_is_spooled(tmp_path):
