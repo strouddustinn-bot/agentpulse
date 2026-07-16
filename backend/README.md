@@ -2,6 +2,8 @@
 
 FastAPI backend for AgentPulse agent check-ins, fleet status, and license verification.
 
+Production runs on Fly.io — see [DEPLOY.md](DEPLOY.md) for the runbook.
+
 ## Local setup
 
 ```bash

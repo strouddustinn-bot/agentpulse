@@ -1,0 +1,41 @@
+name: Deploy backend (Fly.io)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "fly.toml"
+      - ".github/workflows/deploy_backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deploys are skipped (not failed) until the FLY_API_TOKEN repo secret
+      # exists, so this workflow can merge before the Fly app is set up.
+      - name: Check for Fly API token
+        id: token
+        run: |
+          if [ -n "$FLY_API_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "FLY_API_TOKEN secret is not set; skipping deploy. See backend/DEPLOY.md." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.token.outputs.present == 'true'
+
+      - name: Deploy
+        if: steps.token.outputs.present == 'true'
+        run: flyctl deploy --remote-only

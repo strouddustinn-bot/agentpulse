@@ -1,0 +1,45 @@
+# Fly.io config for the AgentPulse backend.
+#
+# The backend is a single FastAPI container with SQLite on a Fly volume.
+# SQLite means exactly ONE machine — do not scale count above 1 or add
+# regions until the store moves to Postgres (see backend/DEPLOY.md).
+
+app = "agentpulse-backend"
+primary_region = "yyz"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  AGENTPULSE_BACKEND_DB = "/data/agentpulse.db"
+  AGENTPULSE_PUBLIC_BASE_URL = "https://api.agentpulse.ca"
+
+[mounts]
+  source = "agentpulse_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Agents check in on a fixed interval around the clock; keep the machine warm.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
+
+[deploy]
+  # One machine holding the volume: an immediate replace (brief downtime,
+  # agents retry next cycle) beats a rolling strategy that has no second
+  # machine to roll to.
+  strategy = "immediate"
