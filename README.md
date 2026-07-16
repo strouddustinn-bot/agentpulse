@@ -74,7 +74,7 @@ v1 is conservative on purpose: the agent keeps working locally even if the backe
 
 ## Guard rails are tested, not promised
 
-The agent ships with a **102-test suite, including a 7,500-iteration fuzz harness**
+The agent ships with a **96-test suite, including a 7,500-iteration fuzz harness**
 asserting the safety invariants: never sweep a system path, never delete new
 files / directories / symlinks, never auto-kill a process (even when approved),
 refuse injection in service names, and fail the safety gate closed on any action

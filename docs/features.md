@@ -54,7 +54,7 @@ Every fix — automatic or human-approved — runs the same six-stage loop befor
 
 **Record** — the full cycle (expectation, simulation, gate verdict, execution, verification, outcome) is captured for analysis, so you can always answer "what did the agent do and why?"
 
-These guarantees aren't promises — they're enforced by a 102-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
+These guarantees aren't promises — they're enforced by a 96-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
 
 ---
 
