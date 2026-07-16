@@ -2,10 +2,11 @@ name: Contract Integration
 
 on:
   push:
-    branches: [main, 'productization/**']
+    branches: [master, 'productization/**']
     paths: ['agent/**', 'control-plane/**', 'packages/contracts/**', 'scripts/**']
   pull_request:
     paths: ['agent/**', 'control-plane/**', 'packages/contracts/**', 'scripts/**']
+  workflow_dispatch:
 
 jobs:
   static-contract-integration:
