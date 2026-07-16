@@ -27,6 +27,12 @@
   "env": {
     "staging": {
       "name": "agentpulse-control-plane-staging",
+      "routes": [
+        {
+          "pattern": "staging-api.agentpulse.ca",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "ENVIRONMENT": "staging",
         "PUBLIC_BASE_URL": "https://staging-api.agentpulse.ca",

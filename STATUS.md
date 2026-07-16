@@ -27,6 +27,7 @@ Superseded source, exact dirty patches, recovery evidence, and a complete Git bu
 | Agent lint | PASS | `ruff check agent/` |
 | Agent config contract | PASS | Draft 7 schema and current example validated with format checks |
 | Worker control plane | PASS | 14 Vitest tests; TypeScript and Wrangler generated bindings current |
+| Cloudflare staging control plane | PASS | D1 migrations current; Worker `d2fe6dd1-17f4-4be4-9096-91ebfb1be405`; custom-domain health and authenticated API smoke passed |
 | Worker dependency audit | PASS | no high-severity npm findings |
 | Shared contracts | PASS | 7 OpenAPI paths, 19 local references, 9 JSON schemas, 3 fixtures |
 | React dashboard | PASS | TypeScript and Vite production build |
@@ -53,7 +54,7 @@ The following are not represented as finished production capabilities:
 - secure browser cookie/session authentication; the current console connection credential is beta-only;
 - automatic Stripe checkout-to-account claim;
 - self-service billing portal and complete automated subscription lifecycle;
-- independently exercised Cloudflare staging deployment, DNS, D1 migrations, and browser acceptance in this local consolidation;
-- production rollback evidence from a live deployment.
+- browser-level dashboard acceptance against staging; the staging dashboard is not deployed;
+- production deployment and rollback evidence.
 
 These are explicit release gates for fully self-serve public production, not hidden or duplicate implementations elsewhere in the local source tree.
