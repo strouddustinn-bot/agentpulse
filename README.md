@@ -1,13 +1,19 @@
 # AgentPulse
 
-AgentPulse is a local-first, cloud-managed server-remediation platform. A dependency-light agent observes a host, proposes bounded fixes, executes only policy-approved actions, verifies the result, and synchronizes evidence to a hosted fleet console.
+AgentPulse is a local-first server-remediation platform under active development. A dependency-light agent observes a host, proposes bounded fixes, executes only policy-approved actions, verifies the result, and can synchronize evidence to the Worker/D1 control plane. Fleet-console source exists, but public console deployment remains a release gate.
 
-Canonical surfaces:
+Target production surfaces:
 
 - Website and documentation: https://agentpulse.ca
 - Console: https://app.agentpulse.ca
 - API: https://api.agentpulse.ca
-- Staging: `staging.agentpulse.ca`, `staging-app.agentpulse.ca`, `staging-api.agentpulse.ca`
+
+As of 2026-07-17, those production hostnames are not deployed and do not
+resolve. The staging control-plane health endpoint is live at
+`https://staging-api.agentpulse.ca/health`; staging website and console
+deployment remain release gates. See `STATUS.md` for the evidence-backed
+readiness boundary rather than treating these target URLs as availability
+claims.
 
 ## Repository map
 
@@ -59,7 +65,7 @@ The local agent is the authority for host actions. Every remediation must be sim
 
 ## Verification and archives
 
-Current local verification receipts and explicit production release gates are summarized in `STATUS.md`. Superseded implementations, exact dirty patches, consolidation evidence, and a complete recovery bundle live in the separate archive repository documented by `ARCHIVES.md`.
+Current verification receipts and explicit production release gates are summarized in `STATUS.md`. Historical source retention follows `ARCHIVES.md`; operational storage details remain private, and deletion is blocked until the owner approves the retention gate.
 
 ```bash
 make agent-test

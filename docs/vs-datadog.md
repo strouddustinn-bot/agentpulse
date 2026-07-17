@@ -32,7 +32,7 @@ AgentPulse? **$99/month for 5 servers with auto-remediation included.** No per-G
 | Log management | ❌ | ✅ |
 | Auto-remediation | ✅ | ⚠️ (Bits AI SRE, extra cost) |
 | Baseline learning | ✅ (statistical, advisory) | ✅ (Watchdog) |
-| Dashboard | ✅ (read-only fleet and incident console) | ✅ (very comprehensive) |
+| Dashboard | 🟡 Source implemented; public deployment pending | ✅ (very comprehensive) |
 | Integrations | Webhooks (Slack, Discord, PagerDuty, any HTTP) | 800+ |
 | Security monitoring | 🔜 roadmap | ✅ (separate product, extra cost) |
 | Pricing complexity | 3 plans | 20+ products, per-host + per-GB |

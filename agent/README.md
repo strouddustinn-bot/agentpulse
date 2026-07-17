@@ -2,7 +2,9 @@
 
 The thin, dependency-free Python monitoring + remediation daemon.
 
-**Requirements:** Python 3.10+ · Linux with systemd or macOS with launchd for production (not required for local testing)
+**Requirements:** Python 3.10+ for local verification. Linux/systemd and
+macOS/launchd are intended service targets, but production packaging is not yet
+released.
 
 ---
 
@@ -40,73 +42,25 @@ python3 tools/run_tests.py
 Output:
 ```
 ============================================================
-PASSED: 102   FAILED: 0
+PASSED: 170   FAILED: 0
 ```
 
-102 tests including a 7,500-iteration fuzz harness asserting safety invariants.
+170 tests including a 7,500-iteration fuzz harness asserting safety invariants.
 No pytest required — the runner is self-contained.
 
 ---
 
-## Install as a systemd service on Linux (production)
+## Production installation status
 
-```bash
-curl -fsSL https://agentpulse.ca/install.sh -o install.sh
-less install.sh          # review it — it runs as root
-sudo bash install.sh
-```
+Public system installation is not released. The repository contains systemd
+and launchd implementation inputs, but the wheel currently packages no Python
+modules and no versioned, checksummed install/upgrade/rollback lifecycle has
+passed on clean hosts. Do not use the repository's draft installer on a
+production host.
 
-This installs the agent in **alert-only mode** — it watches but changes nothing until
-you explicitly promote a check to `ask` (approval required) or `auto` (acts on its own).
-
-After install:
-```bash
-# See what the agent finds right now
-sudo agentpulse run-once /etc/agentpulse/config.json
-
-# Start the daemon
-sudo systemctl start agentpulse
-sudo journalctl -u agentpulse -f
-
-# Approve a queued action (if mode = "ask")
-sudo agentpulse list-pending /etc/agentpulse/config.json
-sudo agentpulse approve /etc/agentpulse/config.json <id>
-```
-
----
-
-## Install as a launchd daemon on macOS (production)
-
-Install the Python package, then run the packaged launchd installer:
-
-```bash
-python3 -m pip install agentpulse
-sudo agentpulse install-launchd
-```
-
-The installer:
-
-- renders `launchd/com.agentpulse.agent.plist` into `/Library/LaunchDaemons/com.agentpulse.agent.plist`
-- creates `/usr/local/etc/agentpulse/config.json` from the example config if missing
-- writes daemon logs to `/usr/local/var/log/agentpulse/agentpulse.log`
-- starts the daemon with `launchctl bootstrap system ...`
-
-After install:
-
-```bash
-# See what the agent finds right now
-sudo agentpulse run-once /usr/local/etc/agentpulse/config.json
-
-# Check daemon status / logs
-sudo launchctl print system/com.agentpulse.agent
-tail -f /usr/local/var/log/agentpulse/agentpulse.log
-
-# Approve a queued action (if mode = "ask")
-sudo agentpulse list-pending /usr/local/etc/agentpulse/config.json
-sudo agentpulse approve /usr/local/etc/agentpulse/config.json <id>
-```
-
-For macOS service checks, use launchd labels in config, for example `com.apple.sshd` or your own `com.company.service` label.
+Phase 1 will publish exact Linux and macOS commands only after immutable
+artifacts and rollback are verified. See `../docs/install.md` and
+`../STATUS.md` for the current release boundary.
 
 ---
 
@@ -126,19 +80,7 @@ See [CONFIGURATION.md](CONFIGURATION.md) for all config fields.
 
 ---
 
-## Uninstall
+## Uninstall and rollback
 
-Linux/systemd:
-
-```bash
-sudo systemctl disable --now agentpulse
-sudo rm -rf /opt/agentpulse /usr/local/bin/agentpulse /etc/systemd/system/agentpulse.service /etc/agentpulse
-```
-
-macOS/launchd:
-
-```bash
-sudo launchctl bootout system /Library/LaunchDaemons/com.agentpulse.agent.plist
-sudo rm -f /Library/LaunchDaemons/com.agentpulse.agent.plist
-sudo rm -rf /usr/local/etc/agentpulse /usr/local/var/log/agentpulse
-```
+Version-aware uninstall and rollback instructions will ship with the verified
+release artifact. Repository development runs do not install a system service.

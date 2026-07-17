@@ -35,12 +35,8 @@ You decide the policy per action. Start conservative — alert-only for everythi
 
 ## Setting Up Auto-Remediation with AgentPulse
 
-1. **Join the paid beta and install the agent** (download it, read it — it runs as root — then run it):
-   ```bash
-   curl -fsSL https://agentpulse.ca/install.sh -o install.sh
-   less install.sh
-   sudo bash install.sh
-   ```
+1. **Request a controlled beta pilot.** Public self-serve packaging is not yet
+   released; do not run the draft repository installer on a production host.
 
 2. **Let it learn your baseline** (2-3 days) — AgentPulse observes what "normal" looks like for each server
 
@@ -73,8 +69,8 @@ For $99/month ($1,188/year), AgentPulse Pro handles those incidents automaticall
 
 ## Getting Started
 
-{% include install.html %}
-
-Start with one beta server in alert-only mode. Spend 2-3 days learning the baseline, then promote safe fixes as you build trust.
+After the versioned installer passes its release gates, start with one beta
+server in alert-only mode. Spend 2-3 days learning the baseline, then promote
+safe fixes as you build trust.
 
 [Join the AgentPulse paid beta →](https://agentpulse.ca/signup)

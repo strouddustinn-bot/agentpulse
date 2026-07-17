@@ -37,7 +37,7 @@ For **$99/month** (Pro plan, 5 servers):
 - ✅ Verify-or-escalate — every fix is simulated, safety-gated, and re-measured after it runs
 - ✅ Baseline learning — statistical anomaly detection tuned to *your* server's normal
 - ✅ Webhook alerts — wire into Slack, Discord, PagerDuty, or anything that accepts HTTP
-- ✅ Read-only fleet and incident console — bounded heartbeat evidence without remote shell access
+- 🟡 Fleet and incident console source — bounded heartbeat evidence without remote shell access; public deployment pending
 - 🔜 Native Telegram alerts and SSH brute-force blocking remain on the roadmap
 
 The same feature set on Datadog? **$300-500+/month.**
@@ -49,7 +49,7 @@ The same feature set on Datadog? **$300-500+/month.**
 3. **Configure remediation policies** — auto-fix, ask-first, or alert-only per action
 4. **Turn off Datadog** when you're ready
 
-Your monitoring starts working immediately. No migration tools needed.
+During the controlled beta, monitoring begins only after guided installation and verification. Public packaging is not yet released.
 
 ## "But I Need APM/Logs/Traces"
 

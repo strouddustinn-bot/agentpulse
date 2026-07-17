@@ -84,4 +84,4 @@ The goal is not a smarter alerting tool. It is an agent that handles the routine
 
 ---
 
-If you want to see this running on your server, [join the paid beta](https://agentpulse.ca/signup). Setup takes about five minutes, and every policy lives in one readable JSON config file.
+If you want to evaluate this on a non-critical server, [request controlled beta access](https://agentpulse.ca/signup). Every policy lives in one readable JSON config file, but setup time has not yet been measured against a released clean-host package.

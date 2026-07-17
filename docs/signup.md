@@ -5,7 +5,7 @@ title: Join the AgentPulse Paid Beta
 
 <!--
   ========================================================================
-  DUSTINN — CHECKOUT CTA IS LIVE
+  OPERATOR NOTE — CHECKOUT CTA IS LIVE
   ------------------------------------------------------------------------
   The main "checkout-cta" button below already points at the live Pro Beta
   Stripe Checkout link. Only edit that href if you intentionally rotate or
@@ -37,7 +37,7 @@ just paging you about them.
 </p>
 
 <p style="font-size:0.95em;color:#555;margin-top:-6px;">
-  Up to 5 servers · self-serve agent + optional onboarding help ·
+  Up to 5 servers · controlled beta + onboarding help ·
   <strong>30-day guarantee:</strong> if it doesn't catch or reduce one repeat
   incident, the next month is free.
 </p>
@@ -63,10 +63,11 @@ just paging you about them.
 -->
 
 <!-- FORM-FALLBACK START (delete this block once the iframe above is live) -->
-The fastest way in tonight: hit the button above, or send the details below to
+The checkout link is active, but installation remains a controlled manual
+pilot while public packaging and production deployment complete their release
+gates. Before purchasing, send the details below to
 [support@agentpulse.ca](mailto:support@agentpulse.ca?subject=AgentPulse%20paid%20beta%20request).
-We reply within a few hours during the launch window with your recommended
-first-server setup and the payment link for your plan.
+We will confirm fit and the safe first-server path before installation.
 <!-- FORM-FALLBACK END -->
 
 ### What to include
@@ -82,7 +83,7 @@ first-server setup and the payment link for your plan.
 
 1. **Within a few hours (launch window):** we reply with your recommended
    first-server setup and the safest starting policies.
-2. **Day 0:** install the agent on one non-critical server in alert-only mode.
+2. **Day 0:** after release-gate review, perform a controlled install on one non-critical server in alert-only mode.
 3. **Day 1–3:** review the first real alerts and identify your top repeat
    incident classes (onboarding help included if you want it).
 4. **When you're ready:** promote one safe action to ask-first, then to
