@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0b1] — 2026-07-17
+
 ### Added
 - Real `agentpulse` wheel packaging via hatchling with console script, systemd unit, launchd plist, example config, and license assets
 - Packaging integrity suite (`tests/test_packaging.py`) covering wheel contents, metadata, exclusions, and fresh-venv CLI smoke

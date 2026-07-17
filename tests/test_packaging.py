@@ -114,7 +114,8 @@ class PackagingTests(unittest.TestCase):
         with zipfile.ZipFile(self.wheel) as zf:
             metadata = zf.read(dist_info[0]).decode("utf-8")
         self.assertRegex(metadata, r"(?m)^Name: agentpulse$")
-        self.assertRegex(metadata, r"(?m)^Version: \d+\.\d+\.\d+")
+        # Accept PEP 440 final and pre-release versions (e.g. 0.2.0b1).
+        self.assertRegex(metadata, r"(?m)^Version: \d+\.\d+\.\d+(?:[a-zA-Z]+\d+(?:\.\d+)*)?")
         self.assertTrue(
             re.search(r"(?mi)^License(-Expression)?:.*Apache", metadata),
             msg="Apache license metadata missing",
@@ -161,7 +162,10 @@ class PackagingTests(unittest.TestCase):
 
         version_proc = _run([str(agentpulse), "--version"])
         self.assertEqual(version_proc.returncode, 0, version_proc.stderr)
-        self.assertRegex(version_proc.stdout + version_proc.stderr, r"agentpulse\s+\d+\.\d+\.\d+")
+        self.assertRegex(
+            version_proc.stdout + version_proc.stderr,
+            r"agentpulse\s+\d+\.\d+\.\d+(?:[a-zA-Z]+\d+(?:\.\d+)*)?",
+        )
 
         # Safe configs: local config is developer-oriented and should validate.
         # Use a temp copy so the installed package cannot mutate the repo.
@@ -188,7 +192,7 @@ class PackagingTests(unittest.TestCase):
         # Importable module version matches metadata.
         mod_ver = _run([str(python), "-c", "import agentpulse; print(agentpulse.__version__)"])
         self.assertEqual(mod_ver.returncode, 0, mod_ver.stderr)
-        self.assertRegex(mod_ver.stdout.strip(), r"^\d+\.\d+\.\d+")
+        self.assertRegex(mod_ver.stdout.strip(), r"^\d+\.\d+\.\d+(?:[a-zA-Z]+\d+(?:\.\d+)*)?$")
 
     def test_release_workflow_publishes_checksums(self) -> None:
         text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
