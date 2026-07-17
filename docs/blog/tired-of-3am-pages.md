@@ -61,7 +61,7 @@ Start in alert-only mode, review what the agent discovers, then promote safe rem
 No "contact sales." No per-GB billing that balloons unpredictably. No 14-page pricing calculator.
 
 - **Starter** — $29/mo (1 server, alerts + approval-gated fixes)
-- **Pro** — $99/mo (5 servers, auto-remediation, baseline learning, onboarding help)
+- **Pro founding** — C$99/mo (up to 5 servers when fleet ships; auto-remediation, baseline learning, onboarding help)
 - **Business** — $299/mo (finite server limit confirmed before purchase, custom policies, priority support)
 
 ## The Result

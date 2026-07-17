@@ -45,7 +45,7 @@ AgentPulse brings auto-remediation to solo devs, indie hackers, and small teams:
 - **Flag runaway processes** — that Java app eating all your RAM gets identified and queued for your one-command approval (AgentPulse never kills a process on its own — that's the one fix that can make a bad night worse)
 - **Approval gates** — auto-fix, ask-first, or alert-only per action, with alert-only as the default for everything
 
-Starting at **$29/mo for monitoring** and **$99/mo for auto-remediation** — no sales calls, no per-GB billing.
+Founding prices start at **C$29/mo for a 1-server pilot** and **C$99/mo Pro** for multi-host when fleet ships — reserve only for now, no vaporware checkout.
 
 Paid beta onboarding starts with one Linux server in alert-only mode, then promotes safe actions to ask-first or auto-fix after review.
 

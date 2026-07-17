@@ -1,109 +1,102 @@
 ---
 layout: default
-title: Join the AgentPulse Paid Beta
+title: Join the AgentPulse Founding Waitlist
 ---
 
 <!--
-  ========================================================================
-  OPERATOR NOTE — CHECKOUT CTA IS LIVE
+  OPERATOR NOTE — PUBLIC CHECKOUT CTAs ARE DISABLED
   ------------------------------------------------------------------------
-  The main "checkout-cta" button below already points at the live Pro Beta
-  Stripe Checkout link. Only edit that href if you intentionally rotate or
-  replace the Pro Beta payment link.
-
-  An optional lead form can still be added alongside checkout: paste a Tally,
-  Google Form, or Typeform embed URL into the iframe `src` below (search for
-  LEAD_FORM_EMBED) and delete the surrounding comment markers.
-
-  Until that iframe is enabled, the reserve-slot section continues to fall
-  back to structured email capture.
-  ========================================================================
+  Stripe Payment Links still exist in the Stripe dashboard / historical
+  notes, but public pages must not charge for Pro/Business fleet capacity
+  until checkout → claim → install instructions work end-to-end and fleet
+  is real. Do not re-link buy.stripe.com here without that proof.
 -->
 
-# Join the paid beta
+# Founding Customer — Reserve
 
-AgentPulse is onboarding a small group of founders and small teams who run
-1–10 Linux servers and want monitoring that can safely remediate repeat
-incidents — disk pressure, crashed services, runaway processes — instead of
-just paging you about them.
+AgentPulse is onboarding founders and small teams who run Linux servers and want
+monitoring that can safely remediate repeat incidents — disk pressure, crashed
+services, runaway processes — instead of just paging you about them.
+
+**Fleet control plane ships Q3.** Founding customers lock beta pricing for life
+and help sequence what we build next. No charge at reserve.
 
 <p>
-  <a id="checkout-cta"
+  <a id="reserve"
      class="btn"
-     href="https://buy.stripe.com/8x228r1dXdDG7M67KJ7N601"
+     href="mailto:support@agentpulse.ca?subject=AgentPulse%20Founding%20Customer%20Reserve&body=Plan%20interest%3A%20Pro%20(C%2499)%20%2F%20Business%20(C%24299)%20%2F%20Starter%20pilot%20(C%2429)%0ANumber%20of%20Linux%20servers%3A%20%0AHosting%20provider%3A%20%0AStack%20(web%2Fprocess%20manager%2Fdb)%3A%20%0ARepeat%20incident%20to%20reduce%3A%20%0APreferred%20start%3A%20reserve%20only%20%2F%201-server%20manual%20pilot%0A"
      style="display:inline-block;padding:14px 26px;background:#0b5fff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:1.05em;">
-     Start Pro Beta — C$99/mo CAD
+     Founding Customer — Reserve
   </a>
 </p>
 
 <p style="font-size:0.95em;color:#555;margin-top:-6px;">
-  Up to 5 servers · controlled beta + onboarding help ·
-  <strong>30-day guarantee:</strong> if it doesn't catch or reduce one repeat
-  incident, the next month is free.
+  Pro founding price <strong>C$99/mo CAD</strong> for up to 5 servers when fleet
+  ships · Business <strong>C$299/mo CAD</strong> for a small fleet ·
+  Starter <strong>C$29/mo CAD</strong> for a 1-server controlled pilot.
 </p>
 
 <p style="font-size:0.9em;">
-  Running one server, or a whole team? <a href="pricing">See all plans</a> —
-  Starter (C$29/mo) and Business Beta (C$299/mo) are on the pricing page.
+  Full plan table: <a href="pricing">Pricing</a>.
+  Public self-serve install and multi-host fleet management are not released yet.
 </p>
 
 ---
 
-## Reserve your slot
+## What you get by reserving
 
-<!--
-  LEAD_FORM_EMBED — to use a real backed form (Tally, Google Forms, Typeform):
-  1. Build a form with the fields listed under "What to include" below.
-  2. Paste its embed URL into the iframe src.
-  3. Delete this comment and the two "FORM-FALLBACK" comment lines to reveal the iframe.
+1. **Founding price lock** for the plan you name (Starter / Pro / Business).
+2. **Launch narrative, not vaporware checkout** — we do not charge for fleet
+   capacity we cannot provision yet.
+3. **Optional 1-server pilot** when you and we both agree a non-critical host is
+   ready (alert-only first).
+4. **Demand signal for the Q3 fleet control plane** before irreversible billing
+   behavior is coded.
 
-  <iframe src="LEAD_FORM_EMBED"
-          width="100%" height="720" frameborder="0"
-          title="AgentPulse Paid Beta signup"></iframe>
--->
+## What to include in your reserve email
 
-<!-- FORM-FALLBACK START (delete this block once the iframe above is live) -->
-The checkout link is active, but installation remains a controlled manual
-pilot while public packaging and production deployment complete their release
-gates. Before purchasing, send the details below to
-[support@agentpulse.ca](mailto:support@agentpulse.ca?subject=AgentPulse%20paid%20beta%20request).
-We will confirm fit and the safe first-server path before installation.
-<!-- FORM-FALLBACK END -->
-
-### What to include
-
-- Number of Linux servers you want to monitor.
+- Preferred plan: Starter pilot, Pro founding, or Business founding.
+- Number of Linux servers you expect to manage.
 - Hosting provider (Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail/EC2).
 - Your stack: web server, process manager (PM2/systemd), database.
 - The incident that keeps repeating.
-- Whether you want to start alert-only, ask-first, or auto-fix.
-- Your preferred plan: Starter, Pro Beta, or Business Beta.
+- Whether you want **reserve only** or a **1-server manual pilot** first.
 
-## What happens after you sign up
+## What does *not* happen yet
 
-1. **Within a few hours (launch window):** we reply with your recommended
-   first-server setup and the safest starting policies.
-2. **Day 0:** after release-gate review, perform a controlled install on one non-critical server in alert-only mode.
-3. **Day 1–3:** review the first real alerts and identify your top repeat
-   incident classes (onboarding help included if you want it).
-4. **When you're ready:** promote one safe action to ask-first, then to
-   auto-fix only after you've seen it behave.
+There is **no** automated path today of:
+
+`click buy → Stripe charges → instant install instructions → multi-server fleet`
+
+GitHub Pages cannot POST forms or provision accounts. Stripe Payment Links may
+still exist for later wiring, but public buy buttons for undeliverable fleet
+tiers are intentionally disabled until:
+
+1. checkout session → account claim works;
+2. the customer receives working, versioned install instructions;
+3. Pro/Business host limits are enforced by a real control plane.
+
+## After you reserve
+
+1. **Within the launch window:** we reply and confirm plan + fit.
+2. **If you requested a pilot:** controlled install on one non-critical server
+   in alert-only mode after packaging/host gates pass.
+3. **Day 1–3 of a pilot:** review first real alerts and name top repeat classes.
+4. **When fleet ships (Q3 target):** founding Pro/Business capacity activates at
+   the locked price; you promote actions only after you trust them.
 
 The first server always starts in **alert-only mode**. You only promote an
 action to automatic once you'd be comfortable running it over SSH yourself.
-Every policy is visible, reversible, and scoped to the server it runs on.
 
-## Good first beta fit
+## Good founding fit
 
 - You run 1–10 Linux servers for a real app or client workload.
 - You already have alerts, but still SSH in to fix the same things.
-- You can name one recurring issue you want reduced: disk pressure, crashed
-  services, runaway processes, or similar.
-- You're willing to start with one server and review policies before any
-  automation is enabled.
+- You can name one recurring issue you want reduced.
+- You're willing to start with one server (or reserve multi-host pricing until
+  fleet is real).
 
-For urgent setup, email
-[support@agentpulse.ca](mailto:support@agentpulse.ca).
+Questions: [support@agentpulse.ca](mailto:support@agentpulse.ca).
 
 ---
 

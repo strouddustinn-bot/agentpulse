@@ -53,7 +53,7 @@ That's 3–6 services to install, configure, keep running, and upgrade. If you'r
 | Custom dashboards | ❌ | ✅ (world-class) |
 | Multi-data-source correlation | ❌ | ✅ |
 | Self-hostable | ❌ | ✅ |
-| Pricing (5 servers) | $99/mo | Free (self-hosted) or Grafana Cloud |
+| Pricing (5 servers, founding Pro) | C$99/mo | Free (self-hosted) or Grafana Cloud |
 | Approval gates (auto-fix/ask/alert) | ✅ | ❌ |
 | Alerts | ✅ (webhooks — Slack, Discord, PagerDuty, anything HTTP) | ✅ (with Alertmanager) |
 | Enterprise SSO/RBAC | ❌ | ✅ (Grafana Enterprise) |
@@ -80,7 +80,7 @@ Let's be direct about what Grafana does better:
 
 **No ops overhead.** You're not running a mini observability platform; you're running one agent. Fewer things to maintain, fewer things to break.
 
-**Fixed pricing.** Grafana Cloud can get expensive at scale (storage, metrics volume, user seats). AgentPulse is $99/month for 5 servers, period — no per-GB surprises.
+**Fixed pricing.** Grafana Cloud can get expensive at scale (storage, metrics volume, user seats). AgentPulse founding Pro pricing is C$99/month for up to 5 servers when fleet ships — no per-GB surprises.
 
 **Approval gates.** You decide how aggressive AgentPulse should be: auto-fix everything, ask before acting, or just alert. Fine-grained control without building a runbook automation system.
 

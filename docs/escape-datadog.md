@@ -21,7 +21,7 @@ If you're a small team running Datadog, you know the feeling:
 
 | | Datadog | AgentPulse |
 |---|---|---|
-| **5 servers, infra + APM + logs** | $300-500+/mo | $99/mo |
+| **5 servers, infra + APM + logs** | $300-500+/mo | C$99/mo founding Pro |
 | **Auto-remediation** | Bits AI SRE ($12/host/mo extra) | **Included in Pro** |
 | **Pricing model** | Per-host + per-GB + per-custom-metric | Simple per-plan |
 | **Bill predictability** | 🔴 Unpredictable | 🟢 Fixed monthly |
@@ -30,7 +30,7 @@ If you're a small team running Datadog, you know the feeling:
 
 ## What You Get with AgentPulse
 
-For **$99/month** (Pro plan, 5 servers):
+For **C$99/month** founding Pro (up to 5 servers when fleet ships):
 
 - ✅ Continuous monitoring (disk, services, memory, runaway processes)
 - ✅ **Auto-remediation** — free disk space, restart services, flag runaway processes for one-command approval
@@ -59,6 +59,6 @@ AgentPulse is built for teams that want their servers to **heal themselves** wit
 
 ## Ready to Save?
 
-**$99/mo for 5 servers with auto-remediation.** No per-GB billing. No surprise charges. No sales calls.
+**Founding Pro: C$99/mo for up to 5 servers when fleet ships.** No per-GB billing. No surprise charges. No sales calls.
 
 [Join the paid beta →](https://agentpulse.ca/signup)

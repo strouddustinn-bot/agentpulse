@@ -65,7 +65,7 @@ If you get paged once a week for a fixable issue, and each incident takes 15 min
 - At even a modest consulting rate, that's $1,000+/year in lost productivity
 - Plus the sleep disruption, context switching, and slower response time
 
-For $99/month ($1,188/year), AgentPulse Pro handles those incidents automatically. The math works.
+For C$99/month founding Pro (C$1,188/year), AgentPulse is built so those incident classes can be auto-remediated on enrolled hosts. The math works — fleet multi-host capacity is the Q3 track.
 
 ## Getting Started
 

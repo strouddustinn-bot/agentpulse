@@ -21,7 +21,7 @@ Datadog's pricing is notoriously complex and scales aggressively:
 
 A team with 5 servers running Infrastructure + APM + Logs is easily looking at **$300-500+/month**. And that's before you get hit with overage charges for custom metrics or log volume spikes.
 
-AgentPulse? **$99/month for 5 servers with auto-remediation included.** No per-GB billing. No surprise charges. No calculator needed.
+AgentPulse founding Pro pricing is **C$99/month for up to 5 servers** when fleet ships, with auto-remediation on the local agent path. No per-GB billing. No surprise charges. No calculator needed.
 
 ## Feature Comparison
 
@@ -49,7 +49,7 @@ AgentPulse? **$99/month for 5 servers with auto-remediation included.** No per-G
 
 ## Where AgentPulse Wins
 
-- **Price** — $99/mo for 5 servers with auto-remediation vs. $300-500+ for comparable Datadog setup
+- **Price** — founding Pro C$99/mo for up to 5 servers (fleet Q3) with auto-remediation vs. $300-500+ for comparable Datadog setup
 - **Simplicity** — guided first-server onboarding, alert-only by default, and remediation policies you can promote when ready.
 - **Auto-remediation included** — not an upsell, not a separate product. Core feature.
 - **No bill shock** — fixed pricing. Your bill is the same every month whether your logs spike or not.

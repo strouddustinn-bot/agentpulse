@@ -41,15 +41,18 @@ Most monitoring products stop at alerts. AgentPulse focuses on the repeat incide
 
 ## Paid beta offer
 
-We are onboarding the first users as a paid beta so the remediation policies can be tuned against real servers instead of fake demos.
+We are collecting **Founding Customers** so fleet demand is real before we
+charge for multi-host capacity. The local agent is real; multi-server fleet
+control ships **Q3**. Founding prices lock for life.
 
-| Plan | Price | Best for | Includes |
+| Plan | Founding price | Best for | Status |
 | --- | --- | --- | --- |
-| Starter | C$29/mo CAD | 1 production VPS | Monitoring, alerts, manual remediation approvals |
-| **Pro Beta — recommended** | **C$99/mo CAD** | Up to 5 servers | All three fix classes (disk, service, memory), verify-or-escalate remediation, optional onboarding |
-| Business Beta | C$299/mo CAD | Small teams | Owner-approved finite server limit, priority setup, custom policies |
+| Starter | C$29/mo CAD | 1 production VPS pilot | Request controlled pilot |
+| **Pro — recommended** | **C$99/mo CAD** | Up to 5 servers when fleet ships | **Founding Customer — Reserve** |
+| Business | C$299/mo CAD | Small teams / small fleet | **Founding Customer — Reserve** |
 
-[Reserve your Pro Beta slot](signup) — we reply within a few hours during the launch window.
+[Founding Customer — Reserve](signup#reserve) — no charge at reserve; we reply during the launch window.
+
 
 ## How onboarding works
 
@@ -74,7 +77,8 @@ AgentPulse is designed to start conservative. Beta onboarding begins in alert-on
 
 ## Ready to stop being the remediation layer?
 
-[Join the paid beta](signup) and we will help you protect the first server.
+[Founding Customer — Reserve](signup#reserve). Fleet control plane ships Q3; lock beta pricing for life.
+
 
 ---
 

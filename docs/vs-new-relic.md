@@ -79,7 +79,7 @@ That is the lane AgentPulse is built for.
 AgentPulse pricing is straightforward:
 
 - **Starter**: $29/mo
-- **Pro**: $99/mo
+- **Pro founding**: C$99/mo (up to 5 servers when fleet ships)
 - **Business**: $299/mo
 
 For solo operators and small agencies, flat plans are easier to budget than a usage-shaped bill. That matters when your monitoring stack should reduce stress, not create a second billing system to think about.

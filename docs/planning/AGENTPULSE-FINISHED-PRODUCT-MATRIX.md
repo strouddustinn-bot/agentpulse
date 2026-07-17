@@ -167,11 +167,11 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Canonical public brand/domain | Public copy, metadata, install links, and email use `agentpulse.ca` | Master source is aligned to `agentpulse.ca` | ✅ |
 | Public website | `agentpulse.ca` resolves and serves current truthful content | Source and Pages workflow exist; apex did not resolve during probe | 🟡 |
 | Truth-aligned product copy | Shipped vs roadmap capabilities and safety limits are explicit | Phase 0 audit removes unsupported deployment, packaging, setup-time, console, and unlimited-capacity claims | ✅ |
-| CAD beta pricing | Starter C$29, Pro C$99, Business C$299 are stated consistently | Pricing page and live Payment Link URLs exist | ✅ |
-| Automated entitlement | Successful payment creates/activates the right tenant/limit without manual DB work | Paid beta still requires manual confirmation | ⬜ |
+| CAD beta pricing | Starter C$29, Pro C$99, Business C$299 are stated consistently as founding prices | Public CTAs are founding reserves; live Stripe buy buttons removed until fleet/provisioning is real | 🟡 |
+| Automated entitlement | Successful payment creates/activates the right tenant/limit without manual DB work | Paid beta still requires manual confirmation; no public charge path for undeliverable fleet | ⬜ |
 | Failed-payment enforcement | Failed/past-due account loses enrollment/heartbeat rights safely | Worker denies inactive status; only partial webhook lifecycle exists | 🟡 |
 | Cancellation/refund/guarantee operations | Customer and operator paths are documented and tested | Email/manual beta policy only | 🟡 |
-| Support email | `support@agentpulse.ca` receives and can be operationally managed | Source references it; live routing was not verified | 🟡 |
+| Support email | `support@agentpulse.ca` receives and can be operationally managed | Apex MX added (Cloudflare Email Routing hosts); owner must enable routing rule + destination mailbox | 🟡 |
 | Security contact | `security@agentpulse.ca` and disclosure process work | Documentation exists; live routing was not verified | 🟡 |
 | Legal/privacy alignment | Terms/privacy match actual data, billing, retention, and subprocessors | Documents exist; must be reviewed after final data lifecycle | 🟡 |
 
