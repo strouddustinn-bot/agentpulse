@@ -7,9 +7,9 @@
 *Alerts wake you. AgentPulse acts, verifies, and escalates if the fix didn't hold.*
 
 [![Tests](https://github.com/strouddustinn-bot/agentpulse/actions/workflows/test.yml/badge.svg)](https://github.com/strouddustinn-bot/agentpulse/actions/workflows/test.yml)
-[![Website](https://img.shields.io/badge/Website-agentpulse.dustinnstroud.com-blue?style=for-the-badge)](https://agentpulse.dustinnstroud.com)
-[![Paid Beta](https://img.shields.io/badge/Paid%20Beta-Request%20access-green?style=for-the-badge)](https://agentpulse.dustinnstroud.com/signup)
-[![Pricing](https://img.shields.io/badge/From-%2429%2Fmo-orange?style=for-the-badge)](https://agentpulse.dustinnstroud.com/pricing)
+[![Website](https://img.shields.io/badge/Website-agentpulse.ca-blue?style=for-the-badge)](https://agentpulse.ca)
+[![Paid Beta](https://img.shields.io/badge/Paid%20Beta-Request%20access-green?style=for-the-badge)](https://agentpulse.ca/signup)
+[![Pricing](https://img.shields.io/badge/From-%2429%2Fmo-orange?style=for-the-badge)](https://agentpulse.ca/pricing)
 
 </div>
 
@@ -99,7 +99,7 @@ See **[agent/README.md](agent/README.md)** for the full local quickstart,
 Linux production installs use systemd:
 
 ```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
+curl -fsSL https://agentpulse.ca/install.sh -o install.sh
 less install.sh          # review it first — it runs as root
 sudo bash install.sh     # installs the agent in alert-only mode
 ```
@@ -135,10 +135,10 @@ Then edit `/usr/local/etc/agentpulse/config.json` and use launchd labels in `che
 
 ## Links
 
-- 🌐 **Website:** [agentpulse.dustinnstroud.com](https://agentpulse.dustinnstroud.com)
-- 💳 **Pricing:** [/pricing](https://agentpulse.dustinnstroud.com/pricing)
-- 🚀 **Request beta access:** [/signup](https://agentpulse.dustinnstroud.com/signup)
-- 📧 **Email:** support@agentpulse.dustinnstroud.com
+- 🌐 **Website:** [agentpulse.ca](https://agentpulse.ca)
+- 💳 **Pricing:** [/pricing](https://agentpulse.ca/pricing)
+- 🚀 **Request beta access:** [/signup](https://agentpulse.ca/signup)
+- 📧 **Email:** support@agentpulse.ca
 
 ## License
 
@@ -151,6 +151,6 @@ v1 agent (`agent/`), and the backend API (`backend/`). The hosted dashboard UI i
 
 **Stop firefighting. Start sleeping.** 🛡️
 
-[Request paid-beta access →](https://agentpulse.dustinnstroud.com/signup)
+[Request paid-beta access →](https://agentpulse.ca/signup)
 
 </div>

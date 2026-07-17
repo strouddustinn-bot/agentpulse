@@ -65,4 +65,4 @@ Uptime Kuma is a great *first step* into monitoring. But it's a thermometer — 
 
 AgentPulse is a thermostat — it detects the problem and adjusts automatically.
 
-If you're ready to stop just watching problems and start fixing them, [join the paid beta →](https://agentpulse.dustinnstroud.com/signup)
+If you're ready to stop just watching problems and start fixing them, [join the paid beta →](https://agentpulse.ca/signup)

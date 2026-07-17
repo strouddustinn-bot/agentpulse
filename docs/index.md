@@ -72,4 +72,4 @@ AgentPulse is designed to start conservative. Beta onboarding begins in alert-on
 
 ---
 
-<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.dustinnstroud.com</sub>
+<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.ca</sub>

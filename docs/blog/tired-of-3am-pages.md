@@ -72,4 +72,4 @@ If you're running Linux/macOS hosts and tired of being the remediation layer, jo
 
 {% include install.html %}
 
-[Join the AgentPulse paid beta →](https://agentpulse.dustinnstroud.com/signup)
+[Join the AgentPulse paid beta →](https://agentpulse.ca/signup)

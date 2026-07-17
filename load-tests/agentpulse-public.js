@@ -15,7 +15,7 @@ export const options = {
   },
 };
 
-const BASE = 'https://agentpulse.dustinnstroud.com';
+const BASE = 'https://agentpulse.ca';
 
 const headers = {
   'User-Agent': 'k6-agentpulse-public-check',

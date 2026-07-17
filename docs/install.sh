@@ -8,7 +8,7 @@
 # /etc/agentpulse/config.json.
 #
 # Review this script before running it. Recommended usage:
-#   curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
+#   curl -fsSL https://agentpulse.ca/install.sh -o install.sh
 #   less install.sh         # read it
 #   sudo bash install.sh
 #

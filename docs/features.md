@@ -125,7 +125,7 @@ Alerts aren't just "something broke." They include what happened (metric, thresh
 We actually recommend the slightly longer, more paranoid version — download it, read it, then run it, because it runs as root:
 
 ```bash
-curl -fsSL https://agentpulse.dustinnstroud.com/install.sh -o install.sh
+curl -fsSL https://agentpulse.ca/install.sh -o install.sh
 less install.sh
 sudo bash install.sh
 ```
@@ -151,7 +151,7 @@ These are planned, not shipped. Nothing below is included in what you buy today:
 - **Learned time-of-day baselines** — "the backup always spikes at 3 AM" as a first-class concept.
 - **Fleet intelligence** — agents sharing anonymized patterns across your servers, so a pattern caught on one box hardens all of them.
 
-If any of these is the thing you need *first*, tell us at [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com) — beta users steer the order.
+If any of these is the thing you need *first*, tell us at [support@agentpulse.ca](mailto:support@agentpulse.ca) — beta users steer the order.
 
 ---
 
@@ -187,6 +187,6 @@ For the full plan breakdown, per-tier feature comparison, and FAQ, see the [pric
 
 AgentPulse installs in about 60 seconds and starts watching immediately — in alert-only mode, until you say otherwise.
 
-[**Join the paid beta →**](https://agentpulse.dustinnstroud.com/signup)
+[**Join the paid beta →**](https://agentpulse.ca/signup)
 
-Questions? Email [support@agentpulse.dustinnstroud.com](mailto:support@agentpulse.dustinnstroud.com).
+Questions? Email [support@agentpulse.ca](mailto:support@agentpulse.ca).
