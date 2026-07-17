@@ -1,0 +1,25 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://staging-api.agentpulse.ca",
+      "service-desc": [
+        {
+          "href": "https://agentpulse.ca/api/openapi.yaml",
+          "type": "application/yaml"
+        }
+      ],
+      "service-doc": [
+        {
+          "href": "https://agentpulse.ca/api/",
+          "type": "text/html"
+        }
+      ],
+      "status": [
+        {
+          "href": "https://staging-api.agentpulse.ca/health",
+          "type": "application/json"
+        }
+      ]
+    }
+  ]
+}

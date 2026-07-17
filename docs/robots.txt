@@ -1,0 +1,55 @@
+# AgentPulse public crawl policy
+# Public discovery and documentation may be indexed and used as AI input.
+# Model-training use is not permitted. Internal planning documents are excluded.
+
+User-agent: *
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: GPTBot
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: Claude-Web
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: Amazonbot
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: Bytespider
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: CCBot
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+User-agent: Applebot-Extended
+Allow: /
+Disallow: /planning/
+Content-Signal: ai-train=no, search=yes, ai-input=yes
+
+Sitemap: https://agentpulse.ca/sitemap.xml

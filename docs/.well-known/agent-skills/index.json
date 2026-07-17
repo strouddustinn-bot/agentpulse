@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "skills": [
+    {
+      "name": "agentpulse-status",
+      "type": "skill-md",
+      "description": "Discover AgentPulse public release status and staging API metadata without assuming production availability.",
+      "url": "https://agentpulse.ca/.well-known/agent-skills/agentpulse-status/SKILL.md",
+      "digest": "sha256:269c6f765932d9d6bd5ddb738cdb085e01ebf682f474e90e2b84484a1b94b512"
+    }
+  ]
+}
