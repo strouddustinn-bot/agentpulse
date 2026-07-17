@@ -12,7 +12,7 @@ But there's a catch that doesn't show up in the marketing: **Grafana by itself d
 
 Grafana is a visualization layer. To actually monitor your servers, you need to build a stack around it: Prometheus to scrape metrics, node_exporter running on every host, Alertmanager to route alerts, maybe Loki for logs, maybe Tempo for traces. And then you need to configure all of it, maintain all of it, and — when something goes wrong at 3AM — still log in and fix it yourself.
 
-AgentPulse takes a different approach: **install one agent, and it fixes problems automatically.**
+AgentPulse is designed around a different approach: **one bounded agent can remediate approved incident classes and verify the result.** Public packaging and clean-host installation proof remain release gates.
 
 ## What You're Actually Comparing
 
@@ -42,7 +42,7 @@ That's 3–6 services to install, configure, keep running, and upgrade. If you'r
 
 | Feature | AgentPulse | Grafana Stack |
 |---------|-----------|---------------|
-| Setup time | 60 seconds | Hours to days |
+| Setup time | Not yet measured on a released package | Hours to days |
 | Components to manage | 1 agent | 3–6 services |
 | Auto-remediation | ✅ | ❌ |
 | Flag runaway processes | ✅ (kill stays behind your approval — never automatic) | ❌ |
@@ -76,7 +76,7 @@ Let's be direct about what Grafana does better:
 
 **It actually fixes things.** This is the fundamental difference. Grafana (and Prometheus, and Alertmanager) can detect a problem, show it on a beautiful chart, and fire off an alert to your phone. Then you have to wake up, log into the server, and fix it. AgentPulse can detect a disk filling up and clear it, or a crashed service and restart it — verified, before you ever get paged.
 
-**60-second install.** One `curl | bash` and you're done. No Prometheus config files, no scrape interval tuning, no Alertmanager routing trees.
+**Narrow intended footprint.** AgentPulse is designed around one bounded agent rather than a monitoring stack. Public packaging and clean-host setup-time proof are still release gates.
 
 **No ops overhead.** You're not running a mini observability platform; you're running one agent. Fewer things to maintain, fewer things to break.
 
@@ -138,7 +138,7 @@ AgentPulse is the right choice if:
 
 - **You're a solo developer or indie founder.** You don't have time to maintain an observability stack. You need something that works and stays out of your way.
 - **You want auto-remediation.** No dashboard restarts nginx or clears a full disk at 3AM. AgentPulse does — and verifies the fix held.
-- **You value simplicity.** One agent, one command to install, one flat monthly fee.
+- **You value simplicity.** AgentPulse is designed around one bounded agent and one flat monthly fee; public installation remains a release gate.
 - **You run 1–5 servers.** The Grafana stack adds significant overhead for a small number of servers. AgentPulse's $29–99/month is a better trade-off.
 - **You want predictable costs.** Fixed pricing means no surprises, no "we scaled our metrics volume and got a $500 overage."
 - **You're not a monitoring specialist.** Sensible alert-only defaults, plus statistical baseline learning that flags "this server is behaving abnormally" before a hard threshold trips.

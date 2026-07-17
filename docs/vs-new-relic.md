@@ -18,13 +18,13 @@ If your recurring incidents look like "disk is full," "the service died," or "th
 |---------|-----------|-----------|
 | Primary job | Keep Linux/macOS hosts healthy | Observe apps, infra, logs, and traces |
 | Auto-remediation | ✅ Built in | Manual response or external automation |
-| Setup style | One-command install | Agent install plus dashboards, alerts, and broader configuration |
+| Setup style | Controlled beta onboarding; public packaging pending | Agent install plus dashboards, alerts, and broader configuration |
 | Pricing model | Flat plans | Usage-based |
 | Best fit | Solo devs, agencies, small ops teams | Larger engineering teams with broader observability needs |
 | APM / tracing | ❌ | ✅ |
 | Infrastructure monitoring | ✅ | ✅ |
 | Anomaly detection | ✅ | ✅ |
-| Time to first value | Minutes | Higher, but more flexible |
+| Time to first value | Not yet measured on the release package | Higher, but more flexible |
 | Core tradeoff | Less surface area, faster action | More surface area, deeper analysis |
 
 ## Where New Relic Wins
@@ -57,11 +57,11 @@ That difference matters for small teams. If the same issue has the same fix ever
 
 Broad observability platforms give you a lot of power, but they also ask more from you. You need to think about dashboards, alert tuning, ingest volume, and how much telemetry you actually want to keep.
 
-AgentPulse is much more opinionated. Install it, connect a server, and start watching health signals immediately:
+AgentPulse is much more opinionated. The intended flow is a bounded agent and a small configuration, but public packaging is not yet released:
 
 {% include install.html %}
 
-That is a better trade for operators who want fewer knobs and faster protection.
+After clean-host release gates pass, that is intended to be a better trade for operators who want fewer knobs and faster protection.
 
 ### 3. It Matches Small-Team Reality
 

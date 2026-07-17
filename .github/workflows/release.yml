@@ -15,6 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Secret scanning
+        uses: trufflesecurity/trufflehog@a7bdcf95222c4369422764e168fad84fc912f0dc # main, reviewed 2026-07-17
+        with:
+          path: ./
+          head: ${{ github.sha }}
+          version: 3.95.9
+          extra_args: --only-verified
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

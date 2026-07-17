@@ -134,11 +134,11 @@ AgentPulse is built for a specific scenario: **solo devs and small teams who wan
 
 It's not a Datadog replacement if you need deep APM, distributed tracing across 50 microservices, or compliance reporting. For that, pay for Datadog.
 
-But if your actual problems are: disk filling up at 3AM, nginx crashing on deploys, and runaway processes eating RAM — AgentPulse handles those with policy-gated remediation. One flat price, no per-GB billing, installs in one command.
+But if your actual problems are disk filling up at 3AM, nginx crashing on deploys, and runaway processes eating RAM, AgentPulse is designed to handle those with policy-gated remediation. Public packaging is not yet released.
 
 - **$29/month**: 1 server, alerts + approval-gated fixes
 - **$99/month**: 5 servers, auto-remediation, baseline learning
-- **$299/month**: unlimited beta servers, custom policies, priority support
+- **$299/month**: an owner-approved finite server limit, custom policies, priority support
 
 The auto-remediation piece is what makes the cost math different. If AgentPulse clears one disk-pressure incident or restarts one crashed service while you're asleep — and verifies the fix held — you've already gotten the value. The question isn't whether $99/month is cheap — it's whether $99/month is cheaper than waking up at 3AM.
 

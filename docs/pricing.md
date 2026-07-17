@@ -10,16 +10,16 @@ Simple beta pricing for Linux server monitoring with policy-based remediation.
 **All prices are in Canadian dollars (CAD) and are charged immediately at
 Stripe Checkout. Subscriptions renew monthly until cancelled.**
 
-> **What you're paying for:** the AgentPulse agent — self-serve software you
-> install on your own server. It ships alert-only and only auto-fixes what you
-> allow, verifying every action. Beta plans include optional onboarding help.
+> **Current beta boundary:** public self-serve installation is not released.
+> Paid-beta service is a controlled manual pilot, starts alert-only, and only
+> enables bounded actions the operator approves. Confirm fit before purchasing.
 > [How it works →](install)
 
 | Plan | Price | Servers | Best for | Includes |
 | --- | --- | --- | --- | --- |
 | Starter | C$29/mo | 1 | Solo developers | Visibility and approval-gated remediation before you trust automation |
 | **Pro Beta — recommended** | **C$99/mo** | 5 | Indie SaaS founders | Onboarding help, baseline review, and your first remediation policies |
-| Business Beta | C$299/mo | Unlimited during beta | Small teams | Direct setup help, custom policies, priority support, and API access |
+| Business Beta | C$299/mo | Finite limit confirmed before purchase | Small teams | Direct setup help, custom policies, priority support, and API access |
 
 **Most founders start on Pro Beta.** One bad night, one churn-causing outage, or
 one oversized monitoring bill already costs more than C$99 — and it's the only
@@ -27,7 +27,7 @@ plan that includes hands-on setup of the first remediation policies.
 
 <!--
   ========================================================================
-  DUSTINN — CHECKOUT LINKS ARE LIVE
+  OPERATOR NOTE — CHECKOUT LINKS ARE LIVE
   The three pricing buttons below already point at live Stripe Checkout links:
     Starter       $29/mo
     Pro Beta      $99/mo

@@ -3,9 +3,8 @@ name: Security
 on:
   push:
     branches: [master]
-    paths: ['agent/**', 'control-plane/**', 'dashboard/**', 'packages/**', 'scripts/**']
+    tags: ['v*']
   pull_request:
-    paths: ['agent/**', 'control-plane/**', 'dashboard/**', 'packages/**', 'scripts/**']
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * 0'
@@ -16,9 +15,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: trufflesecurity/trufflehog@main
+        with:
+          fetch-depth: 0
+      - uses: trufflesecurity/trufflehog@a7bdcf95222c4369422764e168fad84fc912f0dc # main, reviewed 2026-07-17
         with:
           path: ./
+          head: ${{ github.sha }}
+          version: 3.95.9
+          # Redaction tests intentionally contain fake URI credentials. Keep
+          # verified credentials release-blocking without failing on fixtures.
+          extra_args: --only-verified
 
   dependency-scan:
     name: Dependency audit

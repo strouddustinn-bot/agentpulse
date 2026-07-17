@@ -5,15 +5,21 @@ title: AgentPulse - AI Server Monitoring That Fixes Incidents
 
 # AI server monitoring that fixes repeat incidents before they page you
 
-AgentPulse is a self-serve Linux/macOS agent for founders and small teams running 1-10 hosts. Install it on one host, start in alert-only mode, then promote the incidents you already know how to resolve to ask-first or auto-fix.
+AgentPulse is a local-first Linux/macOS remediation agent being prepared for
+founders and small teams running 1-10 hosts. The source already enforces an
+alert-only default and bounded remediation; public packaging and deployment are
+still release gates.
 
-> **Self-serve agent, alert-only by default.** You install it; it watches and (when you allow it) acts. Every auto-fix runs a verify-or-escalate loop — simulate, validate, execute, then **verify**, and escalate to you if the fix didn't hold. It never blind-retries a destructive action. [How it works →](install)
+> **Controlled beta, alert-only by default.** Every auto-fix runs a
+> verify-or-escalate loop — simulate, validate, execute, then **verify** — and
+> escalates if the fix does not hold. Public self-serve installation is not yet
+> released. [Current installation status →](install)
 
-[Install the agent](install) | [Control-plane API](https://api.agentpulse.ca) | [See pricing](pricing) | [Request beta access](signup)
+[Installation status](install) | [See pricing](pricing) | [Request controlled beta access](signup)
 
 *Best for founders running 1–10 Linux/macOS hosts on Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail, or Mac minis.*
 
-## What you get tonight
+## What the current implementation provides
 
 - **Stop being the remediation layer:** cover disk pressure, crashed services, runaway processes, and other repeat host incidents.
 - **Start conservative:** begin alert-only, then promote trusted actions to ask-first or auto-fix.
@@ -31,7 +37,7 @@ Most monitoring products stop at alerts. AgentPulse focuses on the repeat incide
 | Memory runaway | Shows a spike | Flags the largest offender (never auto-kills in v1) |
 | Fix didn't hold | — | Re-checks after acting and escalates to you instead of retrying |
 
-*Everything ships alert-only. You choose what AgentPulse may auto-fix, and every auto-fix is simulated and verified before and after it runs. Statistical baseline learning is built in (advisory anomaly alerts); bounded heartbeats and incident evidence synchronize to the read-only fleet console when you enable the control plane.*
+*Controlled beta evaluation starts alert-only. You choose what AgentPulse may auto-fix, and every auto-fix is simulated and verified before and after it runs. Statistical baseline learning is built in (advisory anomaly alerts). Bounded heartbeats and incident evidence can synchronize to the Worker/D1 control plane; fleet-console source exists, but public deployment remains a release gate.*
 
 ## Paid beta offer
 
@@ -41,13 +47,13 @@ We are onboarding the first users as a paid beta so the remediation policies can
 | --- | --- | --- | --- |
 | Starter | C$29/mo CAD | 1 production VPS | Monitoring, alerts, manual remediation approvals |
 | **Pro Beta — recommended** | **C$99/mo CAD** | Up to 5 servers | All three fix classes (disk, service, memory), verify-or-escalate remediation, optional onboarding |
-| Business Beta | C$299/mo CAD | Small teams | Unlimited servers during beta, priority setup, custom policies |
+| Business Beta | C$299/mo CAD | Small teams | Owner-approved finite server limit, priority setup, custom policies |
 
 [Reserve your Pro Beta slot](signup) — we reply within a few hours during the launch window.
 
 ## How onboarding works
 
-1. Install the agent on one non-critical server (`curl … | review | sudo bash`).
+1. Request a controlled pilot for one non-critical server; public installation is not released.
 2. It starts in alert-only mode — nothing changes automatically.
 3. Run `agentpulse run-once` to see the repeat incidents it detects.
 4. Promote safe fixes to ask-first, then auto-fix once you trust the policy. Need a hand? Beta access includes optional onboarding help.

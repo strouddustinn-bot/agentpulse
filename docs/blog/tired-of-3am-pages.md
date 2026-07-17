@@ -46,11 +46,11 @@ So I rebuilt it properly:
 - **Webhook alerts** — get notified in Slack, Discord, or anything with an HTTP endpoint, but only when you actually need to act
 - **Hard safety rules in code** — never sweep system paths, never touch a process without approval, allowlisted services only
 
-(The read-only fleet console is available now. Native Telegram alerts and SSH brute-force detection remain on the roadmap.)
+(The read-only fleet console exists in source but is not deployed publicly. Native Telegram alerts and SSH brute-force detection also remain on the roadmap.)
 
 ## The Install Experience I Wanted
 
-I hate tools that take an afternoon to configure. AgentPulse beta setup starts with one command after you request access:
+I hate tools that take an afternoon to configure. AgentPulse is designed for a short setup, but public packaging and clean-host installation are still release gates:
 
 {% include install.html %}
 
@@ -62,7 +62,7 @@ No "contact sales." No per-GB billing that balloons unpredictably. No 14-page pr
 
 - **Starter** — $29/mo (1 server, alerts + approval-gated fixes)
 - **Pro** — $99/mo (5 servers, auto-remediation, baseline learning, onboarding help)
-- **Business** — $299/mo (unlimited beta servers, custom policies, priority support)
+- **Business** — $299/mo (finite server limit confirmed before purchase, custom policies, priority support)
 
 ## The Result
 

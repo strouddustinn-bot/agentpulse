@@ -16,10 +16,10 @@ But here's the thing: **showing you the problem isn't the same as fixing it.**
 |---------|-----------|---------|
 | Auto-remediation | ✅ | ❌ |
 | Baseline learning | ✅ (statistical, advisory) | ✅ (ML in paid tier) |
-| Fleet dashboard | ✅ (read-only beta console) | ✅ (best in class) |
+| Fleet dashboard | Source implemented; public deployment pending | ✅ (best in class) |
 | Pricing model | Per plan ($29-299/mo) | Per node ($4.50/node/mo Business) |
 | Beta access | Paid beta | 5 nodes free |
-| Install | `curl \| bash` | `curl \| bash` |
+| Install | Controlled beta; public package pending | `curl \| bash` |
 | Alert integrations | Webhooks (Slack, Discord, PagerDuty, any HTTP) | Limited on free tier |
 | Flag runaway processes | ✅ (kill needs your approval — never automatic) | ❌ |
 | Auto-restart services | ✅ | ❌ |
@@ -37,7 +37,7 @@ But here's the thing: **showing you the problem isn't the same as fixing it.**
 ## Where AgentPulse Wins
 
 - **Auto-remediation** — Netdata will show you a beautiful chart of your server dying. AgentPulse will save it.
-- **Simple pricing** — Netdata's per-node pricing gets expensive fast. 20 servers = $90/mo on Netdata Business. AgentPulse Business covers unlimited servers for $299/mo.
+- **Simple pricing** — AgentPulse uses flat plans. Business capacity is finite and confirmed before purchase while the entitlement policy is finalized.
 - **No pricing games** — Netdata users have [complained bitterly](https://community.netdata.cloud/t/concerned-about-the-future-of-netdata-forced-sso-cloud/5771) about forced cloud, SSO requirements, and tier restrictions. AgentPulse is straightforward.
 - **Verify-or-escalate** — every fix is simulated first, checked against hard safety rules, and re-measured after it runs. If the fix didn't hold, AgentPulse escalates to you instead of retrying blindly.
 

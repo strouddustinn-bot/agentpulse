@@ -5,41 +5,49 @@ title: Install AgentPulse
 
 # Install guide
 
-AgentPulse is a self-serve, dependency-free agent that runs as a systemd service
-on Linux or a launchd daemon on macOS. It installs in **alert-only** mode — it watches and changes
-nothing until you say so.
+> **Beta implementation status (2026-07-17):** public self-serve installation
+> is not released. The agent source and service definitions exist, but the
+> current wheel configuration contains no packages, no immutable checksummed
+> release artifact has been published, and clean-host install, upgrade, and
+> rollback have not been proven. Do not use the commands below on a production
+> host yet.
+
+AgentPulse is intended to run as a systemd service on Linux or a launchd daemon
+on macOS. Its safe default is **alert-only** mode: it watches and changes
+nothing until an operator promotes a bounded action. Packaging and installer
+integrity are Phase 1 release gates.
+
+## Current developer verification
+
+Contributors can verify the agent directly from a repository checkout without
+installing it system-wide:
 
 ```bash
-curl -fsSL https://agentpulse.ca/install.sh -o install.sh
-less install.sh          # review it — it runs as root
-sudo bash install.sh
+./scripts/bootstrap-dev.sh
+make agent-test
+make agent-lint
+make agent-config-validate
 ```
 
-Linux requires Python 3.10+ and systemd. The Linux installer writes a default config to
-`/etc/agentpulse/config.json`, registers the service, and starts it in
-alert-only mode.
+This proves repository behavior only. It is not a clean-host installation
+receipt.
 
-## macOS launchd install
+## Planned public installation
 
-Install the Python package, then run the packaged launchd installer:
+The supported release flow will provide a versioned artifact, published
+SHA-256 checksum, explicit version pin, and rollback instructions. Only after a
+clean Linux host and a clean macOS host pass the release matrix will this guide
+publish executable system-install commands.
 
-```bash
-python3 -m pip install agentpulse
-sudo agentpulse install-launchd
-```
-
-The macOS installer writes `/usr/local/etc/agentpulse/config.json`, installs
-`/Library/LaunchDaemons/com.agentpulse.agent.plist`, starts it with launchd,
-and logs to `/usr/local/var/log/agentpulse/agentpulse.log`.
-
-For service checks on macOS, configure launchd labels such as `com.apple.sshd`
-or your own `com.company.service` labels.
+The existing `scripts/install-agent.sh`, systemd unit, and launchd definitions
+are implementation inputs, not a supported public installer. They currently
+depend on unpublished packaging and must not be distributed as complete.
 
 ## Recommended rollout
 
 1. **Install** on one non-critical server first.
 2. **Watch.** Leave every check in `alert` mode for 24 hours.
-3. **See what it finds:** `sudo agentpulse run-once /etc/agentpulse/config.json`
+3. **See what it finds** using the version-pinned command published with the release.
 4. **Promote one safe action** to `ask` (you approve each fix) or `auto`.
 5. **Trust, then expand.** Only set `auto` for actions you would run over SSH
    yourself.
@@ -55,28 +63,14 @@ Every auto-fix runs the full decision loop before and after acting:
 4. **Verify** by re-measuring — and if the condition didn't clear, **escalate to
    you instead of retrying.**
 
-## Approving ask-first actions
-
-```bash
-sudo agentpulse list-pending /etc/agentpulse/config.json
-sudo agentpulse approve /etc/agentpulse/config.json <id>
-```
-
 ## Want a hand?
 
-Beta access includes optional onboarding help for your first server.
-[Request beta access](signup) with your OS, stack, and the incidents that keep
-repeating.
+Controlled beta onboarding may be offered manually after the operator reviews
+the build and acknowledges the current release gates. [Request beta
+access](signup) with your OS, stack, and the incidents that keep repeating.
 
-## Uninstall
+## Uninstall and rollback
 
-```bash
-# Linux
-sudo systemctl disable --now agentpulse
-sudo rm -rf /opt/agentpulse /usr/local/bin/agentpulse /etc/systemd/system/agentpulse.service /etc/agentpulse
-
-# macOS
-sudo launchctl bootout system /Library/LaunchDaemons/com.agentpulse.agent.plist
-sudo rm -f /Library/LaunchDaemons/com.agentpulse.agent.plist
-sudo rm -rf /usr/local/etc/agentpulse /usr/local/var/log/agentpulse
-```
+Exact version-aware uninstall and rollback commands will be published and
+tested with the release artifact. Until then, installation on production hosts
+is unsupported.

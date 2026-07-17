@@ -54,7 +54,7 @@ Every fix — automatic or human-approved — runs the same six-stage loop befor
 
 **Record** — the full cycle (expectation, simulation, gate verdict, execution, verification, outcome) is captured for analysis, so you can always answer "what did the agent do and why?"
 
-These guarantees aren't promises — they're enforced by a 102-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
+These guarantees aren't promises — they're enforced by a 170-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
 
 ---
 
@@ -96,7 +96,7 @@ Approved actions still run the full decision loop — simulate, gate, verify. Ap
 
 Different actions carry different risk. Clearing old files in `/tmp` is safe to automate. Restarting a database mid-transaction is not. Per-check modes let you be surgical about autonomy instead of making a blanket "fix everything" or "fix nothing" choice.
 
-Start conservative — everything ships in alert-only mode — and promote high-confidence, low-risk actions to ask-first, then auto, as the agent earns your trust.
+Start conservative — controlled beta evaluations begin in alert-only mode — and promote high-confidence, low-risk actions to ask-first, then auto, as the agent earns your trust.
 
 ---
 
@@ -118,34 +118,21 @@ Alerts aren't just "something broke." They include what happened (metric, thresh
 
 ---
 
-## 60-Second Install
+## Installation status
 
-{% include install.html %}
-
-We actually recommend the slightly longer, more paranoid version — download it, read it, then run it, because it runs as root:
-
-```bash
-curl -fsSL https://agentpulse.ca/install.sh -o install.sh
-less install.sh
-sudo bash install.sh
-```
-
-The installer:
-
-1. Checks for Python 3.10+ (the agent is dependency-free at runtime)
-2. Installs the agent and registers a systemd service on Linux or launchd daemon on macOS
-3. Writes a default **alert-only** config and validates it
-4. Starts watching immediately — and changes nothing until you promote a check yourself
-
-No account required to run the agent. No firewall rules to open (alerts are outbound-only). Works on any systemd-based Linux — VPS, bare metal, cloud instance, home lab.
+Public self-serve installation is a release gate, not a shipped feature. The
+current source can be verified from a checkout, but the draft installer depends
+on unpublished packaging and has not passed clean-host install, upgrade, and
+rollback tests. See the [installation status](install) before operating the
+agent outside a development checkout.
 
 ---
 
-## Roadmap (not here yet — honestly)
+## Deployment and roadmap gaps
 
 These are planned, not shipped. Nothing below is included in what you buy today:
 
-- **Cloud dashboard & fleet view** — real-time and historical charts across servers, without running Grafana.
+- **Secure public console deployment** — fleet and incident views exist in source, but secure browser sessions and public deployment are not released.
 - **SSH brute-force detection & blocking** — fail2ban-style auth-log watching, integrated into the same agent.
 - **Native Telegram / email / Slack channels** — beyond the generic webhook.
 - **Learned time-of-day baselines** — "the backup always spikes at 3 AM" as a first-class concept.
@@ -185,7 +172,7 @@ For the full plan breakdown, per-tier feature comparison, and FAQ, see the [pric
 
 ## Ready to Stop Firefighting?
 
-AgentPulse installs in about 60 seconds and starts watching immediately — in alert-only mode, until you say otherwise.
+Public installation is not released. Controlled beta evaluation starts on one non-critical host in alert-only mode after the operator reviews the current release gates.
 
 [**Join the paid beta →**](https://agentpulse.ca/signup)
 
