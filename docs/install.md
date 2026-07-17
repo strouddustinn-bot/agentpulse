@@ -6,42 +6,64 @@ title: Install AgentPulse
 # Install guide
 
 > **Beta implementation status (2026-07-17):** public self-serve installation
-> is not released. The agent source and service definitions exist, but the
-> current wheel configuration contains no packages, no immutable checksummed
-> release artifact has been published, and clean-host install, upgrade, and
-> rollback have not been proven. Do not use the commands below on a production
-> host yet.
+> is not released. The agent package now builds as a real wheel with systemd
+> and launchd assets, and installers require an explicit version plus SHA-256
+> verification, but clean-host install/upgrade/rollback have not yet been
+> proven on an authorized host. Do not use these commands on a production host
+> until that gate passes.
 
 AgentPulse is intended to run as a systemd service on Linux or a launchd daemon
 on macOS. Its safe default is **alert-only** mode: it watches and changes
-nothing until an operator promotes a bounded action. Packaging and installer
-integrity are Phase 1 release gates.
+nothing until an operator promotes a bounded action.
 
 ## Current developer verification
 
-Contributors can verify the agent directly from a repository checkout without
-installing it system-wide:
+Contributors can verify packaging and agent behavior without a system install:
 
 ```bash
 ./scripts/bootstrap-dev.sh
 make agent-test
 make agent-lint
 make agent-config-validate
+python -m pip install build
+python -m unittest tests.test_packaging -v
 ```
 
-This proves repository behavior only. It is not a clean-host installation
+This proves repository packaging behavior. It is not a clean-host installation
 receipt.
 
 ## Planned public installation
 
-The supported release flow will provide a versioned artifact, published
-SHA-256 checksum, explicit version pin, and rollback instructions. Only after a
-clean Linux host and a clean macOS host pass the release matrix will this guide
-publish executable system-install commands.
+Supported production installs will use only immutable GitHub Release artifacts:
 
-The existing `scripts/install-agent.sh`, systemd unit, and launchd definitions
-are implementation inputs, not a supported public installer. They currently
-depend on unpublished packaging and must not be distributed as complete.
+1. Choose an explicit version (example candidate: `0.2.0-beta.1`).
+2. Download the wheel and `SHA256SUMS` from the release tag.
+3. Verify SHA-256.
+4. Install with `scripts/install-agent.sh` (or the public endpoint once enabled).
+5. Enroll atomically; credential file mode must be `0600`.
+6. Smoke-test, then upgrade/rollback drills.
+
+The public `install.sh` endpoint remains fail-closed until those gates pass. It
+will never download mutable files from a branch.
+
+## Operator scripts (implementation path)
+
+These scripts are implementation inputs for authorized lab/prerelease hosts:
+
+- `scripts/install-agent.sh` — versioned release install + checksum + enroll
+- `scripts/upgrade-agent.sh` — N→N+1 preserving config/state
+- `scripts/rollback-agent.sh` — N+1→N preserving config/state
+- `scripts/smoke-test.sh` — version, schema, perms, service, control-plane health
+- `docs/runbooks/agent-release-rollback.md` — full runbook
+
+Example lab install after a release artifact exists:
+
+```bash
+sudo ./scripts/install-agent.sh \
+  --version 0.2.0-beta.1 \
+  --enrollment-token "$TOKEN" \
+  --api-url https://staging-api.agentpulse.ca
+```
 
 ## Recommended rollout
 
@@ -71,6 +93,11 @@ access](signup) with your OS, stack, and the incidents that keep repeating.
 
 ## Uninstall and rollback
 
-Exact version-aware uninstall and rollback commands will be published and
-tested with the release artifact. Until then, installation on production hosts
-is unsupported.
+Use the version-aware scripts and runbook:
+
+- Upgrade: `scripts/upgrade-agent.sh`
+- Rollback: `scripts/rollback-agent.sh`
+- Uninstall: `scripts/uninstall-agent.sh`
+- Runbook: `docs/runbooks/agent-release-rollback.md`
+
+Until clean-host evidence exists, production installation remains unsupported.

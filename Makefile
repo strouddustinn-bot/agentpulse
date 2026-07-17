@@ -3,7 +3,7 @@
 
 PYTHON := python3
 
-.PHONY: help agent-test agent-lint agent-config-validate dashboard-install dashboard-build \
+.PHONY: help agent-test packaging-test agent-lint agent-config-validate dashboard-install dashboard-build \
         cp-install cp-test cp-typecheck contracts-validate clean
 
 help: ## Show available targets
@@ -12,6 +12,11 @@ help: ## Show available targets
 
 agent-test: ## Run local agent tests
 	cd agent && $(PYTHON) tools/run_tests.py
+
+packaging-test: ## Build wheel and run packaging integrity tests
+	$(PYTHON) -m unittest tests.test_packaging -v
+	$(PYTHON) scripts/check-launchd-plist.py
+	bash -n scripts/install-agent.sh scripts/upgrade-agent.sh scripts/rollback-agent.sh scripts/smoke-test.sh docs/install.sh
 
 agent-lint: ## Lint local agent code
 	ruff check agent/

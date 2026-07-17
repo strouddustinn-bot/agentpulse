@@ -10,23 +10,75 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [{ name = "AgentPulse Team", email = "support@agentpulse.ca" }]
-homepage = "https://agentpulse.ca"
-repository = "https://github.com/strouddustinn-bot/agentpulse"
 keywords = ["server-remediation", "sre", "infrastructure", "incident-response"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
+# Zero third-party runtime dependencies by design.
+dependencies = []
+
+[project.urls]
+Homepage = "https://agentpulse.ca"
+Repository = "https://github.com/strouddustinn-bot/agentpulse"
+Documentation = "https://agentpulse.ca"
+Issues = "https://github.com/strouddustinn-bot/agentpulse/issues"
+
+[project.scripts]
+agentpulse = "agentpulse.cli:main"
+
+[tool.hatch.build]
+# Only the local agent is distributed as a Python package.
+# Control-plane, dashboard, contracts, and website remain monorepo siblings.
 
 [tool.hatch.build.targets.sdist]
-include = ["/agent", "/control-plane", "/dashboard", "/packages", "/configs", "/scripts", "/docs"]
+include = [
+  "/agent/agentpulse",
+  "/agent/systemd",
+  "/agent/packaging",
+  "/agent/agentpulse.config.example.json",
+  "/agent/README.md",
+  "/LICENSE",
+  "/README.md",
+  "/CHANGELOG.md",
+  "/SECURITY.md",
+  "/pyproject.toml",
+]
+exclude = [
+  "/agent/tests",
+  "/agent/tools",
+  "/agent/**/__pycache__",
+  "/agent/**/*.pyc",
+  "/control-plane",
+  "/dashboard",
+  "/docs",
+  "/packages",
+  "/scripts",
+  "/tests",
+  "/configs",
+]
 
 [tool.hatch.build.targets.wheel]
-packages = []
+# Map agent/agentpulse -> agentpulse in the installed package layout.
+packages = ["agent/agentpulse"]
+
+[tool.hatch.build.targets.wheel.sources]
+"agent" = ""
+
+[tool.hatch.build.targets.wheel.force-include]
+"agent/systemd/agentpulse.service" = "agentpulse/assets/systemd/agentpulse.service"
+"agent/packaging/com.agentpulse.agent.plist" = "agentpulse/assets/launchd/com.agentpulse.agent.plist"
+"agent/agentpulse.config.example.json" = "agentpulse/assets/agentpulse.config.example.json"
+"LICENSE" = "agentpulse/assets/LICENSE"
 
 [tool.ci]
 agent = { path = "agent", python = "3.10-3.13" }

@@ -2,8 +2,6 @@
 
 **Status date:** 2026-07-17
 **Canonical GitHub branch:** `master`
-**Phase 0 implementation branch:** `chore/phase-0-repository-convergence`
-
 
 ## Consolidated product
 
@@ -13,7 +11,7 @@ control-plane/            Cloudflare Worker + D1 hosted authority
 dashboard/                single React fleet and incident console
 packages/contracts/       canonical OpenAPI, JSON Schema, and fixtures
 configs/                  current agent schema and safe policy examples
-scripts/                  bootstrap, install, and contract validation
+scripts/                  bootstrap, install, packaging, and contract validation
 docs/                     public product, pricing, legal, and support site
 ```
 
@@ -26,19 +24,18 @@ Historical source retention is governed by `ARCHIVES.md`. Confidential operation
 | Local agent behavior | PASS | `python3 agent/tools/run_tests.py`: 170 passed, 0 failed |
 | Agent lint | PASS | `ruff check agent/` |
 | Agent config contract | PASS | Draft 7 schema and current example validated with format checks |
+| Agent packaging | PASS | `python -m unittest tests.test_packaging -v`: wheel build, assets, console script, fresh-venv CLI smoke |
 | Worker control plane | PASS | 14 Vitest tests; TypeScript and Wrangler generated bindings current |
-| Cloudflare staging control plane | PASS | D1 migrations current; Worker `d2fe6dd1-17f4-4be4-9096-91ebfb1be405`; custom-domain health and authenticated API smoke passed |
+| Cloudflare staging control plane | PASS | D1 migrations current; staging health and authenticated API smoke previously passed |
 | Worker dependency audit | PASS | no high-severity npm findings |
 | Shared contracts | PASS | 7 OpenAPI paths, 19 local references, 9 JSON schemas, 3 fixtures |
 | React dashboard | PASS | TypeScript and Vite production build |
 | Dashboard dependency audit | PASS | no high-severity npm findings |
 | Repository hardening | PASS | shell syntax, workflow YAML, credential patterns, tracked dependencies, and retired paths |
-| Secret-scan diagnosis | PASS locally; CI pending | TruffleHog 3.95.9: default scan reproduced exit 183 on synthetic URI credentials; `--only-verified` returned 0 with zero verified secrets |
-
+| Secret scanning | PASS on release path design | TruffleHog pinned 3.95.9 with `--only-verified` remains fail-closed for verified findings |
 
 These are verification receipts for the referenced source state, not a claim
-that the public production service is launched. Phase 0 changes must pass fresh
-local and GitHub checks before this branch can be merged.
+that the public production service is launched.
 
 ## Deployment reality
 
@@ -47,13 +44,29 @@ Probe results on 2026-07-17:
 | Surface | Result |
 |---|---|
 | `https://staging-api.agentpulse.ca/health` | HTTP 200 |
-| `https://agentpulse.ca` | DNS unresolved |
-| `https://app.agentpulse.ca` | DNS unresolved |
-| `https://api.agentpulse.ca/health` | DNS unresolved |
+| `https://agentpulse.ca` | DNS unresolved at last check |
+| `https://app.agentpulse.ca` | DNS unresolved at last check |
+| `https://api.agentpulse.ca/health` | DNS unresolved at last check |
 | Starter, Pro Beta, and Business Stripe Payment Links | HTTP 200; purchase lifecycle not exercised |
 
 The repository is therefore a verified implementation baseline with a live
 staging API, not a deployed self-serve production service.
+
+## Packaging reality (Tier 1 progress)
+
+Implemented in source:
+
+- real `agentpulse` wheel with package modules, console script, systemd unit, launchd plist, example config, and license assets
+- isolated packaging tests and CI matrix for Python 3.10–3.13
+- install/upgrade/rollback scripts that require explicit versions and SHA-256 verification
+- release workflow that builds wheel/sdist + `SHA256SUMS` without requiring production control-plane deploy for agent prereleases
+- public `docs/install.sh` remains fail-closed
+
+Still required before public install enablement:
+
+- owner-approved prerelease version tag
+- clean-host install, upgrade, and rollback evidence on an authorized host
+- redacted acceptance receipts
 
 ## Supported boundary
 
@@ -79,7 +92,7 @@ The following are not represented as finished production capabilities:
 - secure browser cookie/session authentication; the current console connection credential is beta-only;
 - automatic Stripe checkout-to-account claim;
 - self-service billing portal and complete automated subscription lifecycle;
-- immutable, checksummed agent packaging plus proven install, upgrade, and rollback;
+- proven clean-host install, upgrade, and rollback on an authorized non-dev host;
 - browser-level dashboard acceptance against staging; the staging dashboard is not deployed;
 - production deployment and rollback evidence.
 

@@ -113,8 +113,8 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Evidence spool and replay | Failed outbound delivery is persisted, bounded, locked, retried, and deduplicated | Spool/retry/locking tests pass | ✅ |
 | Secret redaction | Credentials and sensitive fields are excluded from logs/evidence | Redaction tests pass | ✅ |
 | Local audit trail | Reason, gate, action, verification, and outcome are attributable | Audit implementation/tests pass | ✅ |
-| Production-grade install artifact | Versioned, checksummed package installs from an immutable release; no unpinned branch downloads | Installer currently uses `pip install agentpulse` while wheel config has `packages = []`, and downloads service files from `main` | 🟡 |
-| Safe upgrade and rollback | Signed/checksummed upgrade path preserves config/state and can roll back | Release workflow exists, but no proven install/upgrade/rollback lifecycle | ⬜ |
+| Production-grade install artifact | Versioned, checksummed package installs from an immutable release; no unpinned branch downloads | Wheel builds with package/assets/console script; installers require version + SHA-256 and no longer fetch raw branch files; clean-host proof still pending | 🟡 |
+| Safe upgrade and rollback | Signed/checksummed upgrade path preserves config/state and can roll back | upgrade/rollback scripts implemented with checksum + config/state preservation; clean-host proof still pending | 🟡 |
 | Real host acceptance matrix | Clean Ubuntu/Debian/RHEL-compatible Linux and macOS installs pass destructive-safe end-to-end tests | Unit/safety coverage is strong; clean-host lifecycle proof is missing | 🟡 |
 
 ### B. Cloud control plane and data
@@ -188,7 +188,7 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Repository hardening | Shell syntax, no tracked dependencies, credential-pattern gate | Latest master hardening job passed | ✅ |
 | Secret scanning | GitHub Security workflow is green with an approved scanning policy and directly gates releases | Root cause reproduced; verified-only scan passed with zero verified secrets; release verification now includes the same pinned scan; GitHub rerun pending | 🟡 |
 | CI branch authority | Required checks target only canonical branch and PRs into it | Master workflows exist, but stale main PRs/branches remain | 🟡 |
-| Versioned agent release | Wheel/sdist contain the runnable agent; checksums and release notes are published | Release workflow exists; wheel config currently packages nothing | ⬜ |
+| Versioned agent release | Wheel/sdist contain the runnable agent; checksums and release notes are published | Wheel/sdist packaging + SHA256SUMS release job implemented; prerelease tag and clean-host proof still pending | 🟡 |
 | Reproducible deployment | Staging/production migrations and deploys run through protected environments | Worker deploy job exists; production bindings and proof missing | 🟡 |
 | Rollback and disaster recovery | D1 backup/restore, Worker rollback, agent rollback, and incident runbooks are exercised | Not proven | ⬜ |
 | Observability without credential leakage | Structured Worker/agent health, deploy markers, and alerts exist | Worker observability enabled; complete operational alerting absent | 🟡 |

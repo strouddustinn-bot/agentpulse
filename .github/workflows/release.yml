@@ -6,8 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 0.1.0)'
+        description: 'Release version (e.g. 0.1.0 or 0.2.0-beta.1)'
         required: true
+      deploy_control_plane:
+        description: 'Deploy control plane to production (true/false)'
+        required: false
+        default: 'false'
 
 jobs:
   verify:
@@ -27,9 +31,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install PyYAML jsonschema
+      - run: python -m pip install PyYAML jsonschema build
       - run: python agent/tools/run_tests.py
       - run: python scripts/validate-contracts.py
+      - name: Packaging tests
+        run: python -m unittest tests.test_packaging -v
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -42,9 +48,60 @@ jobs:
       - run: npm run build
         working-directory: dashboard
 
+  build-agent-artifacts:
+    name: Build agent wheel and checksums
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Resolve version
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *alpha* || "$VERSION" == *beta* || "$VERSION" == *rc* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Resolved release version: $VERSION"
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+          ls -la dist
+          python -m zipfile -l dist/agentpulse-*.whl | head -100
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          sha256sum agentpulse-*.whl agentpulse-*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-release-artifacts
+          path: |
+            dist/agentpulse-*.whl
+            dist/agentpulse-*.tar.gz
+            dist/SHA256SUMS
+
   release-control-plane:
     name: Deploy control plane to Cloudflare
     needs: verify
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.deploy_control_plane == 'true'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -58,21 +115,40 @@ jobs:
 
   github-release:
     name: Create GitHub release
-    needs: [verify, release-control-plane]
+    needs: [verify, build-agent-artifacts]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Download agent artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-release-artifacts
+          path: dist
       - name: Generate release notes
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION="${{ needs.build-agent-artifacts.outputs.version }}"
           echo "## AgentPulse v$VERSION" > release-notes.md
-          git log --oneline "v${VERSION#v}"..HEAD >> release-notes.md || true
+          echo "" >> release-notes.md
+          echo "### Agent package" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "Install only from these immutable artifacts after verifying SHA-256:" >> release-notes.md
+          echo "" >> release-notes.md
+          echo '```text' >> release-notes.md
+          cat dist/SHA256SUMS >> release-notes.md
+          echo '```' >> release-notes.md
+          echo "" >> release-notes.md
+          git log --oneline "v${VERSION}"..HEAD >> release-notes.md || true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ needs.build-agent-artifacts.outputs.version }}
+          name: AgentPulse v${{ needs.build-agent-artifacts.outputs.version }}
           draft: true
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
+          prerelease: ${{ needs.build-agent-artifacts.outputs.prerelease == 'true' }}
           files: |
+            dist/agentpulse-*.whl
+            dist/agentpulse-*.tar.gz
+            dist/SHA256SUMS
             CHANGELOG.md
             release-notes.md

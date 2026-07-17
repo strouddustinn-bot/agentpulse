@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Real `agentpulse` wheel packaging via hatchling with console script, systemd unit, launchd plist, example config, and license assets
+- Packaging integrity suite (`tests/test_packaging.py`) covering wheel contents, metadata, exclusions, and fresh-venv CLI smoke
+- CI packaging matrix on Python 3.10–3.13
+- Versioned install/upgrade/rollback scripts with SHA-256 verification and config/state preservation
+- Release workflow job that builds wheel/sdist and publishes `SHA256SUMS` without requiring production control-plane deploy for agent prereleases
+- Operator runbook `docs/runbooks/agent-release-rollback.md`
+
+### Fixed
+- Root `pyproject.toml` no longer ships an empty wheel (`packages = []`)
+- Installer no longer downloads service files from mutable branch raw URLs
+
 ## [0.1.0] — 2026-07-12
 
 ### Added

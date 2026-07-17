@@ -3,8 +3,9 @@
 The thin, dependency-free Python monitoring + remediation daemon.
 
 **Requirements:** Python 3.10+ for local verification. Linux/systemd and
-macOS/launchd are intended service targets, but production packaging is not yet
-released.
+macOS/launchd are intended service targets. The repository now builds a real
+`agentpulse` wheel with packaged service assets; public production installation
+remains gated on clean-host install/upgrade/rollback proof.
 
 ---
 
@@ -48,19 +49,34 @@ PASSED: 170   FAILED: 0
 170 tests including a 7,500-iteration fuzz harness asserting safety invariants.
 No pytest required — the runner is self-contained.
 
+### Build and exercise the wheel (from repo root)
+
+```bash
+python3 -m pip install build
+python3 -m build
+python3 -m unittest tests.test_packaging -v
+```
+
+The packaging suite builds an isolated wheel, asserts package/service assets and
+metadata, then installs into a fresh venv and runs `agentpulse --help`,
+`validate`, and `run-once --dry-run`.
+
 ---
 
 ## Production installation status
 
-Public system installation is not released. The repository contains systemd
-and launchd implementation inputs, but the wheel currently packages no Python
-modules and no versioned, checksummed install/upgrade/rollback lifecycle has
-passed on clean hosts. Do not use the repository's draft installer on a
-production host.
+Public system installation is not released. Packaging now produces a wheel that
+includes:
 
-Phase 1 will publish exact Linux and macOS commands only after immutable
-artifacts and rollback are verified. See `../docs/install.md` and
-`../STATUS.md` for the current release boundary.
+- the `agentpulse` Python package and console script
+- systemd unit and launchd plist assets
+- example config and license metadata
+
+Installers require an explicit release version and SHA-256 verification, and no
+longer fetch raw files from a branch. Clean-host install, upgrade, and rollback
+must still pass on an authorized host before public enablement. See
+`../docs/install.md`, `../docs/runbooks/agent-release-rollback.md`, and
+`../STATUS.md`.
 
 ---
 
@@ -82,5 +98,7 @@ See [CONFIGURATION.md](CONFIGURATION.md) for all config fields.
 
 ## Uninstall and rollback
 
-Version-aware uninstall and rollback instructions will ship with the verified
-release artifact. Repository development runs do not install a system service.
+- Upgrade: `../scripts/upgrade-agent.sh`
+- Rollback: `../scripts/rollback-agent.sh`
+- Uninstall: `../scripts/uninstall-agent.sh`
+- Runbook: `../docs/runbooks/agent-release-rollback.md`
