@@ -1,103 +1,113 @@
 ---
 layout: default
-title: Join the AgentPulse Founding Waitlist
+title: Request AgentPulse beta access
+description: "Request a controlled one-host AgentPulse pilot or reserve Pro and Business founding pricing. Reservations are free and do not expose server credentials."
 ---
 
-<!--
-  OPERATOR NOTE — PUBLIC CHECKOUT CTAs ARE DISABLED
-  ------------------------------------------------------------------------
-  Stripe Payment Links still exist in the Stripe dashboard / historical
-  notes, but public pages must not charge for Pro/Business fleet capacity
-  until checkout → claim → install instructions work end-to-end and fleet
-  is real. Do not re-link buy.stripe.com here without that proof.
--->
+# Request AgentPulse beta access
 
-# Founding Customer — Reserve
+AgentPulse is onboarding founders and small teams who already monitor their servers but still handle the same incidents by hand.
 
-AgentPulse is onboarding founders and small teams who run Linux servers and want
-monitoring that can safely remediate repeat incidents — disk pressure, crashed
-services, runaway processes — instead of just paging you about them.
-
-**Fleet control plane ships Q3.** Founding customers lock beta pricing for life
-and help sequence what we build next. No charge at reserve.
+You can request a controlled Starter pilot for one non-critical host or reserve Pro or Business founding pricing. Reservations are free. We confirm fit, availability, and billing before anything is installed or charged.
 
 <p>
   <a id="reserve"
      class="btn"
-     href="mailto:support@agentpulse.ca?subject=AgentPulse%20Founding%20Customer%20Reserve&body=Plan%20interest%3A%20Pro%20(C%2499)%20%2F%20Business%20(C%24299)%20%2F%20Starter%20pilot%20(C%2429)%0ANumber%20of%20Linux%20servers%3A%20%0AHosting%20provider%3A%20%0AStack%20(web%2Fprocess%20manager%2Fdb)%3A%20%0ARepeat%20incident%20to%20reduce%3A%20%0APreferred%20start%3A%20reserve%20only%20%2F%201-server%20manual%20pilot%0A"
+     href="mailto:support@agentpulse.ca?subject=AgentPulse%20beta%20access%20request&body=Plan%20interest%3A%20Starter%20pilot%20(C%2429)%20%2F%20Pro%20founding%20(C%2499)%20%2F%20Business%20founding%20(C%24299)%0AHost%20count%3A%20%0AOperating%20system%3A%20%0AHosting%20provider%3A%20%0AStack%20(web%20server%2Fprocess%20manager%2Fdatabase)%3A%20%0ARepeat%20incident%20to%20reduce%3A%20%0APreferred%20start%3A%20reserve%20only%20%2F%20one-host%20pilot%0A"
      style="display:inline-block;padding:14px 26px;background:#0b5fff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:1.05em;">
-     Founding Customer — Reserve
+     Open the beta access email
   </a>
 </p>
 
 <p style="font-size:0.95em;color:#555;margin-top:-6px;">
-  Pro founding price <strong>C$99/mo CAD</strong> for up to 5 servers when fleet
-  ships · Business <strong>C$299/mo CAD</strong> for a small fleet ·
-  Starter <strong>C$29/mo CAD</strong> for a 1-server controlled pilot.
+  Starter: <strong>C$29/month CAD</strong> for a one-host controlled pilot.<br>
+  Pro: <strong>C$99/month CAD</strong> for up to five hosts when fleet access ships.<br>
+  Business: <strong>C$299/month CAD</strong> for an agreed small-fleet limit.<br>
+  <strong>No charge at reservation.</strong>
 </p>
 
-<p style="font-size:0.9em;">
-  Full plan table: <a href="pricing">Pricing</a>.
-  Public self-serve install and multi-host fleet management are not released yet.
-</p>
+[Review the full plan details](pricing)
+
+## What to include
+
+Reply with enough information to decide whether the current beta matches your problem:
+
+- the plan you are interested in;
+- how many hosts you expect to manage;
+- Linux distribution or macOS version;
+- hosting provider;
+- web server, process manager, and database;
+- one incident you keep fixing manually;
+- whether you want a reservation only or a one-host pilot.
+
+Do not send an IP address, hostname, password, SSH key, API token, recovery code, customer data, or production configuration. Those are not needed to assess fit.
+
+## What happens next
+
+### If you reserve
+
+1. We confirm the requested plan and founding rate.
+2. Your reservation records demand but does not activate billing.
+3. We contact you when the matching account and fleet capacity is ready.
+4. You decide whether to activate after reviewing the final host limit and service boundary.
+
+### If you request a Starter pilot
+
+1. We check whether AgentPulse supports the incident you named.
+2. We confirm that the proposed host is non-critical and appropriate for beta acceptance.
+3. The pilot waits until the repaired immutable prerelease passes exact-artifact acceptance.
+4. Installation begins in alert-only mode.
+5. You review detected incidents and simulations before granting any remediation authority.
+
+The published prerelease is not an invitation to run an unreviewed installer on a production host. Linux lifecycle acceptance exposed defects in that artifact; pilots wait for the repaired replacement release to pass the same exact-artifact run.
+
+## Good beta fit
+
+You are likely a fit if:
+
+- you run 1–10 Linux or macOS hosts;
+- the same disk, service, or memory incident keeps returning;
+- your current monitor pages you but does not handle the first fix;
+- you can define the exact cleanup paths or services that may be managed;
+- you are comfortable starting with observation only.
+
+## Probably not a fit yet
+
+The current beta will not satisfy teams that need:
+
+- Kubernetes or large enterprise fleet management;
+- distributed tracing or application performance monitoring;
+- centralized log search;
+- external uptime checks and status pages;
+- enterprise SSO or role-based access control;
+- a browser-based remote shell;
+- broad, AI-generated production commands.
+
+AgentPulse intentionally has no arbitrary command channel. Host changes must come from known action types, local allowlists, and explicit policy.
+
+## Current product boundary
+
+Available in the controlled beta:
+
+- Linux and macOS agent behavior;
+- alert-only startup;
+- disk, service, and runaway-process checks;
+- policy-gated disk cleanup and service restart;
+- simulation, verification, evidence, and escalation;
+- a versioned prerelease with checksums.
+
+Still behind release gates:
+
+- public self-serve installation;
+- secure browser account sessions;
+- public fleet and incident console deployment;
+- automated checkout, account claim, and billing portal;
+- enforced self-serve Pro and Business capacity.
+
+## Questions before reserving
+
+Email [support@agentpulse.ca](mailto:support@agentpulse.ca?subject=AgentPulse%20beta%20question). Describe the incident and host type, but leave out credentials and identifying server details.
 
 ---
 
-## What you get by reserving
-
-1. **Founding price lock** for the plan you name (Starter / Pro / Business).
-2. **Launch narrative, not vaporware checkout** — we do not charge for fleet
-   capacity we cannot provision yet.
-3. **Optional 1-server pilot** when you and we both agree a non-critical host is
-   ready (alert-only first).
-4. **Demand signal for the Q3 fleet control plane** before irreversible billing
-   behavior is coded.
-
-## What to include in your reserve email
-
-- Preferred plan: Starter pilot, Pro founding, or Business founding.
-- Number of Linux servers you expect to manage.
-- Hosting provider (Hetzner, DigitalOcean, Linode, Vultr, AWS Lightsail/EC2).
-- Your stack: web server, process manager (PM2/systemd), database.
-- The incident that keeps repeating.
-- Whether you want **reserve only** or a **1-server manual pilot** first.
-
-## What does *not* happen yet
-
-There is **no** automated path today of:
-
-`click buy → Stripe charges → instant install instructions → multi-server fleet`
-
-GitHub Pages cannot POST forms or provision accounts. Stripe Payment Links may
-still exist for later wiring, but public buy buttons for undeliverable fleet
-tiers are intentionally disabled until:
-
-1. checkout session → account claim works;
-2. the customer receives working, versioned install instructions;
-3. Pro/Business host limits are enforced by a real control plane.
-
-## After you reserve
-
-1. **Within the launch window:** we reply and confirm plan + fit.
-2. **If you requested a pilot:** controlled install on one non-critical server
-   in alert-only mode after packaging/host gates pass.
-3. **Day 1–3 of a pilot:** review first real alerts and name top repeat classes.
-4. **When fleet ships (Q3 target):** founding Pro/Business capacity activates at
-   the locked price; you promote actions only after you trust them.
-
-The first server always starts in **alert-only mode**. You only promote an
-action to automatic once you'd be comfortable running it over SSH yourself.
-
-## Good founding fit
-
-- You run 1–10 Linux servers for a real app or client workload.
-- You already have alerts, but still SSH in to fix the same things.
-- You can name one recurring issue you want reduced.
-- You're willing to start with one server (or reserve multi-host pricing until
-  fleet is real).
-
-Questions: [support@agentpulse.ca](mailto:support@agentpulse.ca).
-
----
-
-<sub>[Privacy Policy](privacy) · [Terms of Service](terms) · support@agentpulse.ca</sub>
+<sub>[Home](./) · [Features](features) · [Pricing](pricing) · [Installation status](install) · [Privacy](privacy) · [Terms](terms) · support@agentpulse.ca</sub>

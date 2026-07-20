@@ -1,179 +1,146 @@
 ---
 layout: default
-title: "AgentPulse Features — Server Monitoring That Fixes Problems, Safely"
-description: "Policy-gated auto-remediation, a verify-or-escalate decision loop, statistical baseline learning, and approval gates. Everything AgentPulse does today to keep your Linux and macOS hosts running — and what's on the roadmap."
+title: "AgentPulse features - Policy-gated server remediation"
+description: "See how AgentPulse detects disk pressure, crashed services, and runaway processes; simulates approved fixes; verifies outcomes; and keeps local policy in control."
 ---
 
-# AgentPulse Features
+# AgentPulse features
 
-AgentPulse is a thin Linux/macOS monitoring agent with one job that most monitoring tools still refuse to do: **fix problems, not just report them**.
+AgentPulse is a small Linux and macOS agent for a deliberately narrow job: detect repeat host incidents and handle only the first fixes you have approved.
 
-Here's everything it does today — and, clearly labeled, what's on the roadmap. We'd rather under-promise than surprise you at 3 AM.
+The current beta starts in alert-only mode. Nothing moves into ask-first or automatic remediation until you change the policy for that specific check.
 
----
+[Request beta access](signup#reserve) | [See pricing](pricing) | [Review installation status](install)
 
-## Auto-Remediation
+## Incident checks and responses
 
-This is the core feature — the reason AgentPulse exists.
+### Disk pressure
 
-When something goes wrong on your server, a traditional monitoring tool sends you an alert. You wake up, SSH in, run the same commands you always run, and go back to bed. AgentPulse skips straight to the "run the commands" part — for the incident classes where a safe first fix exists.
+AgentPulse measures disk usage on configured paths. When a threshold is breached, it can identify old files inside cleanup paths you explicitly allow.
 
-### Free Disk Space
+A cleanup action must pass hard checks before it runs:
 
-Log rotation silently failed two weeks ago and now your disk is at 94%. Classic.
+- the target must remain inside an allowed cleanup root;
+- system paths are refused;
+- directories are not deleted;
+- symlink escapes are refused;
+- the agent simulates the candidate deletion first;
+- disk usage is measured again after the action.
 
-AgentPulse monitors disk usage per configured path and cleans up based on your rules: it deletes files older than a threshold you set, **only inside cleanup paths you explicitly configure**. It never deletes directories, never follows symlinks, and refuses system paths outright — those guards are code-level invariants, not config.
+If usage remains above the threshold, AgentPulse records the failed verification and escalates. It does not keep deleting files in a loop.
 
-### Restart Crashed Services
+### Crashed services
 
-nginx down? A worker died? AgentPulse detects the failed systemd unit on Linux or launchd service on macOS and brings it back up — in seconds, not minutes after your on-call rotation finally wakes up.
+AgentPulse checks configured systemd services on Linux and launchd services on macOS. It can restart a failed service only when that service is on the host's local allowlist.
 
-You define an allowlist of services it may manage. It restarts them, verifies they actually came back, and reports what happened. If the restart doesn't hold, it escalates to you instead of cycling endlessly.
+After the restart, it asks the service manager for the new state. A command returning successfully is not enough; the service must actually become active. Otherwise the incident is escalated.
 
-### Flag Runaway Processes
+### Runaway processes
 
-That Python script eating half your RAM? AgentPulse spots the largest offender when it crosses your memory threshold and tells you exactly which process it is.
+The memory check identifies the largest process when host memory crosses your threshold. It reports the process and the evidence that triggered the alert.
 
-**It never kills a process automatically in v1 — even if you set the process check to "auto", the agent clamps it to ask-first.** Killing the wrong process is the one remediation that can make a bad night catastrophically worse, so a human stays in that loop by design. You get the flag, you make the call.
+AgentPulse never kills a process automatically in v1. Even if the process check is set to auto, the policy clamps the response to ask-first. Process termination stays a human decision.
 
----
+### Statistical baseline alerts
 
-## The Verify-or-Escalate Decision Loop
+Static thresholds catch obvious breaches but miss unusual movement below the line. AgentPulse maintains a running mean and variance for supported host metrics and can flag samples that deviate sharply from the learned baseline.
 
-Every fix — automatic or human-approved — runs the same six-stage loop before and after anything touches your server:
+Baseline alerts are advisory. They never trigger remediation. The method is deterministic, dependency-free, and inspectable; it is not marketed as machine learning.
 
-**Reason** — the agent states the expected end-state before acting. "Disk usage on `/` should drop below the threshold after removing old files." No action without a testable expectation.
+## The decision loop
 
-**Simulate** — the fix runs as a dry-run first, and the agent captures exactly what *would* change. A simulation that fails or matches nothing stops the cycle right there.
+Every proposed host change follows the same path.
 
-**Gate** — the simulated plan is checked against hard safety predicates: no system-path sweeps, no process kills, allowlisted services only, and a fail-closed action allowlist — an action type the gate doesn't explicitly recognize is refused, period. Human approval doesn't bypass the gate either.
+| Stage | What happens |
+| --- | --- |
+| Observe | Measure the host and identify a policy breach |
+| Reason | State the expected result before changing anything |
+| Simulate | Produce the candidate change without applying it |
+| Gate | Check the action against policy, allowlists, and safety predicates |
+| Act | Apply the validated local action |
+| Verify | Measure the original condition again |
+| Record or escalate | Keep the evidence or notify a person when the fix did not hold |
 
-**Act** — the validated action runs locally on your server. No cloud round-trip, no dependency on an external API being reachable at 3 AM.
+Unknown and malformed action types fail closed. Human approval grants consent for a known action; it does not bypass the safety gate.
 
-**Verify** — the agent re-measures the original condition. Did disk usage actually drop? Is the service actually active? A fix that ran but didn't clear the breach — or that ran and changed nothing — is **escalated to you instead of retried**. The loop refuses to spiral.
+## Four policy modes
 
-**Record** — the full cycle (expectation, simulation, gate verdict, execution, verification, outcome) is captured for analysis, so you can always answer "what did the agent do and why?"
+Each check has its own mode.
 
-These guarantees aren't promises — they're enforced by a 170-test suite including a 7,500-iteration fuzz harness you can run yourself: `cd agent && python3 tools/run_tests.py`.
+| Mode | Behavior |
+| --- | --- |
+| Off | The check does not run |
+| Alert | Detect and notify without changing the host |
+| Ask | Queue the proposed fix for explicit approval |
+| Auto | Run an allowlisted fix immediately, then verify it |
 
----
+Alert is the default on a fresh setup. A practical rollout keeps everything in alert mode, promotes one predictable action to ask, reviews the evidence, and uses auto only after that policy has earned trust.
 
-## Baseline Learning
+## Local control survives cloud failure
 
-Alerting on raw thresholds is how you end up with alert fatigue. A disk that has hovered at 89% for a month is not news. A disk that jumped ten points overnight is — even if it hasn't crossed your threshold yet.
+The host remains authoritative.
 
-AgentPulse learns the difference with **statistical baselines**: for each metric (disk usage per path, host memory), it maintains a running mean and variance of what's normal *for this specific server*, and flags samples that deviate sharply from the learned normal (z-score based, with a warm-up period so it never alerts before it has enough data).
+- Local policy sets the maximum authority.
+- Cloud policy may narrow that authority but cannot increase it.
+- Monitoring and approved local behavior continue during a control-plane outage.
+- Outbound evidence is bounded, stored locally, and retried later.
+- There is no inbound remote shell or arbitrary command endpoint.
 
-Two honest caveats:
+This design keeps a billing, network, or hosted-service outage from turning off safe local monitoring.
 
-- It's statistics, not machine learning — deterministic, dependency-free, and inspectable. Learned per-hour/per-weekday patterns are on the roadmap.
-- Baseline anomalies are **advisory only**. They alert; they never trigger a remediation. Only your explicit threshold policies can do that.
+## Alerts and evidence
 
----
+AgentPulse can send JSON to a generic webhook, which works with systems that accept incoming HTTP requests. Alerts also remain available through stdout or journald.
 
-## Approval Gates
+An incident record can include:
 
-You're not handing a bot unchecked root access to your production server. Every check runs in one of four modes, and you set each one independently:
+- the observed metric and threshold;
+- the affected path, service, or process;
+- the selected policy mode;
+- the simulated action and gate result;
+- execution output with sensitive fields redacted;
+- the verification result;
+- whether AgentPulse resolved or escalated the incident.
 
-**Alert only** *(the default for everything)* — AgentPulse detects the problem and tells you, but doesn't touch anything.
+Native Telegram, email, and Slack channels are planned. They are not part of the current beta release.
 
-> "Disk / at 91.3% (threshold 90%). I'm not touching it — here's what I see."
+## Supported operating boundary
 
-**Ask first** — AgentPulse queues the fix and waits for your explicit approval:
+| Area | Current beta |
+| --- | --- |
+| Host operating systems | Linux and macOS agent code and service assets |
+| Python | 3.10 through 3.13 packaging and CI targets |
+| Disk remediation | Old-file cleanup inside explicit safe paths |
+| Service remediation | Allowlisted systemd and launchd restart |
+| Process response | Detection and human decision only |
+| Cloud connection | Outbound heartbeat, policy narrowing, and incident evidence |
+| Browser-to-host control | None |
+| Public self-serve install | Not open; replacement-release acceptance is pending |
 
-```bash
-sudo agentpulse list-pending /etc/agentpulse/config.json
-sudo agentpulse approve /etc/agentpulse/config.json <id>
-```
+The published `v0.2.0-beta.1` prerelease includes a wheel, source archive, release notes, and SHA-256 checksums. Linux clean-host lifecycle acceptance exposed defects in that release. The repaired source passes install, secure configuration, outage recovery, restart, upgrade, rollback, uninstall, and reinstall with a local candidate fixture; public installation remains closed until the exact replacement prerelease passes the same run.
 
-Approved actions still run the full decision loop — simulate, gate, verify. Approval is consent, not a safety bypass.
+## What AgentPulse does not replace
 
-**Auto-fix** — AgentPulse acts immediately, then notifies you with exactly what changed.
+AgentPulse does not provide distributed tracing, application profiling, log search, external uptime checks, public status pages, or on-call scheduling.
 
-**Off** — the check doesn't run at all.
+Use an APM for request traces. Use a log platform for log search. Use an external uptime checker to see your service from another network. AgentPulse sits beside those tools and handles a bounded set of local host incidents they normally leave for a person.
 
-### Why This Matters
+## Planned, not shipped
 
-Different actions carry different risk. Clearing old files in `/tmp` is safe to automate. Restarting a database mid-transaction is not. Per-check modes let you be surgical about autonomy instead of making a blanket "fix everything" or "fix nothing" choice.
+- secure public account sessions and fleet console deployment;
+- self-serve checkout, account claim, enrollment, and billing portal;
+- native notification channels;
+- time-of-day and weekday-aware baselines;
+- additional remediation classes after their safety policies are proven.
 
-Start conservative — controlled beta evaluations begin in alert-only mode — and promote high-confidence, low-risk actions to ask-first, then auto, as the agent earns your trust.
+Roadmap items do not count as current plan benefits and are not charged as delivered capacity.
 
----
+## Start with one host and no automatic changes
 
-## Alerts
+A controlled pilot begins on one approved non-critical host in alert-only mode. You review what the agent detects before granting any remediation authority.
 
-When something requires your attention — a breach, a queued approval, an escalation, a baseline anomaly — you get notified.
-
-### Channels today
-
-**Webhook** — POST to any URL with a JSON payload. This is how you wire AgentPulse into Slack, Discord, PagerDuty, or your own API today: point it at an incoming-webhook URL and you're done. If webhook delivery fails, the agent falls back to logging the alert rather than crashing or going silent.
-
-**stdout / journald** — every alert is always visible in `journalctl -u agentpulse`, no configuration needed.
-
-Native Telegram and email channels are on the roadmap — the webhook covers those flows today via services you already use.
-
-### Alert content
-
-Alerts aren't just "something broke." They include what happened (metric, threshold, current value), which resource is involved, what AgentPulse did or why it didn't act, and — for escalations — an explicit statement that a fix ran and did not hold.
-
----
-
-## Installation status
-
-Public self-serve installation is a release gate, not a shipped feature. The
-current source can be verified from a checkout, but the draft installer depends
-on unpublished packaging and has not passed clean-host install, upgrade, and
-rollback tests. See the [installation status](install) before operating the
-agent outside a development checkout.
-
----
-
-## Deployment and roadmap gaps
-
-These are planned, not shipped. Nothing below is included in what you buy today:
-
-- **Secure public console deployment** — fleet and incident views exist in source, but secure browser sessions and public deployment are not released.
-- **SSH brute-force detection & blocking** — fail2ban-style auth-log watching, integrated into the same agent.
-- **Native Telegram / email / Slack channels** — beyond the generic webhook.
-- **Learned time-of-day baselines** — "the backup always spikes at 3 AM" as a first-class concept.
-- **Fleet intelligence** — agents sharing anonymized patterns across your servers, so a pattern caught on one box hardens all of them.
-
-If any of these is the thing you need *first*, tell us at [support@agentpulse.ca](mailto:support@agentpulse.ca) — beta users steer the order.
-
----
-
-## What It's NOT
-
-AgentPulse is purpose-built for a specific problem. It doesn't try to do everything, and that's intentional.
-
-**Not an APM tool.** AgentPulse doesn't trace request latency, instrument your application code, or correlate slow database queries with API response times. For distributed tracing and application performance monitoring, use Datadog, New Relic, or an OpenTelemetry-compatible tool.
-
-**Not a log management platform.** There's no log aggregation, log search, or log-based alerting. For that, use Loki, Papertrail, or a purpose-built log platform.
-
-**Not an uptime checker.** AgentPulse monitors your server from the inside, not the outside. It can tell you a service crashed. It can't tell you whether your site is reachable from Europe. For external uptime monitoring, pair AgentPulse with Uptime Kuma or Better Stack's uptime checker.
-
-**Not a status page tool.** No public status pages, no on-call scheduling, no incident communication workflows. Better Stack and incident.io handle that.
-
-**Not free.** The agent source is public so you can audit exactly what runs as root on your server — but AgentPulse is a paid product. If you need free server monitoring, Netdata and Prometheus+Grafana are solid choices — they just won't fix anything.
-
-**Not an enterprise observability platform.** No SSO, no RBAC, no SOC 2 compliance documentation, no 20-product pricing calculator. AgentPulse is for small teams who want things to work, not enterprise buyers who need a vendor to check boxes.
-
-If you need any of those things, we'll point you toward tools that do them well. AgentPulse does one thing well: **keep your Linux/macOS hosts running without waking you up to fix them.**
+[Request a controlled pilot](signup#reserve)
 
 ---
 
-## Pricing
-
-Plans start at an indie-friendly monthly price, with auto-remediation included from the Pro tier up. No per-host overages, no per-GB billing, no sales call required. Cancel anytime.
-
-For the full plan breakdown, per-tier feature comparison, and FAQ, see the [pricing page](pricing).
-
----
-
-## Ready to Stop Firefighting?
-
-Public installation is not released. Controlled beta evaluation starts on one non-critical host in alert-only mode after the operator reviews the current release gates.
-
-[**Join the paid beta →**](https://agentpulse.ca/signup)
-
-Questions? Email [support@agentpulse.ca](mailto:support@agentpulse.ca).
+<sub>[Home](./) · [Pricing](pricing) · [Installation status](install) · [Privacy](privacy) · [Terms](terms) · support@agentpulse.ca</sub>

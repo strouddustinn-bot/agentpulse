@@ -234,6 +234,86 @@ class PackagingTests(unittest.TestCase):
         for path in (upgrade, rollback):
             self.assertTrue(os.access(path, os.X_OK), msg=f"{path} must be executable")
 
+    def test_enrollment_token_never_uses_process_arguments(self) -> None:
+        install = (ROOT / "scripts" / "install-agent.sh").read_text(encoding="utf-8")
+        upgrade = (ROOT / "scripts" / "upgrade-agent.sh").read_text(encoding="utf-8")
+        rollback = (ROOT / "scripts" / "rollback-agent.sh").read_text(encoding="utf-8")
+        cli = (ROOT / "agent" / "agentpulse" / "cli.py").read_text(encoding="utf-8")
+        install_doc = (ROOT / "docs" / "install.md").read_text(encoding="utf-8")
+        rollback_doc = (ROOT / "docs" / "runbooks" / "agent-release-rollback.md").read_text(encoding="utf-8")
+        self.assertIn("--enrollment-token-stdin", install)
+        self.assertIn("--token-stdin", install)
+        self.assertIn("--token-stdin", cli)
+        self.assertNotIn("--enrollment-token)", install)
+        self.assertNotIn('agentpulse enroll "$CONFIG_FILE" "$ENROLLMENT_TOKEN"', install)
+        self.assertNotIn("upgrade-not-used", upgrade)
+        self.assertNotIn("rollback-not-used", rollback)
+        self.assertNotRegex(install_doc + rollback_doc, r"--enrollment-token(?:\s|\")")
+
+    def test_smoke_warnings_exit_nonzero(self) -> None:
+        smoke = (ROOT / "scripts" / "smoke-test.sh").read_text(encoding="utf-8")
+        self.assertIn("$WARN_COUNT -gt 0", smoke)
+        self.assertRegex(smoke, r"FAIL_COUNT -gt 0.*WARN_COUNT -gt 0")
+
+    def test_uninstall_backs_up_actual_installed_files(self) -> None:
+        uninstall = (ROOT / "scripts" / "uninstall-agent.sh").read_text(encoding="utf-8")
+        self.assertIn("/etc/agentpulse/config.json", uninstall)
+        self.assertIn("/etc/agentpulse/agent.credential", uninstall)
+        self.assertIn("mktemp -d /tmp/agentpulse-uninstall.XXXXXX", uninstall)
+        self.assertNotIn("/etc/agentpulse/agentpulse.json", uninstall)
+        self.assertNotIn("/etc/agentpulse/credentials.json", uninstall)
+        self.assertNotIn("mkdir -p \"$backup_dir\"", uninstall)
+
+    def test_declined_purge_fails_closed(self):
+        uninstall = (ROOT / "scripts" / "uninstall-agent.sh").read_text(encoding="utf-8")
+        self.assertNotIn('confirm "PURGE: Remove all state, logs, and credentials?" || true', uninstall)
+        self.assertEqual(uninstall.count('confirm "PURGE: Remove all state, logs, and credentials?" || die "Purge cancelled"'), 2)
+
+    def test_installer_dry_run_failure_aborts(self):
+        installer = (ROOT / "scripts" / "install-agent.sh").read_text(encoding="utf-8")
+        self.assertIn('agentpulse run-once --dry-run "$CONFIG_FILE" >/dev/null', installer)
+        self.assertNotIn('agentpulse run-once --dry-run "$CONFIG_FILE" >/dev/null || warn', installer)
+
+    def test_installer_does_not_upgrade_pip_from_network(self):
+        installer = (ROOT / "scripts" / "install-agent.sh").read_text(encoding="utf-8")
+        self.assertNotIn("pip install --upgrade pip", installer)
+
+    def test_lifecycle_enforces_exact_requested_version(self):
+        installer = (ROOT / "scripts" / "install-agent.sh").read_text(encoding="utf-8")
+        upgrade = (ROOT / "scripts" / "upgrade-agent.sh").read_text(encoding="utf-8")
+        rollback = (ROOT / "scripts" / "rollback-agent.sh").read_text(encoding="utf-8")
+        self.assertIn("verify_wheel_identity", installer)
+        self.assertIn("Installed version mismatch", installer)
+        for script in (upgrade, rollback):
+            self.assertIn('[[ -n "$VERSION" ]] || die "--version is required"', script)
+            self.assertNotIn('[[ -n "$VERSION" || -n "$WHEEL_PATH" ]]', script)
+
+    def test_service_manager_preflight_and_restart_fail_closed(self):
+        installer = (ROOT / "scripts" / "install-agent.sh").read_text(encoding="utf-8")
+        upgrade = (ROOT / "scripts" / "upgrade-agent.sh").read_text(encoding="utf-8")
+        rollback = (ROOT / "scripts" / "rollback-agent.sh").read_text(encoding="utf-8")
+        self.assertIn("systemctl show-environment", installer)
+        self.assertIn("launchctl print system", installer)
+        for script in (upgrade, rollback):
+            self.assertIn('die "No installed AgentPulse service definition found"', script)
+            self.assertIn("systemctl is-active --quiet agentpulse", script)
+
+    def test_installer_rejects_service_that_exits_immediately(self):
+        installer = (ROOT / "scripts" / "install-agent.sh").read_text(encoding="utf-8")
+        library = installer.rsplit('main "$@"', 1)[0]
+        probe = self.tmpdir / "installer-liveness-probe.sh"
+        probe.write_text(
+            library
+            + "\nINSTALL_TYPE=systemd\nSKIP_START=false\nCONFIG_FILE=/tmp/config.json\n"
+            + "agentpulse() { return 0; }\n"
+            + "systemctl() { case \"$1\" in restart) return 0;; is-active) return 1;; status) return 1;; esac; }\n"
+            + "validate_and_start\n",
+            encoding="utf-8",
+        )
+        result = _run(["bash", str(probe)])
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("did not remain active", result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

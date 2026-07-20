@@ -81,6 +81,27 @@ def test_401_triggers_credential_recovery_without_retry_loop(tmp_path):
     assert len(calls) == 1
 
 
+def test_replayed_401_propagates_credential_recovery(tmp_path):
+    def offline(request, timeout):
+        raise OSError("offline")
+
+    client = setup_client(tmp_path, offline)
+    assert client.send({"status": "queued"}) is None
+    queued = client.spool.list_pending()[0]
+
+    def unauthorized(request, timeout):
+        raise CheckinHTTPError(401, "invalid")
+
+    client.opener = unauthorized
+    with pytest.raises(CredentialRecoveryRequired):
+        client.replay(max_events=1)
+
+    pending = client.spool.list_pending()
+    assert len(pending) == 1
+    assert pending[0]["event_id"] == queued["event_id"]
+    assert pending[0]["attempts"] == queued["attempts"]
+
+
 def test_replay_preserves_event_id_for_exactly_once_dedupe(tmp_path):
     captured = []
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import sys
 import time
@@ -86,7 +87,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     pe = sub.add_parser("enroll", help="enroll this host with the SaaS control plane")
     pe.add_argument("config")
-    pe.add_argument("enrollment_token")
+    pe.add_argument(
+        "--token-stdin",
+        action="store_true",
+        help="read the one-time enrollment token from stdin instead of process arguments",
+    )
     pe.add_argument("--agent-key", default=None)
 
     pil = sub.add_parser(
@@ -248,10 +253,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         if not cfg.control_plane.enabled:
             print("control_plane.enabled must be true before enrollment", file=sys.stderr)
             return 2
+        if args.token_stdin:
+            enrollment_token = sys.stdin.readline().rstrip("\r\n")
+        else:
+            enrollment_token = getpass.getpass("One-time enrollment token: ")
+        if not enrollment_token:
+            print("a non-empty enrollment token is required", file=sys.stderr)
+            return 2
         try:
             result = control_plane.enroll(
                 base_url=cfg.control_plane.base_url,
-                enrollment_token=args.enrollment_token,
+                enrollment_token=enrollment_token,
                 agent_key=args.agent_key or cfg.resolved_hostname(),
                 hostname=cfg.resolved_hostname(),
                 local_policy_ceiling=cfg.control_plane.local_policy_ceiling,

@@ -1,6 +1,6 @@
 # AgentPulse Status
 
-**Status date:** 2026-07-17
+**Status date:** 2026-07-20
 **Canonical GitHub branch:** `master`
 
 ## Consolidated product
@@ -21,10 +21,10 @@ Historical source retention is governed by `ARCHIVES.md`. Confidential operation
 
 | Area | Result | Evidence |
 |---|---|---|
-| Local agent behavior | PASS | `python3 agent/tools/run_tests.py`: 170 passed, 0 failed |
+| Local agent behavior | PASS | `python3 agent/tools/run_tests.py`: 193 passed, 0 failed |
 | Agent lint | PASS | `ruff check agent/` |
 | Agent config contract | PASS | Draft 7 schema and current example validated with format checks |
-| Agent packaging | PASS | `python -m unittest tests.test_packaging -v`: wheel build, assets, console script, fresh-venv CLI smoke |
+| Agent packaging | PASS | `python3 tests/test_packaging.py`: 20 lifecycle and packaging tests passed |
 | Worker control plane | PASS | 14 Vitest tests; TypeScript and Wrangler generated bindings current |
 | Cloudflare staging control plane | PASS | D1 migrations current; staging health and authenticated API smoke previously passed |
 | Worker dependency audit | PASS | no high-severity npm findings |
@@ -39,15 +39,15 @@ that the public production service is launched.
 
 ## Deployment reality
 
-Probe results on 2026-07-17:
+Probe results on 2026-07-20:
 
 | Surface | Result |
 |---|---|
 | `https://staging-api.agentpulse.ca/health` | HTTP 200 |
-| `https://agentpulse.ca` | DNS unresolved at last check |
+| `https://agentpulse.ca` | HTTP 200 from the canonical Pages deployment |
 | `https://app.agentpulse.ca` | DNS unresolved at last check |
 | `https://api.agentpulse.ca/health` | DNS unresolved at last check |
-| Starter, Pro Beta, and Business Stripe Payment Links | HTTP 200; purchase lifecycle not exercised |
+| Public multi-host checkout | Closed; Pro and Business are founding reservations until checkout-to-entitlement and host-limit enforcement are proven |
 
 The repository is therefore a verified implementation baseline with a live
 staging API, not a deployed self-serve production service.
@@ -64,9 +64,9 @@ Implemented in source:
 
 Still required before public install enablement:
 
-- owner-approved prerelease version tag
-- clean-host install, upgrade, and rollback evidence on an authorized host
-- redacted acceptance receipts
+- publish the repaired source as a replacement immutable prerelease
+- repeat clean-host install, outage recovery, upgrade, rollback, uninstall, and reinstall against that exact artifact
+- preserve the redacted acceptance receipt for the exact replacement release
 
 ## Supported boundary
 
@@ -80,19 +80,18 @@ Cloud policy can narrow but cannot increase the local authority ceiling. Unknown
 
 ## Paid-beta operations
 
-The repository contains public Stripe Payment Links, Worker
-enrollment/heartbeat/fleet APIs, local-agent source, and a read-only console.
-Payment links are reachable, but clean-host installation and the complete paid
-onboarding lifecycle have not yet been proven end to end. Any paid-beta
-customer must therefore be handled as a controlled manual pilot until those
-gates pass.
+The repository contains Worker enrollment/heartbeat/fleet APIs, local-agent
+source, and a read-only console. Public multi-host checkout is closed because
+clean-host exact-release acceptance and the complete paid onboarding lifecycle
+have not yet been proven end to end. Any paid-beta customer must therefore be
+handled as a controlled manual pilot until those gates pass.
 
 The following are not represented as finished production capabilities:
 
 - secure browser cookie/session authentication; the current console connection credential is beta-only;
 - automatic Stripe checkout-to-account claim;
 - self-service billing portal and complete automated subscription lifecycle;
-- proven clean-host install, upgrade, and rollback on an authorized non-dev host;
+- exact replacement-release install, outage recovery, upgrade, rollback, uninstall, and reinstall acceptance;
 - browser-level dashboard acceptance against staging; the staging dashboard is not deployed;
 - production deployment and rollback evidence.
 

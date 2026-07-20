@@ -16,12 +16,15 @@ Each GitHub Release for the agent must include:
 ## Clean-host install (Linux)
 
 ```bash
-# Replace VERSION and TOKEN. Do not paste secrets into chat logs.
+# Replace VERSION. Do not paste secrets into chat logs or command arguments.
 sudo ./scripts/install-agent.sh \
   --version VERSION \
-  --enrollment-token TOKEN \
   --api-url https://staging-api.agentpulse.ca
 ```
+
+Enter the one-time enrollment token at the installer's hidden prompt. An
+unattended operator may pass it over protected stdin with
+`--enrollment-token-stdin`; it must never appear in a process argument.
 
 What the installer does:
 
@@ -30,8 +33,9 @@ What the installer does:
 3. Installs the wheel.
 4. Writes alert-only config under `/etc/agentpulse/config.json` (mode 0640).
 5. Installs the packaged systemd unit (not a raw branch file).
-6. Exchanges the one-time enrollment token, persists the credential at mode 0600,
-   and does not leave the enrollment token in config JSON.
+6. Reads the one-time enrollment token without exposing it in process arguments,
+   exchanges it, persists the credential at mode 0600, and does not leave the
+   enrollment token in config JSON.
 7. Validates config, dry-runs once, starts the service.
 
 ## Upgrade (preserve config/state)

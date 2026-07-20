@@ -62,6 +62,7 @@ class ControlPlaneConfig:
     enabled: bool = False
     base_url: str = ""
     credential_file: str = "/etc/agentpulse/agent.credential"
+    spool_directory: str = "/var/lib/agentpulse/control-plane-spool"
     timeout_seconds: int = 10
     local_policy_ceiling: str = "alert"
 
@@ -203,6 +204,12 @@ def from_dict(data: Dict[str, Any]) -> Config:
             base_url=base_url,
             credential_file=str(
                 cp.get("credential_file", "/etc/agentpulse/agent.credential")
+            ),
+            spool_directory=str(
+                cp.get(
+                    "spool_directory",
+                    "/var/lib/agentpulse/control-plane-spool",
+                )
             ),
             timeout_seconds=int(
                 _positive_number(

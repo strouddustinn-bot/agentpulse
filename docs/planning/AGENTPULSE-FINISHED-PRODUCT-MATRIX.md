@@ -1,6 +1,6 @@
 # AgentPulse Finished-Product Matrix and Repository Reconciliation
 
-**Assessment timestamp:** 2026-07-16T22:51:17-04:00
+**Assessment timestamp:** 2026-07-20T00:57:24-04:00
 **Canonical repository:** the GitHub repository containing this document
 **Recommended source of truth:** GitHub `master`; implementation branches from that canonical revision
 **Canonical domain:** `agentpulse.ca`
@@ -9,9 +9,9 @@
 
 AgentPulse is no longer two equivalent copies that merely need a pull or push. It is a set of divergent historical lines:
 
-1. GitHub's default `master` is the canonical product authority; the assessed baseline is `9f68e15`.
-2. Phase 0 implementation is isolated on `chore/phase-0-repository-convergence`; it contains the reviewed security policy, truth-aligned documentation, and these planning documents pending GitHub review.
-3. The legacy `main` line trails the consolidated architecture by 31 commits and is not the product authority; its remaining distinct changes target retired architecture or stale copy.
+1. GitHub's default `master` is the canonical product authority; the current remote baseline is `98ee578`.
+2. Phase 0 repository convergence, packaging, and the rejected `v0.2.0-beta.1` prerelease are merged into `master`; repaired Phase 1C source is the current integration candidate.
+3. The legacy `main` line materially trails the consolidated architecture and is not the product authority; its remaining distinct changes target retired architecture or stale copy.
 4. Superseded FastAPI-backend source is subject to the historical-retention gate. That backend was deliberately retired from `master` and must not return to active product source.
 5. Open PR #19 proposes a Fly.io/FastAPI deployment against `main`. Merging it would restore a competing backend and violate the consolidated Worker/D1 architecture.
 
@@ -32,8 +32,8 @@ A green check means the item is complete within the stated boundary. File presen
 
 | Surface | Evidence-backed state | Decision |
 |---|---|---|
-| Canonical branch | GitHub default `master` at assessed baseline `9f68e15` | Retain as the only active product authority |
-| Phase 0 candidate | Master-targeted branch contains security/release gating, planning, and truth-alignment changes | Review through a PR and require green checks before merge |
+| Canonical branch | GitHub default `master` at remote baseline `98ee578` | Retain as the only active product authority |
+| Current integration candidate | Repaired Phase 1C source passed broad and real-systemd clean-host acceptance with an unpublished fixture | Merge only after exact staged-diff review and local gates; then publish a replacement prerelease only after Owner Gate 1 |
 | Legacy `main` line | Diverges from and materially trails `master`; remaining changes target retired architecture or stale copy | Freeze and archive; do not merge wholesale into `master` |
 | Productization/consolidation history | Useful commits are already ancestors of `master`; superseded runtime variants are archived | Remove stale refs only after owner approval and another archive verification |
 | PR #17 | Targets legacy `main` and has no active implementation need | Close or supersede with a master-targeted cleanup only if still needed |
@@ -96,7 +96,7 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
-| Dependency-light Python agent | Runs on Python 3.10+ without runtime dependencies | Agent package and self-contained runner; fresh run: 170 passed | ✅ |
+| Dependency-light Python agent | Runs on Python 3.10+ without runtime dependencies | Agent package and self-contained runner; fresh run: 193 passed | ✅ |
 | Linux host monitoring | Reads disk, memory/process, and systemd service state | Implemented checks and tests | ✅ |
 | macOS host monitoring | Reads supported host state and launchd service state | Launchd-aware implementation and tests/assets exist | ✅ |
 | Disk-pressure remediation | Deletes only old files under explicitly allowed paths; refuses dangerous paths and symlink escapes | Safety predicates, remediation implementation, fuzz/safety tests | ✅ |
@@ -113,9 +113,9 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Evidence spool and replay | Failed outbound delivery is persisted, bounded, locked, retried, and deduplicated | Spool/retry/locking tests pass | ✅ |
 | Secret redaction | Credentials and sensitive fields are excluded from logs/evidence | Redaction tests pass | ✅ |
 | Local audit trail | Reason, gate, action, verification, and outcome are attributable | Audit implementation/tests pass | ✅ |
-| Production-grade install artifact | Versioned, checksummed package installs from an immutable release; no unpinned branch downloads | Wheel builds with package/assets/console script; installers require version + SHA-256 and no longer fetch raw branch files; clean-host proof still pending | 🟡 |
-| Safe upgrade and rollback | Signed/checksummed upgrade path preserves config/state and can roll back | upgrade/rollback scripts implemented with checksum + config/state preservation; clean-host proof still pending | 🟡 |
-| Real host acceptance matrix | Clean Ubuntu/Debian/RHEL-compatible Linux and macOS installs pass destructive-safe end-to-end tests | Unit/safety coverage is strong; clean-host lifecycle proof is missing | 🟡 |
+| Production-grade install artifact | Versioned, checksummed package installs from an immutable release; no unpinned branch downloads | Published beta-1 checksums verify but the artifact was rejected; repaired source and a checksummed local candidate pass Debian/systemd lifecycle acceptance; replacement exact-artifact acceptance is pending | 🟡 |
+| Safe upgrade and rollback | Signed/checksummed upgrade path preserves config/state and can roll back | Clean-host beta-1 → local beta-2 candidate → beta-1 lifecycle passed with config/state preservation and exact-version checks; replacement release proof remains | 🟡 |
+| Real host acceptance matrix | Clean Ubuntu/Debian/RHEL-compatible Linux and macOS installs pass destructive-safe end-to-end tests | Broad and real-systemd Debian acceptance pass with sandbox cleanup; additional distribution and macOS coverage remains | 🟡 |
 
 ### B. Cloud control plane and data
 
@@ -165,7 +165,7 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
 | Canonical public brand/domain | Public copy, metadata, install links, and email use `agentpulse.ca` | Master source is aligned to `agentpulse.ca` | ✅ |
-| Public website | `agentpulse.ca` resolves and serves current truthful content | Source and Pages workflow exist; apex did not resolve during probe | 🟡 |
+| Public website | `agentpulse.ca` resolves and serves current truthful content | Apex returned HTTP 200 from the canonical Pages deployment on 2026-07-20 | ✅ |
 | Truth-aligned product copy | Shipped vs roadmap capabilities and safety limits are explicit | Phase 0 audit removes unsupported deployment, packaging, setup-time, console, and unlimited-capacity claims | ✅ |
 | CAD beta pricing | Starter C$29, Pro C$99, Business C$299 are stated consistently as founding prices | Public CTAs are founding reserves; live Stripe buy buttons removed until fleet/provisioning is real | 🟡 |
 | Automated entitlement | Successful payment creates/activates the right tenant/limit without manual DB work | Paid beta still requires manual confirmation; no public charge path for undeliverable fleet | ⬜ |
@@ -180,15 +180,15 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
 | Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; no phantom routes | 7 paths, 19 refs, 9 schemas, 3 fixtures validate | ✅ |
-| Agent test suite | Safety/behavior suite passes on supported Python versions | Fresh local result: 170 passed; GitHub Tests succeeded at master head | ✅ |
+| Agent test suite | Safety/behavior suite passes on supported Python versions | Fresh local result: 193 passed; GitHub Tests at the pre-change master head succeeded | ✅ |
 | Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 14 tests; typecheck and bindings pass | ✅ |
 | Dashboard build | TypeScript and Vite production build pass | Fresh build succeeded | ✅ |
 | Dashboard behavioral E2E | Browser tests cover auth, fleet, incidents, failure/empty states | No browser test suite | ⬜ |
 | Security dependency audits | Python invariant and npm high-severity audits pass | Latest master dependency-audit job passed | ✅ |
 | Repository hardening | Shell syntax, no tracked dependencies, credential-pattern gate | Latest master hardening job passed | ✅ |
-| Secret scanning | GitHub Security workflow is green with an approved scanning policy and directly gates releases | Root cause reproduced; verified-only scan passed with zero verified secrets; release verification now includes the same pinned scan; GitHub rerun pending | 🟡 |
+| Secret scanning | GitHub Security workflow is green with an approved scanning policy and directly gates releases | Latest remote-master Security run succeeded at `98ee578`; the repaired candidate requires its own post-push run | 🟡 |
 | CI branch authority | Required checks target only canonical branch and PRs into it | Master workflows exist, but stale main PRs/branches remain | 🟡 |
-| Versioned agent release | Wheel/sdist contain the runnable agent; checksums and release notes are published | Wheel/sdist packaging + SHA256SUMS release job implemented; prerelease tag and clean-host proof still pending | 🟡 |
+| Versioned agent release | Wheel/sdist contain the runnable agent; checksums and release notes are published | Published beta-1 exists but is rejected; repaired replacement publication and exact-artifact acceptance remain | 🟡 |
 | Reproducible deployment | Staging/production migrations and deploys run through protected environments | Worker deploy job exists; production bindings and proof missing | 🟡 |
 | Rollback and disaster recovery | D1 backup/restore, Worker rollback, agent rollback, and incident runbooks are exercised | Not proven | ⬜ |
 | Observability without credential leakage | Structured Worker/agent health, deploy markers, and alerts exist | Worker observability enabled; complete operational alerting absent | 🟡 |
@@ -200,18 +200,18 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Check | Fresh result |
 |---|---|
-| Agent suite | `170 passed, 0 failed` |
+| Agent suite | `193 passed, 0 failed` |
 | Agent lint | PASS: project Ruff 0.15.21 reports all checks passed |
 | Agent config validation | PASS: example and local configurations validate against Draft 7 schema with format checks |
 | Shared contracts | PASS: 7 paths, 19 local refs, 9 schemas, 3 fixtures |
 | Worker tests | PASS: 14 tests |
 | Worker TypeScript/bindings | PASS |
 | Dashboard production build | PASS: 1,531 modules transformed |
-| Master GitHub Tests | SUCCESS at `9f68e15` |
-| Master GitHub Pages | SUCCESS at `9f68e15`, though canonical DNS did not resolve during the probe |
-| Master GitHub Security | FAILURE only in Secret scanning; dependency audit and hardening passed |
-| Staging API | HTTP 200 with expected AgentPulse health JSON |
-| Public/production domains | `agentpulse.ca`, `app.agentpulse.ca`, and `api.agentpulse.ca` did not resolve during the probe |
+| Master GitHub Tests | SUCCESS at `98ee578`; candidate post-push run pending |
+| Master GitHub Pages | SUCCESS at `98ee578`; `agentpulse.ca` returned HTTP 200 on 2026-07-20 |
+| Master GitHub Security | SUCCESS at `98ee578`; candidate post-push run pending |
+| Staging API | `https://staging-api.agentpulse.ca/health` returned HTTP 200 with expected AgentPulse health JSON on 2026-07-20 |
+| Public/production domains | `agentpulse.ca` resolves and serves HTTP 200; `app.agentpulse.ca` and `api.agentpulse.ca` remain unresolved |
 
 
 ## Authoritative retain/migrate/archive decisions

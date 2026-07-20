@@ -60,14 +60,14 @@ parse_args() {
 
 [[ ${EUID} -eq 0 ]] || die "Must be run as root"
 parse_args "$@"
-[[ -n "$VERSION" || -n "$WHEEL_PATH" ]] || die "--version or --wheel is required"
+[[ -n "$VERSION" ]] || die "--version is required"
 [[ -f "$CONFIG_FILE" ]] || die "Missing config ${CONFIG_FILE}"
 
 CURRENT="$("$PYTHON_CMD" -c 'import agentpulse; print(agentpulse.__version__)' 2>/dev/null || echo unknown)"
 info "Rolling back from ${CURRENT} to ${VERSION:-local wheel}"
 info "Preserving config and state under /etc/agentpulse and ${STATE_DIR}"
 
-ARGS=(--version "${VERSION:-local}" --skip-enroll --skip-start --python "$PYTHON_CMD" --repo "$REPO" --enrollment-token "rollback-not-used")
+ARGS=(--version "${VERSION:-local}" --skip-enroll --skip-start --python "$PYTHON_CMD" --repo "$REPO")
 [[ -n "$WHEEL_PATH" ]] && ARGS+=(--wheel "$WHEEL_PATH")
 [[ -n "$CHECKSUMS_PATH" ]] && ARGS+=(--checksums "$CHECKSUMS_PATH")
 [[ "$SKIP_CHECKSUM" == "true" ]] && ARGS+=(--skip-checksum)
@@ -76,10 +76,13 @@ bash "${SCRIPT_DIR}/install-agent.sh" "${ARGS[@]}"
 
 NEW_VERSION="$("$PYTHON_CMD" -c 'import agentpulse; print(agentpulse.__version__)' )"
 agentpulse validate "$CONFIG_FILE"
-if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files | grep -q '^agentpulse\.service'; then
+if [[ -f /etc/systemd/system/agentpulse.service ]]; then
   systemctl restart agentpulse
+  systemctl is-active --quiet agentpulse || die "AgentPulse service failed after rollback"
 elif [[ -f /Library/LaunchDaemons/com.agentpulse.agent.plist ]]; then
   launchctl kickstart -k system/com.agentpulse.agent
+else
+  die "No installed AgentPulse service definition found"
 fi
 mkdir -p "${STATE_DIR}/releases"
 echo "$NEW_VERSION" > "${STATE_DIR}/releases/current-version"

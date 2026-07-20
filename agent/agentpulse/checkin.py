@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 from . import __version__
 from .config import Config
+from .control_plane import CredentialError
 from .identity import IdentityManager
 from .redaction import redact
 from .retry import CredentialRecoveryRequired, RetryBudgetExhausted, RetryPolicy
@@ -76,8 +77,7 @@ class CheckinClient:
         self.audit = audit
 
     def send(self, payload: Dict[str, Any], *, event_id: Optional[str] = None) -> Optional[int]:
-        safe = redact(dict(payload))
-        safe["agent_id"] = self.identity.ensure_agent_id()
+        safe = self._prepare_payload(payload)
         event_id = event_id or uuid.uuid4().hex
         try:
             status = self._deliver(safe, event_id=event_id)
@@ -91,14 +91,28 @@ class CheckinClient:
             self.spool.enqueue("check_in", safe, event_id=event_id)
             self._record_audit("checkin.spooled", event_id, {"reason": "http_transient_failure"})
             return None
-        except (OSError, urllib.error.URLError, CheckinDeliveryError, RetryBudgetExhausted) as exc:
+        except (
+            OSError,
+            urllib.error.URLError,
+            CheckinDeliveryError,
+            RetryBudgetExhausted,
+            CredentialError,
+        ) as exc:
             if isinstance(exc, CredentialRecoveryRequired):
                 raise
             self.spool.enqueue("check_in", safe, event_id=event_id)
             self._record_audit("checkin.spooled", event_id, {"reason": "network_failure"})
             return None
 
-    def replay(self) -> int:
+    def queue(self, payload: Dict[str, Any], *, event_id: Optional[str] = None) -> str:
+        """Append a current event without transmitting ahead of older backlog."""
+        return self.spool.enqueue(
+            "check_in",
+            self._prepare_payload(payload),
+            event_id=event_id or uuid.uuid4().hex,
+        )
+
+    def replay(self, *, max_events: Optional[int] = None) -> int:
         def acknowledge(event: Dict[str, Any]) -> bool:
             try:
                 self._deliver(event["payload"], event_id=event["event_id"])
@@ -108,7 +122,16 @@ class CheckinClient:
                 raise
             except (OSError, urllib.error.URLError, CheckinDeliveryError, RetryBudgetExhausted):
                 return False
-        return self.spool.replay(acknowledge)
+        return self.spool.replay(
+            acknowledge,
+            max_events=max_events,
+            propagate_exceptions=(CredentialRecoveryRequired,),
+        )
+
+    def _prepare_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        safe = redact(dict(payload))
+        safe["agent_id"] = self.identity.ensure_agent_id()
+        return safe
 
     def _record_audit(self, event_type: str, event_id: str, result: Dict[str, Any]) -> None:
         if self.audit is not None:

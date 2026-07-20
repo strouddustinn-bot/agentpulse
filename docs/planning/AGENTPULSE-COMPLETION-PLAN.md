@@ -243,6 +243,14 @@ Hermes then provides one exact reviewed install command. Any `sudo` password is 
 3. Capture redacted evidence in `docs/runbooks/` or release evidence, never host secrets.
 4. Fix all defects and repeat until acceptance passes.
 
+**Status — 2026-07-20:** The published `v0.2.0-beta.1` artifact was rejected
+after disposable Debian/systemd acceptance reproduced lifecycle defects. The
+repaired source passed the broad and real-systemd lifecycle runners with a
+checksummed, unpublished `0.2.0b2` fixture; both sandboxes were destroyed. See
+`docs/runbooks/agentpulse-tier1-phase1c-evidence.md`. Public Tier 1 remains open
+until the repaired source is published as a replacement immutable prerelease
+and that exact artifact repeats the clean-host run.
+
 **Tier 1 release gate:** immutable package + checksum; clean-host install/upgrade/rollback proof; no mutable branch downloads.
 
 ---
@@ -656,4 +664,8 @@ No phase is complete until its row is proven at the exact candidate commit.
 
 ## 6. Immediate next action
 
-Start with **Hermes work block 0A**. Hermes should continue through every non-owner step, then stop only at **Owner Gate 0** with a reviewable synchronization PR, the secret-scan diagnosis, and a concrete cleanup list.
+Merge the accepted repaired source, then stop at **Owner Gate 1** for approval to
+publish immutable `v0.2.0-beta.2`. After publication, repeat the broad and
+real-systemd clean-host lifecycle against the exact downloadable wheel and
+checksums. Tier 1 closes only when that exact release passes. Repository ref
+deletion remains separately blocked by the historical-retention gate.

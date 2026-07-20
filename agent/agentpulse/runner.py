@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -11,6 +12,8 @@ from . import baseline, checks, control_plane, decision_loop, policy
 from .checkin import CheckinClient, CheckinDeliveryError, build_checkin_payload, send_checkin_payload
 from .config import Config
 from .models import Decision, Observation
+from .retry import CredentialRecoveryRequired
+from .spool import Spool, SpoolFull, SpoolPermanentFailure
 from .state import State
 
 
@@ -113,17 +116,40 @@ def send_backend_checkin(
         if sender is send_checkin_payload and cfg.checkin.credential_file:
             from .identity import IdentityManager
             from .spool import Spool
+            spool = Spool(cfg.checkin.spool_directory)
             client = CheckinClient(
                 IdentityManager(cfg.checkin.identity_file, cfg.checkin.credential_file),
-                Spool(cfg.checkin.spool_directory),
+                spool,
                 endpoint_url=cfg.checkin.endpoint_url,
                 timeout=cfg.checkin.timeout_seconds,
             )
-            client.send(payload)
+            # Drain older durable events before the current heartbeat so outage
+            # recovery preserves FIFO order and does not strand the spool.
+            try:
+                client.replay(max_events=2)
+            except CredentialRecoveryRequired:
+                # Preserve the current event behind the rejected backlog. A
+                # credential-recovery signal must not create a telemetry gap.
+                client.queue(payload)
+                raise
+            if spool.list_pending():
+                client.queue(payload)
+                return False
+            status = client.send(payload)
+            if status is None:
+                notifier.send(
+                    "backend check-in failed",
+                    "event queued for retry",
+                )
+                return False
+            return True
         else:
             sender(cfg, payload)
         return True
-    except CheckinDeliveryError as exc:
+    except CredentialRecoveryRequired as exc:
+        notifier.send("backend credential recovery required", str(exc))
+        return False
+    except (CheckinDeliveryError, SpoolFull, OSError) as exc:
         notifier.send("backend check-in failed", str(exc))
         return False
 
@@ -134,22 +160,103 @@ def send_control_plane_heartbeat(
     summary: CycleSummary,
     notifier: NotifierLike,
 ) -> bool:
+    """Contain telemetry spool failures so local monitoring always continues."""
+    if not cfg.control_plane.enabled:
+        return False
+    try:
+        return _send_control_plane_heartbeat(cfg, state, summary, notifier)
+    except (OSError, SpoolFull, ValueError) as exc:
+        notifier.send("control-plane heartbeat spool failed", str(exc))
+        return False
+
+
+def _send_control_plane_heartbeat(
+    cfg: Config,
+    state: State,
+    summary: CycleSummary,
+    notifier: NotifierLike,
+) -> bool:
     """Push a bounded, best-effort SaaS heartbeat without affecting local safety."""
     if not cfg.control_plane.enabled:
         return False
-    result = control_plane.push_heartbeat(
-        base_url=cfg.control_plane.base_url,
-        credential_file=cfg.control_plane.credential_file,
-        state=state.data,
-        summary={
-            "observations": summary.observations,
-            "breaches": summary.breaches,
-            "errors": list(summary.errors),
-        },
-        cycle_id=uuid.uuid4().hex,
-        timeout=cfg.control_plane.timeout_seconds,
+    spool = Spool(cfg.control_plane.spool_directory)
+    heartbeat_summary = {
+        "observations": summary.observations,
+        "breaches": summary.breaches,
+        "errors": list(summary.errors),
+    }
+
+    def deliver(event: Dict[str, Any]) -> bool:
+        if event.get("event_type") != "control_plane_heartbeat":
+            return False
+        result = control_plane.push_heartbeat_payload(
+            cfg.control_plane.base_url,
+            cfg.control_plane.credential_file,
+            event["payload"],
+            cfg.control_plane.timeout_seconds,
+        )
+        if result.status == 401:
+            raise CredentialRecoveryRequired("control-plane credential rejected")
+        if result.status in (400, 403, 404):
+            notifier.send(
+                "control-plane heartbeat rejected",
+                f"HTTP {result.status}: {result.error}",
+            )
+            raise SpoolPermanentFailure(result.error or f"HTTP {result.status}")
+        return result.ok
+
+    cycle_id = uuid.uuid4().hex
+    payload = control_plane.build_heartbeat_payload(
+        state.data, heartbeat_summary, cycle_id
+    )
+    try:
+        spool.replay(
+            deliver,
+            max_events=3,
+            propagate_exceptions=(CredentialRecoveryRequired,),
+        )
+    except CredentialRecoveryRequired as exc:
+        try:
+            spool.enqueue(
+                "control_plane_heartbeat", payload, event_id=cycle_id
+            )
+        except (SpoolFull, ValueError) as spool_exc:
+            notifier.send("control-plane heartbeat spool failed", str(spool_exc))
+        notifier.send("control-plane credential recovery required", str(exc))
+        return False
+    if spool.list_pending():
+        try:
+            spool.enqueue(
+                "control_plane_heartbeat", payload, event_id=cycle_id
+            )
+        except (SpoolFull, ValueError) as exc:
+            notifier.send("control-plane heartbeat spool failed", str(exc))
+        return False
+    result = control_plane.push_heartbeat_payload(
+        cfg.control_plane.base_url,
+        cfg.control_plane.credential_file,
+        payload,
+        cfg.control_plane.timeout_seconds,
     )
     if not result.ok:
+        if result.status == 401:
+            notifier.send(
+                "control-plane credential recovery required",
+                "control-plane credential rejected",
+            )
+            return False
+        if result.status in (400, 403, 404):
+            notifier.send(
+                "control-plane heartbeat rejected",
+                f"HTTP {result.status}: {result.error}",
+            )
+            return False
+        try:
+            spool.enqueue(
+                "control_plane_heartbeat", payload, event_id=cycle_id
+            )
+        except (SpoolFull, ValueError) as exc:
+            notifier.send("control-plane heartbeat spool failed", str(exc))
         notifier.send("control-plane heartbeat failed", result.error)
     return result.ok
 
@@ -163,6 +270,10 @@ def run_once(
     run_fn=None,
     checkin_sender: Callable[[Config, Dict[str, Any]], int] = send_checkin_payload,
 ) -> CycleSummary:
+    if dry_run:
+        # Preview against an isolated snapshot. Dry-run must not change pending
+        # approvals, baselines, history, last-run bookkeeping, or the state file.
+        state = copy.deepcopy(state)
     summary = CycleSummary()
     observations = gather_fn(cfg)
     summary.observations = len(observations)
@@ -237,9 +348,9 @@ def run_once(
             summary.alerts.append(f"{obs.check}:{obs.target}")
             notifier.send(f"alert: {obs.check}", obs.detail)
 
-    state.mark_run()
-    state.save()
     if not dry_run:
+        state.mark_run()
+        state.save()
         send_backend_checkin(cfg, summary, notifier, sender=checkin_sender)
         send_control_plane_heartbeat(cfg, state, summary, notifier)
     return summary

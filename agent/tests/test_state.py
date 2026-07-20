@@ -18,3 +18,13 @@ def test_load_recovers_from_non_object_json(tmp_path):
     st.mark_run()
     st.save()
     assert State.load(str(p)).data["last_run"] is not None
+
+
+def test_save_keeps_state_file_private(tmp_path):
+    p = tmp_path / "state.json"
+    st = State.load(str(p))
+    st.mark_run()
+
+    st.save()
+
+    assert oct(p.stat().st_mode & 0o777) == "0o600"

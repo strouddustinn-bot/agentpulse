@@ -148,10 +148,10 @@ fi
 echo ""
 echo "Results: $FAIL_COUNT failures, $WARN_COUNT warnings"
 
-if [[ $FAIL_COUNT -eq 0 ]]; then
-  exit 0
+if [[ $FAIL_COUNT -gt 2 ]]; then
+  exit 2
 fi
-if [[ $FAIL_COUNT -le 2 ]]; then
+if [[ $FAIL_COUNT -gt 0 || $WARN_COUNT -gt 0 ]]; then
   exit 1
 fi
-exit 2
+exit 0

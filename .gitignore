@@ -12,6 +12,7 @@ dist/
 *.egg-info/
 /tmp/agentpulse/
 .pytest_cache/
+.coverage
 load-tests/archive/
 
 # Dependencies

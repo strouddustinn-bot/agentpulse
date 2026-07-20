@@ -4,8 +4,8 @@
 # Usage:
 #   sudo ./scripts/install-agent.sh \
 #     --version 0.2.0-beta.1 \
-#     --enrollment-token <token> \
 #     --api-url https://staging-api.agentpulse.ca
+#   # The installer prompts privately for the one-time token.
 #
 # Optional:
 #   --repo owner/name          GitHub repo for releases [default: strouddustinn-bot/agentpulse]
@@ -22,8 +22,8 @@
 # - Downloads only from GitHub Releases (immutable tag assets), never raw branch files.
 # - Verifies SHA-256 before installation.
 # - Writes agent credentials with mode 0600.
-# - Never places the enrollment token into a world-readable process list after enroll
-#   (token is passed via argv only to agentpulse enroll, then discarded from config).
+# - Never places the enrollment token into process arguments. Interactive installs
+#   use a hidden prompt; unattended installs read it from stdin.
 
 set -euo pipefail
 
@@ -31,6 +31,7 @@ API_URL="${API_URL:-https://api.agentpulse.ca}"
 REPO="${AGENTPULSE_REPO:-strouddustinn-bot/agentpulse}"
 VERSION="${AGENTPULSE_VERSION:-}"
 ENROLLMENT_TOKEN=""
+READ_ENROLLMENT_TOKEN_STDIN=false
 WHEEL_PATH=""
 CHECKSUMS_PATH=""
 SKIP_CHECKSUM=false
@@ -45,6 +46,7 @@ CONFIG_FILE="${CONFIG_DIR}/config.json"
 CREDENTIAL_FILE="${CONFIG_DIR}/agent.credential"
 INSTALL_TYPE=""
 WORKDIR=""
+EXPECTED_PACKAGE_VERSION=""
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YEL='\033[1;33m'; BLU='\033[0;34m'
 BLD='\033[1m'; RST='\033[0m'
@@ -86,11 +88,12 @@ http_fetch_file() {
 
 usage() {
   cat <<'HELP'
-Usage: install-agent.sh --version <ver> --enrollment-token <tok> [options]
+Usage: install-agent.sh --version <ver> [options]
 
 Required (unless --skip-enroll and package-only lab use):
   --version <ver>              Release version without leading v (e.g. 0.2.0-beta.1)
-  --enrollment-token <tok>     One-time enrollment token from the console
+  A one-time enrollment token entered at the hidden prompt, or supplied through
+  stdin with --enrollment-token-stdin for unattended automation.
 
 Options:
   --api-url <url>              Control-plane API [default: https://api.agentpulse.ca]
@@ -98,6 +101,7 @@ Options:
   --wheel <path>               Install from a local wheel instead of GitHub Releases
   --checksums <path>           Local SHA256SUMS file
   --skip-checksum              Skip checksum verification (lab only; not for production)
+  --enrollment-token-stdin     Read the one-time enrollment token from stdin
   --skip-enroll                Do not enroll after install
   --skip-start                 Do not start the service
   --python <cmd>               Python interpreter [default: python3]
@@ -110,7 +114,7 @@ parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --version) VERSION="$2"; shift 2 ;;
-      --enrollment-token) ENROLLMENT_TOKEN="$2"; shift 2 ;;
+      --enrollment-token-stdin) READ_ENROLLMENT_TOKEN_STDIN=true; shift ;;
       --api-url) API_URL="$2"; shift 2 ;;
       --repo) REPO="$2"; shift 2 ;;
       --wheel) WHEEL_PATH="$2"; shift 2 ;;
@@ -126,6 +130,21 @@ parse_args() {
   done
 }
 
+read_enrollment_token() {
+  if [[ "$SKIP_ENROLL" == "true" ]]; then
+    return
+  fi
+  if [[ "$READ_ENROLLMENT_TOKEN_STDIN" == "true" ]]; then
+    IFS= read -r ENROLLMENT_TOKEN || die "Could not read enrollment token from stdin"
+  elif [[ "$UNATTENDED" == "true" ]]; then
+    die "Unattended enrollment requires --enrollment-token-stdin"
+  else
+    read -r -s -p "One-time enrollment token: " ENROLLMENT_TOKEN </dev/tty
+    echo "" >/dev/tty
+  fi
+  [[ -n "$ENROLLMENT_TOKEN" ]] || die "Enrollment token must not be empty"
+}
+
 check_prereqs() {
   command -v "$PYTHON_CMD" >/dev/null 2>&1 || die "Python not found: $PYTHON_CMD"
   local pyver
@@ -136,6 +155,16 @@ major, minor = map(int, sys.argv[1].split("."))
 raise SystemExit(0 if (major, minor) >= (3, 10) else 1)
 PY
   command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || die "sha256sum or shasum required"
+  case "$INSTALL_TYPE" in
+    systemd)
+      command -v systemctl >/dev/null 2>&1 || die "systemctl is required"
+      systemctl show-environment >/dev/null 2>&1 || die "systemd system bus is unavailable"
+      ;;
+    launchd)
+      command -v launchctl >/dev/null 2>&1 || die "launchctl is required"
+      launchctl print system >/dev/null 2>&1 || die "launchd system domain is unavailable"
+      ;;
+  esac
   success "Prerequisites OK (Python $pyver, ${INSTALL_TYPE})"
 }
 
@@ -147,9 +176,7 @@ normalize_version() {
 }
 
 resolve_artifact() {
-  if [[ -z "${VERSION}" && -n "${WHEEL_PATH}" ]]; then
-    VERSION="local"
-  fi
+  [[ -n "${VERSION}" ]] || die "--version is required"
   VERSION="$(normalize_version "$VERSION")"
   WORKDIR="$(mktemp -d /tmp/agentpulse-install.XXXXXX)"
   local tag="v${VERSION}"
@@ -178,10 +205,11 @@ resolve_artifact() {
 
   if [[ "$SKIP_CHECKSUM" == "true" ]]; then
     warn "Skipping SHA-256 verification (--skip-checksum)"
-    return
+  else
+    [[ -n "$CHECKSUMS_PATH" && -f "$CHECKSUMS_PATH" ]] || die "SHA256SUMS required (or pass --skip-checksum for lab only)"
+    verify_checksum "$WHEEL_PATH" "$CHECKSUMS_PATH"
   fi
-  [[ -n "$CHECKSUMS_PATH" && -f "$CHECKSUMS_PATH" ]] || die "SHA256SUMS required (or pass --skip-checksum for lab only)"
-  verify_checksum "$WHEEL_PATH" "$CHECKSUMS_PATH"
+  verify_wheel_identity
 }
 
 verify_checksum() {
@@ -201,12 +229,50 @@ verify_checksum() {
   success "SHA-256 verified for ${base}"
 }
 
+verify_wheel_identity() {
+  EXPECTED_PACKAGE_VERSION="$("$PYTHON_CMD" - "$WHEEL_PATH" "$VERSION" <<'PY'
+import email.parser
+import os
+import re
+import sys
+import zipfile
+
+wheel, requested = sys.argv[1:]
+requested = requested.lstrip("v")
+match = re.fullmatch(r"(.+?)[._-]?(alpha|beta|rc)[._-]?(\d+)", requested, re.I)
+if match:
+    labels = {"alpha": "a", "beta": "b", "rc": "rc"}
+    expected = f"{match.group(1)}{labels[match.group(2).lower()]}{match.group(3)}"
+else:
+    expected = requested
+with zipfile.ZipFile(wheel) as archive:
+    metadata_files = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
+    if len(metadata_files) != 1:
+        raise SystemExit("wheel must contain exactly one .dist-info/METADATA")
+    metadata = email.parser.Parser().parsestr(archive.read(metadata_files[0]).decode("utf-8"))
+name = metadata.get("Name", "").lower().replace("_", "-")
+actual = metadata.get("Version", "")
+if name != "agentpulse":
+    raise SystemExit(f"wheel project mismatch: expected agentpulse, got {name or 'missing'}")
+if actual != expected:
+    raise SystemExit(f"wheel version mismatch: expected {expected}, got {actual or 'missing'}")
+expected_filename = f"agentpulse-{expected}-"
+if not os.path.basename(wheel).lower().startswith(expected_filename.lower()):
+    raise SystemExit(f"wheel filename mismatch: expected prefix {expected_filename}")
+print(expected)
+PY
+)" || die "Wheel identity does not match requested version ${VERSION}"
+  success "Wheel identity verified for agentpulse ${EXPECTED_PACKAGE_VERSION}"
+}
+
 install_python_package() {
   info "Installing wheel: $(basename "$WHEEL_PATH")"
-  "$PYTHON_CMD" -m pip install --upgrade pip >/dev/null
   "$PYTHON_CMD" -m pip install --force-reinstall "$WHEEL_PATH"
   command -v agentpulse >/dev/null 2>&1 || die "agentpulse console script not found on PATH after install"
-  agentpulse --version >/dev/null
+  local installed_version
+  installed_version="$("$PYTHON_CMD" -c 'import agentpulse; print(agentpulse.__version__)')"
+  [[ "$installed_version" == "$EXPECTED_PACKAGE_VERSION" ]] || \
+    die "Installed version mismatch: expected ${EXPECTED_PACKAGE_VERSION}, got ${installed_version}"
   success "Python package installed"
 }
 
@@ -237,6 +303,7 @@ write_config() {
     "enabled": true,
     "base_url": "${API_URL}",
     "credential_file": "${CREDENTIAL_FILE}",
+    "spool_directory": "${STATE_DIR}/control-plane-spool",
     "timeout_seconds": 10,
     "local_policy_ceiling": "alert"
   },
@@ -322,10 +389,11 @@ enroll_atomically() {
     warn "Skipping enrollment (--skip-enroll)"
     return
   fi
-  [[ -n "$ENROLLMENT_TOKEN" ]] || die "Missing --enrollment-token (or pass --skip-enroll)"
+  [[ -n "$ENROLLMENT_TOKEN" ]] || die "Missing enrollment token (or pass --skip-enroll)"
   info "Enrolling with control plane (atomic credential exchange)"
-  # Enrollment token is only on this command line, not written into config JSON.
-  agentpulse enroll "$CONFIG_FILE" "$ENROLLMENT_TOKEN"
+  # Pass the one-time token over stdin so it never appears in process arguments.
+  printf '%s\n' "$ENROLLMENT_TOKEN" | agentpulse enroll "$CONFIG_FILE" --token-stdin
+  ENROLLMENT_TOKEN=""
   [[ -f "$CREDENTIAL_FILE" ]] || die "Enrollment did not create credential file"
   chmod 0600 "$CREDENTIAL_FILE"
   # Best-effort: ensure enrollment token is not left in config if an older template had it.
@@ -352,7 +420,7 @@ PY
 
 validate_and_start() {
   agentpulse validate "$CONFIG_FILE"
-  agentpulse run-once --dry-run "$CONFIG_FILE" >/dev/null || warn "dry-run reported issues; review logs"
+  agentpulse run-once --dry-run "$CONFIG_FILE" >/dev/null
   if [[ "$SKIP_START" == "true" ]]; then
     warn "Skipping service start (--skip-start)"
     return
@@ -360,12 +428,29 @@ validate_and_start() {
   case "$INSTALL_TYPE" in
     systemd)
       systemctl restart agentpulse
-      systemctl --no-pager --full status agentpulse || true
+      sleep 1
+      if ! systemctl is-active --quiet agentpulse; then
+        systemctl --no-pager --full status agentpulse || true
+        die "AgentPulse service did not remain active after restart"
+      fi
+      systemctl --no-pager --full status agentpulse
       ;;
     launchd)
       launchctl bootout system/com.agentpulse.agent 2>/dev/null || true
       launchctl bootstrap system /Library/LaunchDaemons/com.agentpulse.agent.plist
       launchctl kickstart -k system/com.agentpulse.agent
+      local running=false
+      for _ in $(seq 1 20); do
+        if launchctl print system/com.agentpulse.agent 2>/dev/null | grep -q "state = running"; then
+          running=true
+          break
+        fi
+        sleep 0.25
+      done
+      if [[ "$running" != "true" ]]; then
+        launchctl print system/com.agentpulse.agent || true
+        die "AgentPulse launchd service did not remain running after kickstart"
+      fi
       ;;
   esac
   success "Service started"
@@ -383,6 +468,7 @@ main() {
   echo -e "${BLD}AgentPulse Installer (immutable release)${RST}"
   detect_os
   parse_args "$@"
+  read_enrollment_token
   require_root
   check_prereqs
   resolve_artifact
@@ -398,7 +484,11 @@ main() {
   echo ""
   success "Installation complete for version ${VERSION}"
   info "Config: ${CONFIG_FILE}"
-  info "Credentials: ${CREDENTIAL_FILE} (mode 0600)"
+  if [[ -f "$CREDENTIAL_FILE" ]]; then
+    info "Credentials: ${CREDENTIAL_FILE} (mode 0600)"
+  else
+    info "Credentials: not created (enrollment skipped)"
+  fi
 }
 
 main "$@"

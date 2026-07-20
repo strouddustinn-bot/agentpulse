@@ -5,12 +5,12 @@ title: Install AgentPulse
 
 # Install guide
 
-> **Beta implementation status (2026-07-17):** public self-serve installation
-> is not released. The agent package now builds as a real wheel with systemd
-> and launchd assets, and installers require an explicit version plus SHA-256
-> verification, but clean-host install/upgrade/rollback have not yet been
-> proven on an authorized host. Do not use these commands on a production host
-> until that gate passes.
+> **Beta implementation status (2026-07-20):** Linux clean-host install,
+> systemd runtime, outage, upgrade, rollback, uninstall, and reinstall have
+> passed on an authorized disposable Debian host. That run found defects in the
+> published `v0.2.0-beta.1`; the repaired source passes the same lifecycle with
+> a local candidate fixture. Public self-serve installation remains closed
+> until a replacement immutable prerelease is published and accepted exactly.
 
 AgentPulse is intended to run as a systemd service on Linux or a launchd daemon
 on macOS. Its safe default is **alert-only** mode: it watches and changes
@@ -61,9 +61,12 @@ Example lab install after a release artifact exists:
 ```bash
 sudo ./scripts/install-agent.sh \
   --version 0.2.0-beta.1 \
-  --enrollment-token "$TOKEN" \
   --api-url https://staging-api.agentpulse.ca
 ```
+
+The installer prompts privately for the one-time enrollment token. For
+unattended automation, provide the token over protected stdin with
+`--enrollment-token-stdin`; never place it in command arguments or shell history.
 
 ## Recommended rollout
 
@@ -100,4 +103,5 @@ Use the version-aware scripts and runbook:
 - Uninstall: `scripts/uninstall-agent.sh`
 - Runbook: `docs/runbooks/agent-release-rollback.md`
 
-Until clean-host evidence exists, production installation remains unsupported.
+Production installation remains unsupported until the repaired source is
+published and the exact replacement prerelease passes the same acceptance run.

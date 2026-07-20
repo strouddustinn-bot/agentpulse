@@ -112,7 +112,7 @@ def _request_json(
         url, data=data, headers=headers, method=method
     )
     try:
-        response = opener(request, timeout)
+        response = opener(request, timeout=timeout)
     except urllib.error.HTTPError as exc:
         response = exc
     with response as handle:
@@ -197,31 +197,36 @@ def _bounded_incidents(state: Dict[str, Any]) -> list:
     return incidents[:50]
 
 
-def push_heartbeat(
+def build_heartbeat_payload(
+    state: Dict[str, Any], summary: Dict[str, Any], cycle_id: str
+) -> Dict[str, Any]:
+    """Build the bounded, credential-free body used for durable delivery."""
+    observed = state.get("last_run")
+    if not isinstance(observed, (int, float)):
+        observed = time.time()
+    return {
+        "idempotency_key": str(cycle_id)[:128],
+        "observed_at": float(observed),
+        "summary": dict(summary),
+        "incidents": _bounded_incidents(state),
+    }
+
+
+def push_heartbeat_payload(
     base_url: str,
     credential_file: str,
-    state: Dict[str, Any],
-    summary: Dict[str, Any],
-    cycle_id: str,
+    payload: Dict[str, Any],
     timeout: int = 10,
     opener: Callable[..., Any] = urllib.request.urlopen,
 ) -> PushResult:
-    """Push one bounded heartbeat; return failures without raising."""
+    """Push one previously built heartbeat body; return failures as data."""
     try:
         credential = read_credential(credential_file)
-        observed = state.get("last_run")
-        if not isinstance(observed, (int, float)):
-            observed = time.time()
         status_code, response = _request_json(
             base_url.rstrip("/") + "/v1/agents/heartbeat",
             "POST",
             credential,
-            {
-                "idempotency_key": str(cycle_id)[:128],
-                "observed_at": float(observed),
-                "summary": dict(summary),
-                "incidents": _bounded_incidents(state),
-            },
+            dict(payload),
             timeout,
             opener,
         )
@@ -238,6 +243,25 @@ def push_heartbeat(
         )
     except Exception as exc:  # network/control plane must never stop local safety loop
         return PushResult(ok=False, status=0, error=exc.__class__.__name__)
+
+
+def push_heartbeat(
+    base_url: str,
+    credential_file: str,
+    state: Dict[str, Any],
+    summary: Dict[str, Any],
+    cycle_id: str,
+    timeout: int = 10,
+    opener: Callable[..., Any] = urllib.request.urlopen,
+) -> PushResult:
+    """Build and push one bounded heartbeat; return failures without raising."""
+    return push_heartbeat_payload(
+        base_url,
+        credential_file,
+        build_heartbeat_payload(state, summary, cycle_id),
+        timeout,
+        opener,
+    )
 
 
 def _narrow(value: Any, ceiling: str) -> Any:

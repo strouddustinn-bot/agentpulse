@@ -69,7 +69,7 @@ def test_enrollment_exchanges_token_and_persists_only_agent_credential(tmp_path)
 
     captured = {}
 
-    def opener(request, timeout):
+    def opener(request, *, timeout):
         captured["url"] = request.full_url
         captured["authorization"] = request.headers.get("Authorization")
         captured["body"] = json.loads(request.data.decode("utf-8"))
@@ -100,7 +100,7 @@ def test_heartbeat_is_bounded_idempotent_and_authenticated(tmp_path):
     control_plane.write_credential(credential_file, "ap_agent_unique")
     captured = {}
 
-    def opener(request, timeout):
+    def opener(request, *, timeout):
         captured["url"] = request.full_url
         captured["authorization"] = request.headers.get("Authorization")
         captured["body"] = json.loads(request.data.decode("utf-8"))
@@ -127,13 +127,38 @@ def test_heartbeat_is_bounded_idempotent_and_authenticated(tmp_path):
     assert "ap_agent_unique" not in json.dumps(captured["body"])
 
 
+def test_request_passes_timeout_as_keyword_for_urllib_compatibility(tmp_path):
+    from agentpulse import control_plane
+
+    credential_file = str(tmp_path / "credential")
+    control_plane.write_credential(credential_file, "ap_agent_unique")
+    captured = {}
+
+    def opener(_request, *, timeout):
+        captured["timeout"] = timeout
+        return FakeResponse(202, {"ok": True})
+
+    result = control_plane.push_heartbeat(
+        base_url="https://control.example",
+        credential_file=credential_file,
+        state={},
+        summary={},
+        cycle_id="cycle-keyword-timeout",
+        timeout=7,
+        opener=opener,
+    )
+    assert result.ok
+    assert captured["timeout"] == 7
+
+
 def test_subscription_failure_does_not_raise(tmp_path):
     from agentpulse import control_plane
 
     credential_file = str(tmp_path / "credential")
     control_plane.write_credential(credential_file, "ap_agent_unique")
 
-    def payment_required(_request, _timeout):
+    def payment_required(_request, *, timeout):
+        del timeout
         return FakeResponse(402, {"error": {"code": "subscription_inactive"}})
 
     result = control_plane.push_heartbeat(
@@ -155,7 +180,8 @@ def test_remote_policy_is_narrowed_again_on_host(tmp_path):
     credential_file = str(tmp_path / "credential")
     control_plane.write_credential(credential_file, "ap_agent_unique")
 
-    def opener(_request, _timeout):
+    def opener(_request, *, timeout):
+        del timeout
         return FakeResponse(200, {"version": 1, "policy": {"checks": {"disk": {"mode": "auto"}}}})
 
     result = control_plane.fetch_policy(

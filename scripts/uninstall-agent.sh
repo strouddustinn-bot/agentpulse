@@ -35,10 +35,11 @@ confirm() {
 }
 
 backup_config() {
-  local backup_dir="/tmp/agentpulse-uninstall-$(date +%Y%m%d%H%M%S)"
-  mkdir -p "$backup_dir"
-  [[ -f /etc/agentpulse/agentpulse.json ]] && cp /etc/agentpulse/agentpulse.json "$backup_dir/"
-  [[ -f /etc/agentpulse/credentials.json ]] && cp /etc/agentpulse/credentials.json "$backup_dir/"
+  local backup_dir
+  backup_dir="$(mktemp -d /tmp/agentpulse-uninstall.XXXXXX)" || die "Could not create secure backup directory"
+  chmod 0700 "$backup_dir"
+  [[ -f /etc/agentpulse/config.json ]] && cp -p /etc/agentpulse/config.json "$backup_dir/"
+  [[ -f /etc/agentpulse/agent.credential ]] && cp -p /etc/agentpulse/agent.credential "$backup_dir/"
   info "Config backed up to $backup_dir"
 }
 
@@ -73,7 +74,7 @@ uninstall_linux() {
 
   # 5. Purge or preserve state
   if [[ "$PURGE" == "true" ]]; then
-    confirm "PURGE: Remove all state, logs, and credentials?" || true
+    confirm "PURGE: Remove all state, logs, and credentials?" || die "Purge cancelled"
     rm -rf /var/lib/agentpulse /var/log/agentpulse /etc/agentpulse
     userdel agentpulse 2>/dev/null || true
     success "All AgentPulse data purged"
@@ -107,7 +108,7 @@ uninstall_macos() {
 
   # 5. Purge or preserve
   if [[ "$PURGE" == "true" ]]; then
-    confirm "PURGE: Remove all state, logs, and credentials?" || true
+    confirm "PURGE: Remove all state, logs, and credentials?" || die "Purge cancelled"
     rm -rf /var/lib/agentpulse /var/log/agentpulse /etc/agentpulse
     dscl . -delete /Users/agentpulse 2>/dev/null || true
     success "All AgentPulse data purged"
