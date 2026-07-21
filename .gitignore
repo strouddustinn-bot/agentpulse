@@ -28,13 +28,23 @@ node_modules/
 !.env.example
 !.dev.vars.example
 
-# BEGIN AGENTPULSE LOCAL CONVERGENCE
-.env
-.env.*
-!.env.example
-!.env.sample
-!.env.template
-!.env.defaults
+# Additional local/generated files
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+htmlcov/
+coverage.xml
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Local credentials and certificates
 *.pem
 *.key
 *.p12
@@ -43,37 +53,3 @@ node_modules/
 *.cer
 credentials.json
 service-account*.json
-__pycache__/
-*.py[cod]
-*.egg-info/
-*.dist-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-.nox/
-.venv/
-venv/
-node_modules/
-dist/
-build/
-.next/
-.nuxt/
-.vite/
-.turbo/
-.parcel-cache/
-htmlcov/
-.coverage
-coverage.xml
-*.log
-*.tmp
-*.temp
-*.sqlite
-*.sqlite3
-*.db
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-*~
-# END AGENTPULSE LOCAL CONVERGENCE
