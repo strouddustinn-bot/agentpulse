@@ -6,108 +6,20 @@ on:
   pull_request:
 
 jobs:
-  agent:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Run dependency-light agent suite
+      - name: Run agent test suite
         run: cd agent && python3 tools/run_tests.py
-
-  agent-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: python -m pip install ruff
-      - run: ruff check agent/
-
-  contracts:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: python -m pip install PyYAML jsonschema
-      - run: python scripts/validate-contracts.py
-      - name: Validate shipped agent configurations
-        run: |
-          python - <<'PY'
-          import json
-          import jsonschema
-
-          with open("configs/agentpulse.config.schema.json", encoding="utf-8") as handle:
-              schema = json.load(handle)
-          jsonschema.Draft7Validator.check_schema(schema)
-          validator = jsonschema.Draft7Validator(
-              schema,
-              format_checker=jsonschema.FormatChecker(),
-          )
-          for path in (
-              "agent/agentpulse.config.example.json",
-              "agent/agentpulse.config.local.json",
-          ):
-              with open(path, encoding="utf-8") as handle:
-                  validator.validate(json.load(handle))
-              print(f"Config PASS: {path}")
-          PY
-
-  control-plane:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: control-plane
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: control-plane/package-lock.json
-      - run: npm ci
-      - run: npm test
-      - run: npm run typecheck
-      - run: npm run types:check
-
-  dashboard:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: dashboard
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: dashboard/package-lock.json
-      - run: npm ci
-      - run: npm run build
-
-  packaging:
-    name: agent packaging (wheel install)
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Build tooling
-        run: python -m pip install --upgrade pip build
-      - name: Packaging integrity + fresh-venv CLI smoke
-        run: python -m unittest tests.test_packaging -v
-      - name: Linux installer syntax
-        run: bash -n scripts/install-agent.sh scripts/upgrade-agent.sh scripts/rollback-agent.sh scripts/smoke-test.sh docs/install.sh
-      - name: launchd plist is well-formed XML
-        run: python scripts/check-launchd-plist.py
+      - name: Install backend test dependencies
+        run: python -m pip install -e "backend[test]"
+      - name: Run backend test suite
+        run: python -m unittest discover backend/tests

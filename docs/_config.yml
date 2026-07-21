@@ -4,7 +4,8 @@ url: "https://agentpulse.ca"
 baseurl: ""
 include: [".well-known"]
 markdown: kramdown
-theme: jekyll-theme-slate
+sass:
+  style: compressed
 plugins:
   - jekyll-seo-tag
   - jekyll-sitemap
