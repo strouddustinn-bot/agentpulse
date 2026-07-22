@@ -1,21 +1,23 @@
 # AgentPulse Tier 1 / Phase 1C acceptance evidence
 
-**Acceptance date:** 2026-07-20
-**Published baseline:** `v0.2.0-beta.1` (`0.2.0b1`)
-**Repaired candidate:** published `v0.2.0-beta.2` (`0.2.0b2`)
-**Decision:** repaired source accepted on disposable Debian/systemd; published beta-2 is the replacement immutable release pending exact-artifact clean-host acceptance.
+**Acceptance date:** 2026-07-22
+**Published baseline:** `v0.2.0-beta.2` (`0.2.0b2`)
+**Previous baseline:** `v0.2.0-beta.1` (`0.2.0b1`) — rejected
+**Decision:** published beta-2 artifact accepted on disposable Debian/systemd; Tier 1 clean-host lifecycle gate passed against the exact immutable published release.
 
-## Evidence boundary
+## Exact-artifact acceptance (2026-07-22)
 
-The published `v0.2.0-beta.1` wheel, source archive, and `SHA256SUMS` were downloaded from the GitHub Release and passed checksum verification. Clean-host testing then reproduced defects in that immutable artifact. It must not be described as containing the repairs below.
-
-A wheel built from the repaired source was used only as an upgrade and lifecycle fixture. It was not published or presented as an official release.
-
-Candidate fixture SHA-256:
+The published `v0.2.0-beta.2` wheel, source archive, and `SHA256SUMS` were
+downloaded from the GitHub Release and passed checksum verification. The
+published wheel SHA-256 is:
 
 ```text
 7ae77aae95274768fa2caa48899f268ec5bb41a19b1b2323cb1d37f0d89b7939  agentpulse-0.2.0b2-py3-none-any.whl
 ```
+
+Broad disposable-host acceptance: 37/37 checks passed.
+Real-systemd lifecycle acceptance: 29/29 checks passed.
+Both sandboxes destroyed.
 
 ## Published-beta defects reproduced
 
@@ -95,4 +97,7 @@ Sandbox cleanup: confirmed.
 
 ## Remaining release gate
 
-Tier 1 replacement prerelease `v0.2.0-beta.2` is published. The exact published wheel and checksums must now repeat the clean-host acceptance run. Public self-serve installation remains closed until that exact-artifact run passes.
+Tier 1 is publicly complete. The published `v0.2.0-beta.2` artifact passed
+broad and real-systemd clean-host acceptance. Public self-serve installation
+remains closed until Tier 2 commercial lifecycle (checkout, account claim,
+secure sessions, enrollment) is proven end to end.

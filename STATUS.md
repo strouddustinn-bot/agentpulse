@@ -64,8 +64,8 @@ Implemented in source:
 
 Still required before public install enablement:
 
-- repeat clean-host install, outage recovery, upgrade, rollback, uninstall, and reinstall against the published `v0.2.0-beta.2` artifact
-- preserve the redacted acceptance receipt for the exact replacement release
+- Tier 1 is complete; the published `v0.2.0-beta.2` artifact passed exact clean-host acceptance
+- Public self-serve installation remains closed until Tier 2 commercial lifecycle is proven end to end
 
 ## Supported boundary
 
