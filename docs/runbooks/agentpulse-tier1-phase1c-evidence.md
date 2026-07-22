@@ -2,8 +2,8 @@
 
 **Acceptance date:** 2026-07-20
 **Published baseline:** `v0.2.0-beta.1` (`0.2.0b1`)
-**Repaired candidate:** local, unpublished `0.2.0b2` fixture
-**Decision:** repaired source accepted on disposable Debian/systemd; published beta rejected; replacement immutable release still required.
+**Repaired candidate:** published `v0.2.0-beta.2` (`0.2.0b2`)
+**Decision:** repaired source accepted on disposable Debian/systemd; published beta-2 is the replacement immutable release pending exact-artifact clean-host acceptance.
 
 ## Evidence boundary
 
@@ -95,4 +95,4 @@ Sandbox cleanup: confirmed.
 
 ## Remaining release gate
 
-Tier 1 is not publicly complete yet. The accepted source must be committed and packaged as a new immutable prerelease, recommended `v0.2.0-beta.2`. The exact published wheel and checksums must then repeat the clean-host acceptance run. Public self-serve installation remains closed until that exact-artifact run passes.
+Tier 1 replacement prerelease `v0.2.0-beta.2` is published. The exact published wheel and checksums must now repeat the clean-host acceptance run. Public self-serve installation remains closed until that exact-artifact run passes.

@@ -1,6 +1,6 @@
 # AgentPulse Status
 
-**Status date:** 2026-07-20
+**Status date:** 2026-07-22
 **Canonical GitHub branch:** `master`
 
 ## Consolidated product
@@ -64,8 +64,7 @@ Implemented in source:
 
 Still required before public install enablement:
 
-- publish the repaired source as a replacement immutable prerelease
-- repeat clean-host install, outage recovery, upgrade, rollback, uninstall, and reinstall against that exact artifact
+- repeat clean-host install, outage recovery, upgrade, rollback, uninstall, and reinstall against the published `v0.2.0-beta.2` artifact
 - preserve the redacted acceptance receipt for the exact replacement release
 
 ## Supported boundary

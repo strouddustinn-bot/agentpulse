@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0b2] — 2026-07-22
+
+### Fixed
+- Control-plane heartbeat path now durably spools outage evidence
+- Queued check-in evidence is automatically replayed by the runtime
+- Enrollment tokens no longer exposed through process arguments (stdin/prompt)
+- Installer dry-run failure is now fail-closed
+- Smoke-test warnings can no longer be reported with success status
+- Upgrade and rollback now fully enforce the requested resulting version
+- Non-purge uninstall uses secure `mktemp` backup destination
+- Declining purge now stops destructive deletion
+- State writes use atomic mode-0600 files
+- Python 3.11 `urllib.request.urlopen` timeout call fixed (positional arg)
+- Spool is now process-locked, storage-bounded, strict-FIFO with quarantine
+- Credential-recovery propagation preserves the current event
+- Permanent HTTP responses are quarantined instead of blocking FIFO
+- Backend replay budget converges multi-event backlogs to zero
+
+### Changed
+- Published `v0.2.0-beta.1` artifact is rejected; this is the replacement prerelease
+- Public installation remains closed until exact-artifact clean-host acceptance passes
+
 ## [0.2.0b1] — 2026-07-17
 
 ### Added
