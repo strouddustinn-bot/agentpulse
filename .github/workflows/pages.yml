@@ -28,8 +28,8 @@ jobs:
           destination: ./_site
       - name: Publish raw agent skill
         run: |
-          mkdir -p _site/.well-known/agent-skills/agentpulse-status
-          cp docs/.well-known/agent-skills/agentpulse-status/SKILL.md \
+          sudo install -D -m 0644 \
+            docs/.well-known/agent-skills/agentpulse-status/SKILL.md \
             _site/.well-known/agent-skills/agentpulse-status/SKILL.md
           sha256sum -c <(printf '%s  %s\n' \
             '269c6f765932d9d6bd5ddb738cdb085e01ebf682f474e90e2b84484a1b94b512' \

@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install contract validators
-        run: python -m pip install PyYAML jsonschema
+        run: python -m pip install PyYAML jsonschema openapi-spec-validator
       - name: Validate shared contracts
         run: python scripts/validate-contracts.py
       - name: Validate shell scripts
