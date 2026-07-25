@@ -243,13 +243,12 @@ Hermes then provides one exact reviewed install command. Any `sudo` password is 
 3. Capture redacted evidence in `docs/runbooks/` or release evidence, never host secrets.
 4. Fix all defects and repeat until acceptance passes.
 
-**Status — 2026-07-20:** The published `v0.2.0-beta.1` artifact was rejected
-after disposable Debian/systemd acceptance reproduced lifecycle defects. The
-repaired source passed the broad and real-systemd lifecycle runners with a
-checksummed, unpublished `0.2.0b2` fixture; both sandboxes were destroyed. See
-`docs/runbooks/agentpulse-tier1-phase1c-evidence.md`. Public Tier 1 remains open
-until the repaired source is published as a replacement immutable prerelease
-and that exact artifact repeats the clean-host run.
+**Status — 2026-07-22: COMPLETE.** The rejected `v0.2.0-beta.1` artifact was
+replaced by the immutable, checksummed `v0.2.0-beta.2` prerelease. Broad and
+real-systemd clean-host lifecycle acceptance passed against that exact published
+artifact, and both disposable sandboxes were destroyed. See
+`docs/runbooks/agentpulse-tier1-phase1c-evidence.md`. Public self-serve onboarding
+remains closed for the independent Tier 2 commercial-lifecycle gate.
 
 **Tier 1 release gate:** immutable package + checksum; clean-host install/upgrade/rollback proof; no mutable branch downloads.
 
@@ -290,7 +289,9 @@ One response settles all four; Hermes does not ask again unless implementation u
 **Status — 2026-07-24: APPROVED.** Starter is C$29/month for 1 host,
 Pro is C$99/month for 5 hosts, and Business is C$299/month for 20 hosts
 with priority support and guided onboarding. Checkout remains invite-only/test-mode
-until staging proof passes. There is no free trial; cancellation takes effect at
+through staging, followed by a controlled pilot with three to five invited customers.
+Public checkout opens only after the real checkout, installation, billing, support,
+and cancellation lifecycle proves stable. There is no free trial; cancellation takes effect at
 period end; failed payment receives a three-day hosted-service grace period; and
 the published first-30-days “next month free” guarantee remains. Collect billing
 addresses without assuming tax treatment. Local agent operation remains safe

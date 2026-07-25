@@ -8,9 +8,9 @@ description: "See how AgentPulse detects disk pressure, crashed services, and ru
 
 AgentPulse is a small Linux and macOS agent for a deliberately narrow job: detect repeat host incidents and handle only the first fixes you have approved.
 
-The current beta starts in alert-only mode. Nothing moves into ask-first or automatic remediation until you change the policy for that specific check.
+The accepted prerelease defaults to alert-only mode. Nothing moves into ask-first or automatic remediation until the operator changes the policy for that specific supported check.
 
-[Request beta access](signup#reserve) | [See pricing](pricing) | [Review installation status](install)
+[Request pilot consideration](signup#reserve) | [See pricing](pricing) | [Review installation status](install)
 
 ## Incident checks and responses
 
@@ -102,11 +102,11 @@ An incident record can include:
 - the verification result;
 - whether AgentPulse resolved or escalated the incident.
 
-Native Telegram, email, and Slack channels are planned. They are not part of the current beta release.
+Native Telegram, email, and Slack channels are planned. They are not part of the accepted prerelease.
 
 ## Supported operating boundary
 
-| Area | Current beta |
+| Area | Accepted prerelease |
 | --- | --- |
 | Host operating systems | Linux and macOS agent code and service assets |
 | Python | 3.10 through 3.13 packaging and CI targets |
@@ -115,9 +115,9 @@ Native Telegram, email, and Slack channels are planned. They are not part of the
 | Process response | Detection and human decision only |
 | Cloud connection | Outbound heartbeat, policy narrowing, and incident evidence |
 | Browser-to-host control | None |
-| Public self-serve install | Not open; replacement-release acceptance is pending |
+| Public self-serve install | Not open; exact prerelease acceptance passed, but account and billing lifecycle proof remains |
 
-The published `v0.2.0-beta.1` prerelease includes a wheel, source archive, release notes, and SHA-256 checksums. Linux clean-host lifecycle acceptance exposed defects in that release. The repaired source passes install, secure configuration, outage recovery, restart, upgrade, rollback, uninstall, and reinstall with a local candidate fixture; public installation remains closed until the exact replacement prerelease passes the same run.
+The published `v0.2.0-beta.2` prerelease includes a wheel, source archive, release notes, and SHA-256 checksums. That exact artifact passed Linux clean-host installation, secure configuration, outage recovery, restart, upgrade, rollback, uninstall, and reinstall acceptance. Public self-serve onboarding remains closed until the paid account and fleet lifecycle is proven through staging and a controlled pilot.
 
 ## What AgentPulse does not replace
 
@@ -137,9 +137,9 @@ Roadmap items do not count as current plan benefits and are not charged as deliv
 
 ## Start with one host and no automatic changes
 
-A controlled pilot begins on one approved non-critical host in alert-only mode. You review what the agent detects before granting any remediation authority.
+After staging passes, an invited controlled pilot begins on one approved non-critical host in alert-only mode. You review what the agent detects before granting any remediation authority.
 
-[Request a controlled pilot](signup#reserve)
+[Request pilot consideration](signup#reserve)
 
 ---
 

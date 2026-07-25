@@ -1,12 +1,12 @@
 ---
 layout: default
 title: "AgentPulse vs Netdata (2026) — Why Auto-Remediation Beats Pretty Charts"
-description: "Comparing AgentPulse and Netdata for server monitoring. Netdata shows you the problem. AgentPulse fixes it."
+description: "Comparing Netdata visibility with AgentPulse's bounded, policy-gated local remediation in its accepted agent artifact."
 ---
 
 # AgentPulse vs Netdata
 
-Netdata is one of the most popular open-source monitoring tools. It's fast, beautiful, and shows you everything happening on your server in real time.
+Netdata is an open-source monitoring platform with local and hosted options. Confirm current capabilities and commercial terms against Netdata's own documentation.
 
 But here's the thing: **showing you the problem isn't the same as fixing it.**
 
@@ -14,39 +14,39 @@ But here's the thing: **showing you the problem isn't the same as fixing it.**
 
 | Feature | AgentPulse | Netdata |
 |---------|-----------|---------|
-| Auto-remediation | ✅ | ❌ |
+| Auto-remediation | ✅ bounded/configured in accepted artifact; access gated | ❌ |
 | Baseline learning | ✅ (statistical, advisory) | ✅ (ML in paid tier) |
-| Fleet dashboard | Source implemented; public deployment pending | ✅ (best in class) |
-| Pricing model | Per plan ($29-299/mo) | Per node ($4.50/node/mo Business) |
-| Beta access | Paid beta | 5 nodes free |
-| Install | Controlled beta; public package pending | `curl \| bash` |
-| Alert integrations | Webhooks (Slack, Discord, PagerDuty, any HTTP) | Limited on free tier |
+| Fleet dashboard | Source implemented; public deployment pending | ✅ hosted dashboard; verify current scope |
+| Pricing model | Approved fixed plans, C$29–C$299/month CAD; checkout closed | Node/usage-based commercial plans; verify current vendor pricing |
+| Access | Post-staging controlled-pilot requests; no public checkout | Vendor free/commercial tiers; verify current limits |
+| Install | Accepted prerelease; onboarding starts only after staging and invitation | `curl \| bash` |
+| Alert integrations | Webhooks (Slack, Discord, PagerDuty, any HTTP) | Verify current vendor channels and tier limits |
 | Flag runaway processes | ✅ (kill needs your approval — never automatic) | ❌ |
-| Auto-restart services | ✅ | ❌ |
-| Disk space recovery | ✅ | ❌ |
+| Service restart | ✅ configured/allowlisted in accepted artifact; access gated | ❌ |
+| Disk cleanup | ✅ configured/allowlisted paths in accepted artifact; access gated | ❌ |
 | SSH brute-force blocking | 🔜 roadmap | ❌ |
 | Source available | Agent only | Full agent + cloud |
 
-## Where Netdata Wins
+## Where Netdata differs
 
-- **Free tier is generous** — 5 nodes with no time limit
-- **Per-second granularity** — the fastest real-time dashboards in the business
+- **Vendor tiers** — verify current free and commercial limits with Netdata
+- **High-frequency visibility** — confirm current collection granularity for your deployment mode
 - **Open-source agent** — you can self-host everything
-- **Community** — huge user base, lots of community collectors
+- **Community** — open-source project with public collectors and contributors
 
-## Where AgentPulse Wins
+## Where the accepted AgentPulse artifact differs
 
-- **Auto-remediation** — Netdata will show you a beautiful chart of your server dying. AgentPulse will save it.
-- **Simple pricing** — AgentPulse uses flat plans. Business capacity is finite and confirmed before purchase while the entitlement policy is finalized.
+- **Bounded remediation** — the accepted AgentPulse artifact can apply configured, allowlisted disk cleanup and service restarts locally, then verify the result; public onboarding remains gated.
+- **Simple pricing** — Starter is C$29 for one host, Pro is C$99 for up to five, and Business is C$299 for up to 20 with priority support and guided onboarding; activation remains gated.
 - **No pricing games** — Netdata users have [complained bitterly](https://community.netdata.cloud/t/concerned-about-the-future-of-netdata-forced-sso-cloud/5771) about forced cloud, SSO requirements, and tier restrictions. AgentPulse is straightforward.
 - **Verify-or-escalate** — every fix is simulated first, checked against hard safety rules, and re-measured after it runs. If the fix didn't hold, AgentPulse escalates to you instead of retrying blindly.
 
 ## The Bottom Line
 
-If you want the best real-time dashboards and don't mind being the remediation layer yourself, Netdata is great.
+If high-frequency dashboards are the priority, compare Netdata's current deployment modes directly; AgentPulse is not a substitute for that visualization scope.
 
-If you want your servers to **heal themselves** — free disk space, restart crashed services, flag runaway processes for one-command approval — without you touching SSH, AgentPulse is built for that.
+The accepted AgentPulse artifact supports bounded, policy-gated local responses for configured disk cleanup and service restarts, while process termination stays behind human approval. Access and customer-fit proof remain pending.
 
-**Netdata shows you the fire. AgentPulse puts it out.**
+Netdata documents visibility capabilities. After approved onboarding, the accepted AgentPulse artifact can attempt a configured, bounded local response; customer outcomes remain unproven.
 
-[Join the paid beta →](https://agentpulse.ca/signup)
+[Request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup)

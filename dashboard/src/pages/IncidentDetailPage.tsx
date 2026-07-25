@@ -3,7 +3,7 @@
  * lifecycle timestamps, evidence, and event history.
  */
 
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
 import { getIncident, listIncidentEvents } from '../api/client'
 import { useFetch } from '../hooks/useFetch'

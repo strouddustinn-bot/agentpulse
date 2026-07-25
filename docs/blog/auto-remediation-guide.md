@@ -35,10 +35,12 @@ You decide the policy per action. Start conservative — alert-only for everythi
 
 ## Setting Up Auto-Remediation with AgentPulse
 
-1. **Request a controlled beta pilot.** Public self-serve packaging is not yet
-   released; do not run the draft repository installer on a production host.
+1. **Request consideration for the post-staging controlled pilot.** The
+   checksummed prerelease passed exact-artifact acceptance, but public
+   self-serve onboarding remains closed. Do not install on an unapproved
+   production host.
 
-2. **Let it learn your baseline** (2-3 days) — AgentPulse observes what "normal" looks like for each server
+2. **Let it learn your baseline** — AgentPulse observes what "normal" looks like; the useful observation window depends on the host workload and has not been standardized as a fixed duration
 
 3. **Configure remediation policies** — For each action type, choose auto-fix / ask-first / alert-only
 
@@ -46,31 +48,28 @@ You decide the policy per action. Start conservative — alert-only for everythi
 
 ## What to Auto-Fix First
 
-These are the most common auto-remediation wins for small Linux fleets:
+For an accepted artifact installed after approved onboarding, these are examples of bounded local policies; every automatic action still requires explicit configuration and an allowlisted scope:
 
 | Issue | Fix | Recommended Policy |
 |-------|-----|-------------------|
-| /tmp or /var/log filling up | Clean old files | Auto-fix ✅ |
-| nginx/apache crashed | Restart service | Auto-fix ✅ |
+| /tmp or /var/log filling up | Clean eligible old files only in configured paths | Auto only after path allowlisting ✅ |
+| nginx/apache crashed | Restart an explicitly configured service | Auto only after service allowlisting ✅ |
 | Single process OOM | Kill process | Ask-first ⚠️ (AgentPulse enforces this — it never auto-kills) |
-| Disk > 95% | Emergency cleanup | Auto-fix ✅ |
+| Disk > 95% | Bounded cleanup inside configured paths | Auto only after path allowlisting ✅ |
 | Database process issues | Don't touch | Alert-only 🚨 |
 | Brute-force SSH attempts | Block IP | Ask-first ⚠️ (fail2ban today; on the AgentPulse roadmap) |
 
-## The ROI of Sleeping Through the Night
+## Measure Value During the Pilot
 
-If you get paged once a week for a fixable issue, and each incident takes 15 minutes of your time:
+AgentPulse does not yet have customer-pilot evidence for time savings or ROI. An invited pilot should record the incidents detected, actions approved, verification results, operator time, and any failures or escalations. Compare those observations with the pre-pilot baseline before making a value claim.
 
-- **52 incidents/year × 15 min = 13 hours** of manual remediation
-- At even a modest consulting rate, that's $1,000+/year in lost productivity
-- Plus the sleep disruption, context switching, and slower response time
-
-For C$99/month founding Pro (C$1,188/year), AgentPulse is built so those incident classes can be auto-remediated on enrolled hosts. The math works — fleet multi-host capacity is the Q3 track.
+The approved Pro plan is C$99/month CAD for up to five hosts when fleet access ships, but that capacity remains a free founding reservation until staging and controlled-pilot proof pass.
 
 ## Getting Started
 
-After the versioned installer passes its release gates, start with one beta
-server in alert-only mode. Spend 2-3 days learning the baseline, then promote
-safe fixes as you build trust.
+After staging passes and a pilot is explicitly approved, start with one
+non-critical host in alert-only mode using the accepted versioned artifact.
+Review enough representative observations to understand the baseline before
+promoting any safe fix.
 
-[Join the AgentPulse paid beta →](https://agentpulse.ca/signup)
+[Request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup)

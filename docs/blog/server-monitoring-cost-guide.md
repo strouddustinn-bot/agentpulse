@@ -1,149 +1,55 @@
 ---
 layout: default
-title: "The Real Cost of Server Monitoring in 2026: A Comparison for Solo Devs and Small Teams"
-description: "Datadog's per-host billing, Grafana's hidden ops overhead, New Relic's pricing whiplash — here's what server monitoring actually costs in 2026, including your time."
+title: "How to Evaluate Server Monitoring Cost in 2026"
+description: "A practical framework for comparing monitoring tools without inventing setup-time, maintenance, savings, or ROI claims."
 ---
 
-# The Real Cost of Server Monitoring in 2026: A Comparison for Solo Devs and Small Teams
+# How to Evaluate Server Monitoring Cost in 2026
 
-Monitoring tool pricing pages are works of fiction.
+A monitoring product's sticker price is only one part of its cost. Usage billing, retention, implementation effort, maintenance, and incident-response work can all matter—but those costs vary by environment and should be measured rather than guessed.
 
-They show you a per-host number, you multiply by your server count, and you think you have a budget. Then the first real bill arrives and you discover log ingestion fees, retention charges, custom metrics overages, and a support tier you accidentally enrolled in.
+## Use four separate cost buckets
 
-This post is an honest look at what server monitoring actually costs in 2026 — not just the sticker price, but the total cost including your time. We'll cover Datadog, Grafana Stack, New Relic, Netdata, Better Stack, and where simpler tools like AgentPulse fit in.
+1. **Vendor charges** — plan fees, host counts, data ingestion, retention, users, and add-ons.
+2. **Infrastructure** — any storage, compute, networking, or backup resources you operate yourself.
+3. **Operating effort** — setup, upgrades, tuning, incident review, and ongoing maintenance measured in your own environment.
+4. **Capability gaps** — work that still requires another product or a person.
 
-## The Three Costs Nobody Talks About
+Do not turn generic time estimates into ROI claims. Record the hours your team actually spends and apply your own internal cost model.
 
-Before the tool comparisons, it's worth naming the three cost buckets you actually need to track:
+## Compare products by fit, not one headline number
 
-**1. Tool cost** — what you pay on the invoice  
-**2. Ops overhead** — the time you spend configuring, maintaining, and debugging your monitoring stack  
-**3. Alert fatigue tax** — the developer hours lost to false alarms, noisy dashboards, and incidents that could have auto-resolved
+- **Datadog and New Relic** provide broad commercial observability, including capabilities AgentPulse does not provide, such as APM and distributed tracing.
+- **Grafana-based stacks** can provide flexible dashboards and telemetry analysis. Self-hosted operating effort depends on the components and practices you choose.
+- **Better Stack, Netdata, and Uptime Kuma** cover different monitoring, alerting, and visualization needs. Confirm current features and prices with each vendor before deciding.
+- **AgentPulse** is deliberately narrower: the accepted prerelease supports local host checks and configured, policy-gated responses for specific incident classes. Public onboarding, hosted activation, and checkout remain closed.
 
-Most pricing comparisons only cover the first one. That's how you end up with a "free" Grafana setup that quietly costs you 10 hours a month in maintenance.
+This page does not claim measured setup-time, maintenance, savings, or customer ROI for AgentPulse or competing products.
 
----
+## AgentPulse's approved commercial terms
 
-## Datadog: Powerful, But the Bill Will Surprise You
+These terms are approved but not available through live checkout:
 
-Datadog is genuinely excellent. The dashboards are beautiful, the integrations are deep, and the APM tooling is best-in-class. It's also the tool most likely to produce sticker shock for small teams.
+- **Starter:** C$29/month CAD for 1 host.
+- **Pro:** C$99/month CAD for up to 5 hosts when fleet access ships.
+- **Business:** C$299/month CAD for up to 20 hosts when fleet access ships, plus priority support and guided onboarding.
 
-Here's how the billing actually works:
+The checksummed `v0.2.0-beta.2` artifact passed clean-host acceptance. Migration `0002`, checkout, account claim, browser sessions, billing portal, and self-serve fleet onboarding are not deployed.
 
-- **Infrastructure monitoring**: $15–$23/host/month (billed hourly, so bursting adds up)
-- **Log ingestion**: $0.10/GB ingested + $0.0025/GB/day retained beyond 15 days
-- **Custom metrics**: $5 per 100 custom metrics/month after the first 100 included
-- **APM**: additional per-host charge on top of infrastructure
+After staging passes, invited pilot customers will start with one approved non-critical host in alert-only mode. A request is only consideration, does not guarantee acceptance, and does not authorize a charge.
 
-**Scenario: 5 servers, moderate logging**
+## Make the decision with evidence
 
-| Line item | Monthly cost |
-|-----------|-------------|
-| 5 hosts × $23 | $115 |
-| 10 GB logs/day × 30 days × $0.10/GB | $300 |
-| Log retention (30-day, 300 GB) | $75 |
-| 200 custom metrics | $5 |
-| **Total** | **~$495/month** |
+Before replacing an existing tool:
 
-That's nearly $500/month before you add APM, synthetics, or any other product. For a solo dev or a 3-person startup, that's a meaningful line item.
+1. Export the vendor invoices and usage records for your actual environment.
+2. Track real setup and maintenance effort instead of relying on generic estimates.
+3. List required capabilities, including APM, logs, dashboards, external uptime checks, and local remediation.
+4. Run any accepted pilot beside existing monitoring until the new path is verified.
+5. Keep products that solve different layers when the combined evidence justifies it.
 
-The per-GB log billing is the real trap. If you're running anything that logs verbosely — Rails apps, nginx access logs, a busy API — you can hit that 10 GB/day figure easily without trying. Some teams end up spending more on log ingestion than on hosts.
-
-To be fair: if you need Datadog's depth at scale, it's worth it. The problem is that many small teams pay for features they never use because the tool is designed for large engineering orgs.
-
----
-
-## Grafana Stack: "Free" With Asterisks
-
-The Grafana OSS stack — Prometheus, Grafana, Loki, Alertmanager — is legitimately free software. Many teams swear by it and run excellent setups. But "free" is doing a lot of work in that sentence.
-
-**What it actually costs:**
-
-- **Server to run it**: a small dedicated VPS (2 vCPU, 4 GB RAM) runs $15–$30/month. Your monitoring system now needs its own monitoring.
-- **Setup time**: a working Prometheus + Grafana + Loki + alerting setup takes most people a full weekend to configure properly. More if you want good dashboards.
-- **Maintenance**: Prometheus doesn't manage its own storage well under load. You'll regularly tune retention, scrape intervals, and cardinality. Budget 3–5 hours/month minimum.
-- **Grafana Cloud** (managed version): free tier covers 3 users and 14-day retention, which is usually fine for small teams. Paid starts at $8/user/month, then scales by metrics, logs, and traces volume.
-
-The honest assessment: Grafana Cloud's free tier is genuinely good for hobbyist projects. Self-hosted OSS Grafana is a great choice if you enjoy infrastructure work and have the time. If you're running a business and your goal is "spend as little time on monitoring infrastructure as possible," self-hosting can cost more than a paid tool when you factor in your hourly rate.
-
----
-
-## New Relic: The Pricing Whiplash Tool
-
-New Relic has changed its pricing model more than any other tool in this category. They've moved from per-host to per-user to a hybrid model, and there are still teams paying under legacy agreements that look nothing like the current public pricing.
-
-Current model (as of 2026):
-
-- Free tier: 1 user, 100 GB/month data ingest
-- Standard: $49/user/month, 100 GB included, then $0.30/GB overage
-- Pro: $349/user/month
-
-The free tier is actually decent for a single developer — 100 GB of data ingest is generous, and you get access to most features. Where it breaks down is at the team level. If you have 3 engineers who all need dashboard access, you're at $147/month minimum before data overages.
-
-The bigger issue with New Relic is institutional: teams have been burned by surprise pricing changes, and there's a reasonable amount of distrust about what the pricing will look like in 12 months. That's not a reason to avoid them, but it's worth factoring in the cost of a potential migration.
-
----
-
-## Better Stack and Netdata: The Middle Ground
-
-**Better Stack** (formerly Logtail) has become a popular choice for small teams. Their monitoring starts at $24/month and includes uptime checks, log management, and basic incident management. It's genuinely straightforward to set up and the pricing is predictable. The alert routing and on-call scheduling are better than most tools at this price point.
-
-The limitation: Better Stack is primarily an alert-and-log tool. There's no auto-remediation — when something breaks, you still get paged and you still fix it manually.
-
-**Netdata** is excellent for lightweight real-time metrics on a single server. The free tier runs the agent locally with live dashboards, which is great for development. Their cloud product starts at $5/node/month. Like Better Stack, it's detection-focused — it'll tell you exactly what's wrong, then wait for you to act.
-
----
-
-## The Self-Hosting Cost Nobody Calculates
-
-If you self-host anything — Grafana, Prometheus, Netdata's parent node, your own alerting stack — there's a cost that rarely makes it into comparison posts: **your time**.
-
-Rough numbers for a self-hosted observability stack:
-
-| Activity | Time/month |
-|----------|-----------|
-| Initial setup (amortized over 12 months) | 2–4 hours |
-| Storage/retention tuning | 1–2 hours |
-| Alert rule maintenance | 1 hour |
-| Upgrading versions, fixing breakage | 1–2 hours |
-| **Total** | **5–9 hours/month** |
-
-At $75/hour (a conservative developer rate), that's $375–$675/month in your time. Suddenly the "free" option isn't free — it's just paying with time instead of money.
-
-This is the calculation most developers never do explicitly. If you enjoy the infrastructure work, that time might not feel like a cost. But if your goal is to ship product, it's real.
-
----
-
-## What Actually Matters for Your Situation
-
-Here's the honest breakdown by team type:
-
-**Solo dev, side project, limited budget**: Grafana Cloud free tier + Uptime Kuma. Gets you far without spending a dollar. Caveat: you're the remediation layer.
-
-**Solo dev, real business, values your time**: Better Stack or Netdata Cloud in the $24–$50/month range for detection. If you're also tired of being paged for the same fixable issues, add auto-remediation.
-
-**Small team (2–5 people), 5–10 servers**: This is where Datadog's billing starts to hurt. Grafana self-hosted works but eats engineering time. The sweet spot is a mid-range tool with predictable flat pricing.
-
-**Small team with complex APM needs**: Datadog or New Relic are probably the right call. Pay for what you need and accept the cost.
-
----
-
-## Where AgentPulse Fits
-
-AgentPulse is built for a specific scenario: **solo devs and small teams who want automated monitoring without ops overhead or unpredictable billing**.
-
-It's not a Datadog replacement if you need deep APM, distributed tracing across 50 microservices, or compliance reporting. For that, pay for Datadog.
-
-But if your actual problems are disk filling up at 3AM, nginx crashing on deploys, and runaway processes eating RAM, AgentPulse is designed to handle those with policy-gated remediation. Public packaging is not yet released.
-
-- **$29/month**: 1 server, alerts + approval-gated fixes
-- **C$99/month founding Pro**: up to 5 servers when fleet ships, auto-remediation, baseline learning
-- **$299/month**: an owner-approved finite server limit, custom policies, priority support
-
-The auto-remediation piece is what makes the cost math different. If AgentPulse clears one disk-pressure incident or restarts one crashed service while you're asleep — and verifies the fix held — you've already gotten the value. The question isn't whether C$99/month is cheap — it's whether that founding Pro rate is cheaper than waking up at 3AM.
-
-For a lot of small teams, that math is pretty easy.
+AgentPulse does not yet have customer-pilot evidence for time savings, operating overhead, or ROI. Those outcomes must be measured during the controlled pilot rather than advertised in advance.
 
 {% include install.html %}
 
-[See pricing and join the paid beta →](https://agentpulse.ca/pricing)
+[Review approved pricing and request pilot consideration →](https://agentpulse.ca/pricing)

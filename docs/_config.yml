@@ -1,5 +1,5 @@
 title: AgentPulse
-description: AI server monitoring that doesn't just alert - it auto-remediates
+description: Policy-gated server monitoring and bounded remediation for controlled pilots
 url: "https://agentpulse.ca"
 baseurl: ""
 include: [".well-known"]

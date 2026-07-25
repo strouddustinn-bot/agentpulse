@@ -5,7 +5,7 @@ title: AgentPulse Privacy Policy
 
 # Privacy Policy
 
-**Last updated: June 18, 2026**
+**Last updated: July 25, 2026**
 
 This Privacy Policy explains how AgentPulse ("AgentPulse", "we", "us") handles
 information in connection with the AgentPulse website
@@ -22,15 +22,17 @@ Dustinn Stroud. Contact: **support@agentpulse.ca**.
 
 ## Information we collect
 
-**Account and billing information.** When you subscribe, payment is processed by
-**Stripe**. We do not see or store your full card number. Stripe provides us with
-limited information needed to manage your subscription (name, email, billing
-country, subscription status, and the last four digits / card brand). Stripe's
-handling of your payment data is governed by [Stripe's Privacy Policy](https://stripe.com/privacy).
+**Account and billing information.** Public checkout and paid activation are
+currently closed, so a reservation or pilot-consideration request does not send
+payment data to AgentPulse or authorize a charge. If an invited paid beta is
+activated after staging, payment will be processed by **Stripe**. We will not see
+or store the full card number; Stripe may provide limited subscription details
+such as name, email, billing country, status, and card brand/last four digits.
+Stripe's handling is governed by [Stripe's Privacy Policy](https://stripe.com/privacy).
 
 **Information you send us.** If you email us or submit a beta request, we keep
 the details you provide (name, company, server environment, and the issues you
-describe) to set up and support your account.
+describe) to evaluate fit, respond to you, and support any later invited onboarding.
 
 **Website usage.** The website is hosted on GitHub Pages. Standard server logs
 (such as IP address and browser type) may be processed by GitHub as part of
@@ -40,7 +42,8 @@ serving the site, per [GitHub's Privacy Statement](https://docs.github.com/site-
 
 The AgentPulse agent runs **on your own server** and processes operational data
 locally — disk usage, service status, process and memory metrics, and its own
-action logs. When you enable the cloud control plane:
+action logs. Public cloud onboarding is not currently available. If an invited
+host is activated after staging, the hosted path is designed so that:
 
 - The agent sends bounded heartbeat summaries, incident evidence, agent identity,
   hostname, software version, and policy state needed to operate the fleet
@@ -54,17 +57,20 @@ action logs. When you enable the cloud control plane:
 
 ## How we use information
 
-- To provide, operate, and support the Service.
-- To process subscriptions and billing through Stripe.
-- To respond to your requests and provide onboarding help.
+- To operate the website and accepted local agent artifact.
+- To evaluate and respond to pilot-consideration and reservation requests.
+- If an invited paid beta is later activated, to support onboarding and process
+  subscription billing through Stripe.
 - To comply with legal obligations.
 
 We do **not** sell your personal information.
 
 ## Data retention
 
-We keep account and billing records for as long as your subscription is active
-and as required afterward for legal, tax, and accounting purposes. You may
+If a paid account is activated, we keep account and billing records while it is
+active and as required afterward for legal, tax, and accounting purposes. We
+keep request information only as needed to respond and administer future pilot
+consideration. You may
 request deletion of information we hold about you (subject to records we must
 retain by law) by emailing us.
 
@@ -76,9 +82,9 @@ these, email **support@agentpulse.ca**.
 
 ## Security
 
-We use reasonable measures to protect information in our care and rely on
-Stripe (PCI-compliant) for payment processing. No method of transmission or
-storage is completely secure.
+We use reasonable measures to protect information in our care. If paid
+activation opens, Stripe will handle payment-card processing. No method of
+transmission or storage is completely secure.
 
 ## Children
 

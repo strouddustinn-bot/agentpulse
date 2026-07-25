@@ -5,12 +5,12 @@ title: Install AgentPulse
 
 # Install guide
 
-> **Beta implementation status (2026-07-20):** Linux clean-host install,
-> systemd runtime, outage, upgrade, rollback, uninstall, and reinstall have
-> passed on an authorized disposable Debian host. That run found defects in the
-> published `v0.2.0-beta.1`; the repaired source passes the same lifecycle with
-> a local candidate fixture. Public self-serve installation remains closed
-> until a replacement immutable prerelease is published and accepted exactly.
+> **Beta implementation status (2026-07-22):** The checksummed
+> `v0.2.0-beta.2` prerelease passed exact-artifact clean-host installation,
+> systemd runtime, outage recovery, restart, upgrade, rollback, uninstall, and
+> reinstall acceptance on disposable Debian hosts. Public self-serve onboarding
+> remains closed while checkout, account claim, secure sessions, billing, and
+> enforced plan capacity are completed and proven.
 
 AgentPulse is intended to run as a systemd service on Linux or a launchd daemon
 on macOS. Its safe default is **alert-only** mode: it watches and changes
@@ -32,19 +32,19 @@ python -m unittest tests.test_packaging -v
 This proves repository packaging behavior. It is not a clean-host installation
 receipt.
 
-## Planned public installation
+## Accepted prerelease installation model
 
 Supported production installs will use only immutable GitHub Release artifacts:
 
-1. Choose an explicit version (example candidate: `0.2.0-beta.1`).
+1. Choose the explicit accepted version `0.2.0-beta.2`.
 2. Download the wheel and `SHA256SUMS` from the release tag.
 3. Verify SHA-256.
 4. Install with `scripts/install-agent.sh` (or the public endpoint once enabled).
 5. Enroll atomically; credential file mode must be `0600`.
 6. Smoke-test, then upgrade/rollback drills.
 
-The public `install.sh` endpoint remains fail-closed until those gates pass. It
-will never download mutable files from a branch.
+The public `install.sh` endpoint remains fail-closed until self-serve onboarding
+is authorized. It will never download mutable files from a branch.
 
 ## Operator scripts (implementation path)
 
@@ -60,7 +60,7 @@ Example lab install after a release artifact exists:
 
 ```bash
 sudo ./scripts/install-agent.sh \
-  --version 0.2.0-beta.1 \
+  --version 0.2.0-beta.2 \
   --api-url https://staging-api.agentpulse.ca
 ```
 
@@ -90,9 +90,9 @@ Every auto-fix runs the full decision loop before and after acting:
 
 ## Want a hand?
 
-Controlled beta onboarding may be offered manually after the operator reviews
-the build and acknowledges the current release gates. [Request beta
-access](signup) with your OS, stack, and the incidents that keep repeating.
+Requests are being accepted for post-staging controlled onboarding. Onboarding
+begins only after staging passes and an invitation is confirmed. [Request
+consideration](signup) with your OS, stack, and the incidents that keep repeating.
 
 ## Uninstall and rollback
 
@@ -103,5 +103,5 @@ Use the version-aware scripts and runbook:
 - Uninstall: `scripts/uninstall-agent.sh`
 - Runbook: `docs/runbooks/agent-release-rollback.md`
 
-Production installation remains unsupported until the repaired source is
-published and the exact replacement prerelease passes the same acceptance run.
+Unassisted production installation remains unsupported until the paid account,
+enrollment, and fleet lifecycle passes staging and controlled-pilot proof.

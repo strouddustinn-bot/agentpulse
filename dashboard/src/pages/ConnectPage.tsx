@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { Shield } from 'lucide-react'
 import { setCredential } from '../auth/credential'
 

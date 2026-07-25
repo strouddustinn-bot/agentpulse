@@ -5,11 +5,11 @@ title: AgentPulse Terms of Service
 
 # Terms of Service
 
-**Last updated: June 18, 2026**
+**Last updated: July 25, 2026**
 
 These Terms of Service ("Terms") govern your access to and use of the AgentPulse
 website and the AgentPulse agent software (together, the "Service"), operated by
-Dustinn Stroud from Ontario, Canada. By subscribing to or using the Service, you
+Dustinn Stroud from Ontario, Canada. By accepting an invitation, subscribing to, or using the Service, you
 agree to these Terms.
 
 > This is a starting template provided in good faith, not legal advice. Please
@@ -24,9 +24,12 @@ files in paths you configure or restarting services you allowlist.
 
 ## 2. Beta status
 
-The Service is offered as a **paid beta**. It is provided "as is" and is under
-active development. Features described as roadmap are not guaranteed. We may
-change, add, or remove functionality during the beta.
+The accepted prerelease is not currently open for onboarding or payment. After
+staging passes, selected invitees may be offered a **paid beta** on non-critical
+hosts. Requesting consideration or reserving founding pricing does not create a
+subscription, guarantee acceptance, or authorize a charge. Any activated beta
+service is provided "as is" and remains under active development. Features
+described as roadmap are not guaranteed.
 
 ## 3. Your responsibilities
 
@@ -41,12 +44,18 @@ change, add, or remove functionality during the beta.
 
 ## 4. Subscriptions, billing, and cancellation
 
-- Plans are billed monthly in advance through **Stripe** at the prices shown on
-  the pricing page (in CAD). Subscriptions renew automatically until cancelled.
+- Public checkout and paid activation are currently closed. No reservation or
+  pilot-consideration request is charged.
+- If an invited paid beta is activated after staging, its plan will be billed
+  monthly in advance through **Stripe** at the CAD price disclosed before
+  purchase and will renew automatically until cancelled.
 - You can cancel at any time; cancellation takes effect at the end of the
   current billing period, and you retain access until then. We do not provide
   prorated refunds for partial periods except as stated in the guarantee below
   or as required by law.
+- An activated account receives a three-day grace period after a failed payment.
+  After that grace period, hosted enrollment and heartbeat are blocked; the
+  installed local agent continues running under its local configuration.
 - **30-day guarantee:** if, in your first 30 days, AgentPulse does not catch or
   reduce at least one repeat operational incident, the next month is free —
   contact us to apply it.

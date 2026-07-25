@@ -36,8 +36,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install PyYAML jsonschema
+      - run: python -m pip install PyYAML jsonschema openapi-spec-validator
       - run: python scripts/validate-contracts.py
+      - run: python -m unittest tests.test_contract_validation -v
+      - run: python scripts/validate-migrations.py
       - name: Validate shipped agent configurations
         run: |
           python - <<'PY'

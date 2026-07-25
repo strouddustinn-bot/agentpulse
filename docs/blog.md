@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "AgentPulse Blog — Server Monitoring, Auto-Remediation & DevOps"
-description: "Learn about AI-powered server monitoring, auto-remediation best practices, and how AgentPulse helps solo devs and small teams sleep through the night."
+description: "Guides to server monitoring and bounded remediation, plus transparent notes on AgentPulse's accepted prerelease and still-gated onboarding."
 ---
 
 # AgentPulse Blog
@@ -11,7 +11,7 @@ Practical guides, comparisons, and insights on server monitoring and auto-remedi
 ## Latest Posts
 
 - [How AgentPulse Decides Before It Acts](blog/how-agentpulse-decides) — The six-stage decision loop that runs before anything touches your server
-- [The Real Cost of Server Monitoring in 2026](blog/server-monitoring-cost-guide) — What Datadog, Grafana, and self-hosting actually cost when you do the math
+- [How to Evaluate Server Monitoring Cost in 2026](blog/server-monitoring-cost-guide) — A framework for comparing invoices, operating effort, and capability gaps without invented ROI claims
 - [Server Monitoring in 2026: Why Alerts Aren't Enough](blog/alerts-not-enough) — The evolution from passive monitoring to active remediation
 - [Auto-Remediation for Indie Devs: A Practical Guide](blog/auto-remediation-guide) — How to set up automated server healing without enterprise budgets
 - [I Built AgentPulse Because I Was Tired of 3AM Pages](blog/tired-of-3am-pages) — The origin story and why auto-remediation matters for solo operators

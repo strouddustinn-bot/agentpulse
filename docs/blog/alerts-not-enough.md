@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Server Monitoring in 2026: Why Alerts Aren't Enough"
-description: "The evolution from passive monitoring to active auto-remediation. Why getting paged at 3AM to run the same fix is a solved problem — if you can afford it."
+description: "A practical look at alert-only monitoring and bounded remediation, with AgentPulse customer outcomes still awaiting controlled-pilot evidence."
 ---
 
 # Server Monitoring in 2026: Why Alerts Aren't Enough
@@ -38,19 +38,19 @@ The pattern: auto-remediation exists, but it's locked behind enterprise pricing 
 
 ## The Gap AgentPulse Fills
 
-AgentPulse brings auto-remediation to solo devs, indie hackers, and small teams:
+The accepted AgentPulse artifact supports these bounded local response patterns, but customer onboarding and outcome validation have not started:
 
-- **Auto-restart crashed services** — nginx down? Back up in seconds, and re-checked to confirm it stayed up
-- **Auto-free disk space** — log rotation failed? Old files cleaned up inside the paths you configured, never anywhere else
+- **Configured service restart** — the accepted artifact can restart an explicitly allowlisted service under local policy, then verify the result
+- **Configured disk cleanup** — the accepted artifact can remove eligible old files only inside allowlisted paths under local policy, then verify the result
 - **Flag runaway processes** — that Java app eating all your RAM gets identified and queued for your one-command approval (AgentPulse never kills a process on its own — that's the one fix that can make a bad night worse)
 - **Approval gates** — auto-fix, ask-first, or alert-only per action, with alert-only as the default for everything
 
 Founding prices start at **C$29/mo for a 1-server pilot** and **C$99/mo Pro** for multi-host when fleet ships — reserve only for now, no vaporware checkout.
 
-Paid beta onboarding starts with one Linux server in alert-only mode, then promotes safe actions to ask-first or auto-fix after review.
+After staging passes and an invitation is confirmed, invited pilot onboarding will start with one non-critical host in alert-only mode; any later authority change requires review.
 
 ## The Bottom Line
 
-If you're still getting paged at 3AM to run the same fix, you don't have a monitoring problem — you have a remediation problem. And in 2026, that problem has an affordable solution.
+Repeated manual incidents may indicate a remediation gap, but AgentPulse has not yet proven customer time savings, reliability outcomes, or ROI. Those claims must wait for controlled-pilot evidence.
 
-[Join the AgentPulse paid beta →](https://agentpulse.ca/signup)
+[Request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup)

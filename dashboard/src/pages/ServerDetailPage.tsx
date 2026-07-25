@@ -2,7 +2,7 @@
  * Server detail — read-only agent metadata plus its incidents.
  */
 
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
 import { getAgent, listIncidents } from '../api/client'
 import { useFetch } from '../hooks/useFetch'

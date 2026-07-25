@@ -84,4 +84,4 @@ The goal is not a smarter alerting tool. It is an agent that handles the routine
 
 ---
 
-If you want to evaluate this on a non-critical server, [request controlled beta access](https://agentpulse.ca/signup). Every policy lives in one readable JSON config file, but setup time has not yet been measured against a released clean-host package.
+The checksummed `v0.2.0-beta.2` artifact passed clean-host acceptance, but customer onboarding has not started. You may [request post-staging pilot consideration](https://agentpulse.ca/signup); a request does not guarantee acceptance, and customer setup time has not yet been measured.

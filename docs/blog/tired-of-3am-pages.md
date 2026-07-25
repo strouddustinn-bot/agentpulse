@@ -23,10 +23,10 @@ After the twelfth time, I started asking: why isn't this automated?
 I looked at auto-remediation tools. They exist:
 
 - **Resolve.ai** — Used by Coinbase and DataStax. Pricing? "Contact sales."
-- **Dynatrace** — $70+/host/month with complex licensing.
+- **Dynatrace** — broad enterprise monitoring and automation with commercial licensing.
 - **PagerDuty Runbooks** — Two products, two price tags, enterprise-oriented.
 
-What about the solo dev running 3 VPS boxes? The indie SaaS founder with 5 servers? The small team that can't justify $500/month in monitoring?
+What about the solo developer or small team that needs a narrower host-response tool rather than a broad enterprise observability platform?
 
 They're stuck between:
 - **Free tools** (Uptime Kuma, Netdata) — great alerts, no auto-fix
@@ -50,7 +50,7 @@ So I rebuilt it properly:
 
 ## The Install Experience I Wanted
 
-I hate tools that take an afternoon to configure. AgentPulse is designed for a short setup, but public packaging and clean-host installation are still release gates:
+I hate tools that take an afternoon to configure. AgentPulse is designed for a short setup. The accepted prerelease passed clean-host lifecycle testing, but public self-serve onboarding remains gated while the paid account path is completed:
 
 {% include install.html %}
 
@@ -60,16 +60,18 @@ Start in alert-only mode, review what the agent discovers, then promote safe rem
 
 No "contact sales." No per-GB billing that balloons unpredictably. No 14-page pricing calculator.
 
-- **Starter** — $29/mo (1 server, alerts + approval-gated fixes)
+- **Starter** — C$29/mo (1 server, alerts + approval-gated fixes)
 - **Pro founding** — C$99/mo (up to 5 servers when fleet ships; auto-remediation, baseline learning, onboarding help)
-- **Business** — $299/mo (finite server limit confirmed before purchase, custom policies, priority support)
+- **Business founding** — C$299/mo (up to 20 servers when fleet ships, priority support, guided onboarding)
+
+These are founding reservations, not live public checkout offers. Reservations are free; paid activation waits for staging and a controlled three-to-five-customer pilot to prove the complete lifecycle.
 
 ## The Result
 
-I haven't been paged for a fixable issue in weeks. AgentPulse handles disk cleanup and service restarts automatically, and queues runaway-process calls for a one-command approval. I still get alerts for things that actually need my attention — but those are rare.
+The intended result is fewer pages for repeat, policy-approved incidents: the accepted AgentPulse artifact can handle bounded disk cleanup and service restarts locally, while runaway-process termination remains a human decision. After staging passes, invited controlled pilots will validate that outcome in real customer environments.
 
-If you're running Linux/macOS hosts and tired of being the remediation layer, join the paid beta:
+If you're running Linux/macOS hosts and tired of being the remediation layer, request post-staging pilot consideration or reserve founding pricing:
 
 {% include install.html %}
 
-[Join the AgentPulse paid beta →](https://agentpulse.ca/signup)
+[Request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup)

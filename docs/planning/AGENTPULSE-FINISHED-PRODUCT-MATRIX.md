@@ -1,21 +1,18 @@
 # AgentPulse Finished-Product Matrix and Repository Reconciliation
 
-**Assessment timestamp:** 2026-07-20T00:57:24-04:00
+**Assessment date:** 2026-07-24
 **Canonical repository:** the GitHub repository containing this document
 **Recommended source of truth:** GitHub `master`; implementation branches from that canonical revision
 **Canonical domain:** `agentpulse.ca`
 
 ## Executive verdict
 
-AgentPulse is no longer two equivalent copies that merely need a pull or push. It is a set of divergent historical lines:
-
-1. GitHub's default `master` is the canonical product authority; the current remote baseline is `98ee578`.
-2. Phase 0 repository convergence, packaging, and the rejected `v0.2.0-beta.1` prerelease are merged into `master`; repaired Phase 1C source is the current integration candidate.
-3. The legacy `main` line materially trails the consolidated architecture and is not the product authority; its remaining distinct changes target retired architecture or stale copy.
-4. Superseded FastAPI-backend source is subject to the historical-retention gate. That backend was deliberately retired from `master` and must not return to active product source.
-5. Open PR #19 proposes a Fly.io/FastAPI deployment against `main`. Merging it would restore a competing backend and violate the consolidated Worker/D1 architecture.
-
-The correct synchronization strategy is therefore to preserve `master`, review the scoped Phase 0 workflow and documentation changes, archive rather than merge obsolete lines, and close or redirect stale GitHub work.
+AgentPulse has one canonical product line on GitHub `master`. Tier 1 is complete:
+the immutable `v0.2.0-beta.2` artifact passed broad and real-systemd clean-host
+acceptance. Tier 2 now controls completion. The approved commercial contract is
+Starter C$29/1 host, Pro C$99/5 hosts, and Business C$299/20 hosts with priority
+support and guided onboarding. Checkout remains gated through staging and a
+three-to-five-customer controlled pilot; no public buy path is advertised as live.
 
 ## Evidence and status legend
 
@@ -32,8 +29,8 @@ A green check means the item is complete within the stated boundary. File presen
 
 | Surface | Evidence-backed state | Decision |
 |---|---|---|
-| Canonical branch | GitHub default `master` at remote baseline `98ee578` | Retain as the only active product authority |
-| Current integration candidate | Repaired Phase 1C source passed broad and real-systemd clean-host acceptance with an unpublished fixture | Merge only after exact staged-diff review and local gates; then publish a replacement prerelease only after Owner Gate 1 |
+| Canonical branch | GitHub default `master` | Retain as the only active product authority |
+| Tier 1 release | Published `v0.2.0-beta.2` wheel/checksums passed broad and real-systemd exact-artifact acceptance | Complete; preserve immutable release evidence |
 | Legacy `main` line | Diverges from and materially trails `master`; remaining changes target retired architecture or stale copy | Freeze and archive; do not merge wholesale into `master` |
 | Productization/consolidation history | Useful commits are already ancestors of `master`; superseded runtime variants are archived | Remove stale refs only after owner approval and another archive verification |
 | PR #17 | Targets legacy `main` and has no active implementation need | Close or supersede with a master-targeted cleanup only if still needed |
@@ -45,7 +42,7 @@ A green check means the item is complete within the stated boundary. File presen
 
 ### Product definition
 
-AgentPulse will be a self-serve, local-first server-remediation product for founders and small teams running approximately 1–10 Linux/macOS hosts. A dependency-light local agent observes known incident classes, proposes only allowlisted remediations, simulates and policy-gates them, executes locally, verifies the result, and escalates instead of looping when a fix fails. A single Cloudflare Worker/D1 control plane handles tenant identity, billing entitlement, enrollment, bounded heartbeats, policy narrowing, and fleet evidence. A secure React console gives each tenant visibility into only its own hosts, incidents, subscription, enrollment, and account lifecycle.
+AgentPulse will be a self-serve, local-first server-remediation product for founders and small teams running 1–20 Linux/macOS hosts under the approved plans. A dependency-light local agent observes known incident classes, proposes only allowlisted remediations, simulates and policy-gates them, executes locally, verifies the result, and escalates instead of looping when a fix fails. A single Cloudflare Worker/D1 control plane handles tenant identity, billing entitlement, enrollment, bounded heartbeats, policy narrowing, and fleet evidence. A secure React console gives each tenant visibility into only its own hosts, incidents, subscription, enrollment, and account lifecycle.
 
 It will not be a generic observability stack, arbitrary remote shell, second hosted backend, or autonomous LLM with unconstrained production authority.
 
@@ -113,8 +110,8 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Evidence spool and replay | Failed outbound delivery is persisted, bounded, locked, retried, and deduplicated | Spool/retry/locking tests pass | ✅ |
 | Secret redaction | Credentials and sensitive fields are excluded from logs/evidence | Redaction tests pass | ✅ |
 | Local audit trail | Reason, gate, action, verification, and outcome are attributable | Audit implementation/tests pass | ✅ |
-| Production-grade install artifact | Versioned, checksummed package installs from an immutable release; no unpinned branch downloads | Published beta-1 checksums verify but the artifact was rejected; repaired source and a checksummed local candidate pass Debian/systemd lifecycle acceptance; replacement exact-artifact acceptance is pending | 🟡 |
-| Safe upgrade and rollback | Signed/checksummed upgrade path preserves config/state and can roll back | Clean-host beta-1 → local beta-2 candidate → beta-1 lifecycle passed with config/state preservation and exact-version checks; replacement release proof remains | 🟡 |
+| Production-grade install artifact | Versioned, checksummed package installs from an immutable release; no unpinned branch downloads | Published `v0.2.0-beta.2` artifact passed exact-artifact clean-host acceptance | ✅ |
+| Safe upgrade and rollback | Signed/checksummed upgrade path preserves config/state and can roll back | Exact-artifact lifecycle proved install, upgrade, rollback, uninstall, and reinstall with config/state preservation | ✅ |
 | Real host acceptance matrix | Clean Ubuntu/Debian/RHEL-compatible Linux and macOS installs pass destructive-safe end-to-end tests | Broad and real-systemd Debian acceptance pass with sandbox cleanup; additional distribution and macOS coverage remains | 🟡 |
 
 ### B. Cloud control plane and data
@@ -134,14 +131,14 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Monotonic policy narrowing | Hosted policy cannot exceed agent local ceiling | Implemented and tested | ✅ |
 | Stripe signature/replay protection | Raw-body HMAC, timestamp window, event ID idempotency | Signature and event-recording code exists | ✅ |
 | Complete subscription ingestion | Checkout, create/update/delete, invoice paid/failed all update one deterministic entitlement model | Current handler materially acts only on `invoice.payment_failed` | 🟡 |
-| Self-serve checkout creation | API creates checkout only for allowlisted Price IDs and trusted return URLs | Described in design but route absent from active OpenAPI/Worker | ⬜ |
-| Checkout-to-account claim | Completed checkout can be claimed once for a secure account | Described in design but route absent | ⬜ |
-| Billing portal | Authenticated tenant can open Stripe Customer Portal | Described in design but route absent | ⬜ |
+| Self-serve checkout creation | API creates checkout only for allowlisted Price IDs and trusted return URLs | Phase 3A contract and migration exist; runtime handler remains absent until Phase 3B | 🟡 |
+| Checkout-to-account claim | Completed checkout can be claimed once for a secure account | Phase 3A contract and one-time claim/session schema exist; runtime handler remains absent until Phase 3B | 🟡 |
+| Billing portal | Authenticated tenant can open Stripe Customer Portal | Phase 3A contract exists; runtime handler remains absent until Phase 3B | 🟡 |
 | Credential rotation/revocation | Account and agent credentials can be revoked/rotated without DB surgery | Schema has revocation fields; complete API/UX and proof are absent | 🟡 |
 | Session authentication | Browser uses short-lived secure HttpOnly/SameSite session rather than a bearer key in JavaScript storage | Not implemented | ⬜ |
 | Retention/deletion lifecycle | Documented and tested tenant deletion, evidence retention, and privacy-request procedure | Not implemented/documented as an executable runbook | ⬜ |
 | Production D1 | Real ID, migrations, backups/recovery, and rollback are verified | Production ID is `REPLACE_PRODUCTION_D1_ID` | ⬜ |
-| Staging control plane | D1 migration and Worker custom-domain health work | `staging-api.agentpulse.ca/health` returned HTTP 200 | ✅ |
+| Staging control plane | Candidate D1 migrations are deployed and Worker custom-domain health passes | Older staging health returned HTTP 200, but Phase 3A migration `0002` is source-tested and not deployed | 🟡 |
 | Production control plane | `api.agentpulse.ca` resolves, health passes, and rollback evidence exists | Domain did not resolve during probe | ⬜ |
 
 ### C. Customer console
@@ -165,10 +162,10 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
 | Canonical public brand/domain | Public copy, metadata, install links, and email use `agentpulse.ca` | Master source is aligned to `agentpulse.ca` | ✅ |
-| Public website | `agentpulse.ca` resolves and serves current truthful content | Apex returned HTTP 200 from the canonical Pages deployment on 2026-07-20 | ✅ |
-| Truth-aligned product copy | Shipped vs roadmap capabilities and safety limits are explicit | Phase 0 audit removes unsupported deployment, packaging, setup-time, console, and unlimited-capacity claims | ✅ |
-| CAD beta pricing | Starter C$29, Pro C$99, Business C$299 are stated consistently as founding prices | Public CTAs are founding reserves; live Stripe buy buttons removed until fleet/provisioning is real | 🟡 |
-| Automated entitlement | Successful payment creates/activates the right tenant/limit without manual DB work | Paid beta still requires manual confirmation; no public charge path for undeliverable fleet | ⬜ |
+| Public website | `agentpulse.ca` resolves and serves the current truth-audited candidate | Apex returned HTTP 200 for the pre-change deployment; candidate publication and live-content receipt are pending | 🟡 |
+| Truth-aligned product copy | Shipped vs roadmap capabilities and safety limits are explicit | Candidate source is under final truth audit; live publication and content receipt remain pending | 🟡 |
+| CAD beta pricing | Starter C$29/1 host, Pro C$99/5 hosts, Business C$299/20 hosts plus priority support and guided onboarding | Public CTAs request post-staging pilot consideration or free founding reservations; no live Stripe buy buttons | ✅ |
+| Automated entitlement | Successful payment creates/activates the right tenant/limit without manual DB work | Planned paid beta would still require manual confirmation; no public charge path for undeliverable fleet | ⬜ |
 | Failed-payment enforcement | Failed/past-due account loses enrollment/heartbeat rights safely | Worker denies inactive status; only partial webhook lifecycle exists | 🟡 |
 | Cancellation/refund/guarantee operations | Customer and operator paths are documented and tested | Email/manual beta policy only | 🟡 |
 | Support email | `support@agentpulse.ca` receives and can be operationally managed | Apex MX added (Cloudflare Email Routing hosts); owner must enable routing rule + destination mailbox | 🟡 |
@@ -179,16 +176,16 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
-| Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; no phantom routes | 7 paths, 19 refs, 9 schemas, 3 fixtures validate | ✅ |
+| Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; planned contract-only routes are labeled by implementation state | OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 12 paths, 39 refs, 9 schemas, 7 typed fixtures, and 6 negative mutation tests pass; new billing/session handlers remain Phase 3B | 🟡 |
 | Agent test suite | Safety/behavior suite passes on supported Python versions | Fresh local result: 193 passed; GitHub Tests at the pre-change master head succeeded | ✅ |
-| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 14 tests; typecheck and bindings pass | ✅ |
+| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 24 tests including 10 D1 schema/tenant-boundary tests; separate fresh-replay and true pre-`0002` fail-closed upgrade fixtures pass; typecheck and bindings pass | ✅ |
 | Dashboard build | TypeScript and Vite production build pass | Fresh build succeeded | ✅ |
 | Dashboard behavioral E2E | Browser tests cover auth, fleet, incidents, failure/empty states | No browser test suite | ⬜ |
-| Security dependency audits | Python invariant and npm high-severity audits pass | Latest master dependency-audit job passed | ✅ |
+| Security dependency audits | Python invariant and npm high-severity audits pass | PostCSS fixed at 8.5.23 in both workspaces; dashboard moved to patched React Router 8.3.0; both fresh npm audits report zero vulnerabilities | ✅ |
 | Repository hardening | Shell syntax, no tracked dependencies, credential-pattern gate | Latest master hardening job passed | ✅ |
-| Secret scanning | GitHub Security workflow is green with an approved scanning policy and directly gates releases | Latest remote-master Security run succeeded at `98ee578`; the repaired candidate requires its own post-push run | 🟡 |
+| Secret scanning | GitHub Security workflow is green with an approved scanning policy and directly gates releases | Pre-change remote-master Security was green; this candidate requires its own post-push run | 🟡 |
 | CI branch authority | Required checks target only canonical branch and PRs into it | Master workflows exist, but stale main PRs/branches remain | 🟡 |
-| Versioned agent release | Wheel/sdist contain the runnable agent; checksums and release notes are published | Published beta-1 exists but is rejected; repaired replacement publication and exact-artifact acceptance remain | 🟡 |
+| Versioned agent release | Wheel/sdist contain the runnable agent; checksums and release notes are published | `v0.2.0-beta.2` is published, checksummed, and exact-artifact accepted | ✅ |
 | Reproducible deployment | Staging/production migrations and deploys run through protected environments | Worker deploy job exists; production bindings and proof missing | 🟡 |
 | Rollback and disaster recovery | D1 backup/restore, Worker rollback, agent rollback, and incident runbooks are exercised | Not proven | ⬜ |
 | Observability without credential leakage | Structured Worker/agent health, deploy markers, and alerts exist | Worker observability enabled; complete operational alerting absent | 🟡 |
@@ -203,13 +200,13 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Agent suite | `193 passed, 0 failed` |
 | Agent lint | PASS: project Ruff 0.15.21 reports all checks passed |
 | Agent config validation | PASS: example and local configurations validate against Draft 7 schema with format checks |
-| Shared contracts | PASS: 7 paths, 19 local refs, 9 schemas, 3 fixtures |
-| Worker tests | PASS: 14 tests |
+| Shared contracts | PASS: OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 12 paths, 39 local refs, 9 schemas, 7 typed fixtures, 6 negative mutation tests |
+| Worker tests | PASS: 24 tests, including 10 D1 schema/tenant-boundary tests; fresh replay and fail-closed upgraded fixture PASS |
 | Worker TypeScript/bindings | PASS |
-| Dashboard production build | PASS: 1,531 modules transformed |
-| Master GitHub Tests | SUCCESS at `98ee578`; candidate post-push run pending |
-| Master GitHub Pages | SUCCESS at `98ee578`; `agentpulse.ca` returned HTTP 200 on 2026-07-20 |
-| Master GitHub Security | SUCCESS at `98ee578`; candidate post-push run pending |
+| Dashboard production build | PASS: 1,576 modules transformed |
+| Master GitHub Tests | Pre-change master was green; candidate post-push run pending |
+| Master GitHub Pages | Pre-change deployment was green; candidate post-push deployment and live-content receipt pending |
+| Master GitHub Security | Pre-change master was green; candidate post-push run pending |
 | Staging API | `https://staging-api.agentpulse.ca/health` returned HTTP 200 with expected AgentPulse health JSON on 2026-07-20 |
 | Public/production domains | `agentpulse.ca` resolves and serves HTTP 200; `app.agentpulse.ca` and `api.agentpulse.ca` remain unresolved |
 

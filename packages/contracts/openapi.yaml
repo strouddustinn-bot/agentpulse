@@ -12,9 +12,9 @@ info:
     name: Apache-2.0
 servers:
   - url: https://api.agentpulse.ca
-    description: Production
+    description: Reserved production contract target; not deployed
   - url: https://staging-api.agentpulse.ca
-    description: Staging
+    description: Staging health target; Phase 3A operations remain contract-only and undeployed
   - url: http://localhost:8787
     description: Local Worker
 
@@ -24,6 +24,9 @@ tags:
   - name: agents
   - name: fleet
   - name: billing
+  - name: onboarding
+  - name: session
+  - name: account
 
 paths:
   /health:
@@ -83,7 +86,7 @@ paths:
                 $ref: '#/components/schemas/AgentEnrollmentResponse'
         '401': { description: Invalid or expired enrollment token }
         '402': { description: Subscription inactive }
-        '409': { description: Token consumed, plan limit reached, or duplicate agent }
+        '409': { description: 'Token consumed, plan limit reached, or duplicate agent' }
 
   /v1/agents/heartbeat:
     post:
@@ -166,6 +169,113 @@ paths:
         '200': { description: Event accepted or already processed }
         '400': { description: Invalid Stripe signature or payload }
 
+  /v1/billing/checkout:
+    post:
+      tags: [billing]
+      operationId: createBillingCheckout
+      x-implementation-status: contract-only
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '201':
+          description: >-
+            Stripe Checkout Session created for an allowlisted Price ID. The
+            success/cancel URLs and claim nonce are server-derived and never
+            accepted from the client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '422': { description: Invalid or unrecognized plan }
+        '503': { description: Plan is not mapped to a Stripe Price ID }
+
+  /v1/onboarding/claim:
+    post:
+      tags: [onboarding]
+      operationId: claimOnboarding
+      x-implementation-status: contract-only
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OnboardingClaimRequest'
+      responses:
+        '200':
+          description: >-
+            Checkout Session verified server-side against canonical Stripe
+            state; exactly one successful claim is allowed per checkout
+            session. Issues an HttpOnly, Secure, SameSite session cookie —
+            the browser never receives the raw account credential.
+          headers:
+            Set-Cookie:
+              description: >-
+                HttpOnly; Secure (outside local development); SameSite=Lax
+                or stricter; narrow path/domain; short expiry.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingClaimResponse'
+        '401': { description: Claim nonce is invalid or unknown }
+        '409': { description: 'Checkout not yet completed, already claimed, or expired' }
+
+  /v1/session:
+    delete:
+      tags: [session]
+      operationId: deleteSession
+      x-implementation-status: contract-only
+      security:
+        - BrowserSession: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204': { description: Session revoked }
+        '401': { description: 'Missing, invalid, or expired session' }
+        '403': { description: CSRF token missing or invalid }
+
+  /v1/account:
+    get:
+      tags: [account]
+      operationId: getAccount
+      x-implementation-status: contract-only
+      security:
+        - BrowserSession: []
+      responses:
+        '200':
+          description: Authenticated tenant's account and normalized entitlement state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSummary'
+        '401': { description: 'Missing, invalid, or expired session' }
+
+  /v1/billing/portal:
+    post:
+      tags: [billing]
+      operationId: createBillingPortalSession
+      x-implementation-status: contract-only
+      security:
+        - BrowserSession: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200':
+          description: Stripe Customer Portal session for the authenticated tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingPortalResponse'
+        '401': { description: 'Missing, invalid, or expired session' }
+        '403': { description: CSRF token missing or invalid }
+        '503': { description: Stripe portal session could not be created }
+
 components:
   securitySchemes:
     AccountBearer:
@@ -180,6 +290,26 @@ components:
       type: http
       scheme: bearer
       description: Short-lived one-time enrollment token.
+    BrowserSession:
+      type: apiKey
+      in: cookie
+      name: ap_session
+      description: >-
+        HttpOnly, Secure (outside local development), SameSite=Lax or
+        stricter session cookie issued once by a verified claim. Holds only
+        an opaque token whose SHA-256 hash is persisted server-side; the raw
+        value is never readable by JavaScript or stored in browser storage.
+
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: >-
+        Server-backed synchronizer CSRF token returned in the claim response
+        body; only its hash is persisted, and the browser cookie carries only
+        the opaque session token.
+      schema: { type: string, minLength: 16 }
 
   schemas:
     ErrorResponse:
@@ -322,3 +452,61 @@ components:
       properties:
         version: { type: integer, minimum: 0 }
         policy: { type: object, additionalProperties: true }
+
+    Plan:
+      type: string
+      enum: [starter, pro, business]
+
+    EntitlementStatus:
+      type: string
+      description: >-
+        Normalized entitlement derived server-side from Stripe subscription
+        status plus the confirmed grace-period policy; never the raw Stripe
+        status string.
+      enum: [active, grace, blocked]
+
+    CheckoutRequest:
+      type: object
+      required: [plan]
+      additionalProperties: false
+      properties:
+        plan: { $ref: '#/components/schemas/Plan' }
+
+    CheckoutResponse:
+      type: object
+      required: [checkout_url, expires_at]
+      properties:
+        checkout_url: { type: string, format: uri }
+        expires_at: { type: integer }
+
+    OnboardingClaimRequest:
+      type: object
+      required: [claim_nonce]
+      additionalProperties: false
+      properties:
+        claim_nonce: { type: string, minLength: 16, maxLength: 255 }
+
+    AccountSummary:
+      type: object
+      required: [tenant_id, email, plan, entitlement_status, agent_limit]
+      properties:
+        tenant_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        plan: { $ref: '#/components/schemas/Plan' }
+        entitlement_status: { $ref: '#/components/schemas/EntitlementStatus' }
+        agent_limit: { type: integer, minimum: 1 }
+        current_period_end: { type: [integer, 'null'] }
+        grace_period_ends_at: { type: [integer, 'null'] }
+
+    OnboardingClaimResponse:
+      type: object
+      required: [csrf_token, account]
+      properties:
+        csrf_token: { type: string, minLength: 16 }
+        account: { $ref: '#/components/schemas/AccountSummary' }
+
+    BillingPortalResponse:
+      type: object
+      required: [portal_url]
+      properties:
+        portal_url: { type: string, format: uri }

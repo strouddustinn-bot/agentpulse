@@ -1,28 +1,28 @@
 ---
 layout: default
-title: Request AgentPulse beta access
-description: "Request a controlled one-host AgentPulse pilot or reserve Pro and Business founding pricing. Reservations are free and do not expose server credentials."
+title: Request AgentPulse pilot consideration
+description: "Request consideration for a post-staging one-host AgentPulse pilot or reserve Pro and Business founding pricing. Reservations are free and do not expose server credentials."
 ---
 
-# Request AgentPulse beta access
+# Request AgentPulse pilot consideration
 
-AgentPulse is onboarding founders and small teams who already monitor their servers but still handle the same incidents by hand.
+AgentPulse is accepting fit requests from founders and small teams who already monitor their servers but still handle the same incidents by hand; pilot onboarding has not started.
 
-You can request a controlled Starter pilot for one non-critical host or reserve Pro or Business founding pricing. Reservations are free. We confirm fit, availability, and billing before anything is installed or charged.
+You can request consideration for the post-staging controlled Starter pilot on one non-critical host or reserve Pro or Business founding pricing. Reservations are free. We confirm fit, availability, and billing before anything is installed or charged; sending a request does not mean the pilot is accepted.
 
 <p>
   <a id="reserve"
      class="btn"
-     href="mailto:support@agentpulse.ca?subject=AgentPulse%20beta%20access%20request&body=Plan%20interest%3A%20Starter%20pilot%20(C%2429)%20%2F%20Pro%20founding%20(C%2499)%20%2F%20Business%20founding%20(C%24299)%0AHost%20count%3A%20%0AOperating%20system%3A%20%0AHosting%20provider%3A%20%0AStack%20(web%20server%2Fprocess%20manager%2Fdatabase)%3A%20%0ARepeat%20incident%20to%20reduce%3A%20%0APreferred%20start%3A%20reserve%20only%20%2F%20one-host%20pilot%0A"
+     href="mailto:support@agentpulse.ca?subject=AgentPulse%20pilot%20consideration%20request&body=Plan%20interest%3A%20Starter%20pilot%20(C%2429)%20%2F%20Pro%20founding%20(C%2499)%20%2F%20Business%20founding%20(C%24299)%0AHost%20count%3A%20%0AOperating%20system%3A%20%0AHosting%20provider%3A%20%0AStack%20(web%20server%2Fprocess%20manager%2Fdatabase)%3A%20%0ARepeat%20incident%20to%20reduce%3A%20%0APreferred%20start%3A%20reserve%20only%20%2F%20post-staging%20one-host%20pilot%20consideration%0A"
      style="display:inline-block;padding:14px 26px;background:#0b5fff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:1.05em;">
-     Open the beta access email
+     Open the pilot request email
   </a>
 </p>
 
 <p style="font-size:0.95em;color:#555;margin-top:-6px;">
-  Starter: <strong>C$29/month CAD</strong> for a one-host controlled pilot.<br>
+  Starter: <strong>C$29/month CAD</strong> for an invited post-staging one-host controlled pilot.<br>
   Pro: <strong>C$99/month CAD</strong> for up to five hosts when fleet access ships.<br>
-  Business: <strong>C$299/month CAD</strong> for an agreed small-fleet limit.<br>
+  Business: <strong>C$299/month CAD</strong> for up to 20 hosts, priority support, and guided onboarding when fleet access ships.<br>
   <strong>No charge at reservation.</strong>
 </p>
 
@@ -30,7 +30,7 @@ You can request a controlled Starter pilot for one non-critical host or reserve 
 
 ## What to include
 
-Reply with enough information to decide whether the current beta matches your problem:
+Reply with enough information to decide whether the planned post-staging pilot matches your problem:
 
 - the plan you are interested in;
 - how many hosts you expect to manage;
@@ -49,23 +49,23 @@ Do not send an IP address, hostname, password, SSH key, API token, recovery code
 1. We confirm the requested plan and founding rate.
 2. Your reservation records demand but does not activate billing.
 3. We contact you when the matching account and fleet capacity is ready.
-4. You decide whether to activate after reviewing the final host limit and service boundary.
+4. You decide whether to activate after reviewing the service boundary.
 
-### If you request a Starter pilot
+### If you request consideration for a Starter pilot
 
 1. We check whether AgentPulse supports the incident you named.
 2. We confirm that the proposed host is non-critical and appropriate for beta acceptance.
-3. The pilot waits until the repaired immutable prerelease passes exact-artifact acceptance.
+3. We install the accepted `v0.2.0-beta.2` prerelease on one approved non-critical host.
 4. Installation begins in alert-only mode.
 5. You review detected incidents and simulations before granting any remediation authority.
 
-The published prerelease is not an invitation to run an unreviewed installer on a production host. Linux lifecycle acceptance exposed defects in that artifact; pilots wait for the repaired replacement release to pass the same exact-artifact run.
+The published prerelease is not an invitation to run an unreviewed installer on a production host. `v0.2.0-beta.2` passed the exact-artifact Linux lifecycle run, but pilots still use controlled onboarding while the paid account and fleet lifecycle is completed.
 
 ## Good beta fit
 
 You are likely a fit if:
 
-- you run 1–10 Linux or macOS hosts;
+- you run 1–20 Linux or macOS hosts;
 - the same disk, service, or memory incident keeps returning;
 - your current monitor pages you but does not handle the first fix;
 - you can define the exact cleanup paths or services that may be managed;
@@ -73,7 +73,7 @@ You are likely a fit if:
 
 ## Probably not a fit yet
 
-The current beta will not satisfy teams that need:
+The planned paid beta will not satisfy teams that need:
 
 - Kubernetes or large enterprise fleet management;
 - distributed tracing or application performance monitoring;
@@ -87,7 +87,7 @@ AgentPulse intentionally has no arbitrary command channel. Host changes must com
 
 ## Current product boundary
 
-Available in the controlled beta:
+Accepted capabilities intended for explicitly approved controlled pilots:
 
 - Linux and macOS agent behavior;
 - alert-only startup;
@@ -102,7 +102,7 @@ Still behind release gates:
 - secure browser account sessions;
 - public fleet and incident console deployment;
 - automated checkout, account claim, and billing portal;
-- enforced self-serve Pro and Business capacity.
+- enforced self-serve plan capacity and public checkout.
 
 ## Questions before reserving
 

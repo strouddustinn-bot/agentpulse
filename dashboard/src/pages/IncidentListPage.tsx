@@ -2,7 +2,7 @@
  * Incident list — read-only table of all incidents.
  */
 
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { listIncidents } from '../api/client'
 import { useFetch } from '../hooks/useFetch'
 import {

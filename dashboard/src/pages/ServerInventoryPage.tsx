@@ -2,7 +2,7 @@
  * Server inventory — read-only table of enrolled agents.
  */
 
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { listAgents } from '../api/client'
 import { useFetch } from '../hooks/useFetch'
 import {

@@ -1,18 +1,18 @@
 ---
 layout: default
 title: "AgentPulse vs Grafana (2026) — Auto-Remediation vs. Beautiful Dashboards"
-description: "Grafana is the gold standard for observability dashboards. AgentPulse skips the dashboard and fixes the problem automatically. Honest comparison for solo devs and small teams."
+description: "Grafana provides broad observability; the accepted AgentPulse artifact supports bounded, policy-gated local remediation, with onboarding still closed."
 ---
 
 # AgentPulse vs Grafana
 
-Grafana is genuinely excellent. If you've ever seen a wall of beautiful, real-time dashboards in a tech company's ops room, there's a good chance Grafana built them. It's the industry standard for visualizing metrics, logs, and traces — and for good reason.
+Grafana is a widely used visualization platform for metrics, logs, and traces. Confirm its current capabilities and deployment options against Grafana's own documentation.
 
 But there's a catch that doesn't show up in the marketing: **Grafana by itself doesn't monitor anything.**
 
 Grafana is a visualization layer. To actually monitor your servers, you need to build a stack around it: Prometheus to scrape metrics, node_exporter running on every host, Alertmanager to route alerts, maybe Loki for logs, maybe Tempo for traces. And then you need to configure all of it, maintain all of it, and — when something goes wrong at 3AM — still log in and fix it yourself.
 
-AgentPulse is designed around a different approach: **one bounded agent can remediate approved incident classes and verify the result.** Public packaging and clean-host installation proof remain release gates.
+AgentPulse is designed around a different approach: **one bounded agent can remediate approved incident classes and verify the result.** The accepted prerelease is not publicly available for onboarding; invited pilots begin only after staging passes.
 
 ## What You're Actually Comparing
 
@@ -44,49 +44,49 @@ That's 3–6 services to install, configure, keep running, and upgrade. If you'r
 |---------|-----------|---------------|
 | Setup time | Not yet measured on a released package | Hours to days |
 | Components to manage | 1 agent | 3–6 services |
-| Auto-remediation | ✅ | ❌ |
+| Auto-remediation | ✅ bounded and policy-gated in the accepted agent artifact; public onboarding gated | ❌ |
 | Flag runaway processes | ✅ (kill stays behind your approval — never automatic) | ❌ |
-| Restart crashed services | ✅ | ❌ |
-| Free disk space automatically | ✅ | ❌ |
+| Restart crashed services | ✅ configured/allowlisted in accepted artifact; access gated | ❌ |
+| Free disk space | ✅ configured/allowlisted paths in accepted artifact; access gated | ❌ |
 | Block brute-force SSH attacks | 🔜 roadmap | ❌ |
 | Baseline learning | ✅ (statistical, advisory) | ⚠️ (with extra tooling) |
-| Custom dashboards | ❌ | ✅ (world-class) |
+| Custom dashboards | ❌ | ✅ rich visualization ecosystem |
 | Multi-data-source correlation | ❌ | ✅ |
 | Self-hostable | ❌ | ✅ |
 | Pricing (5 servers, founding Pro) | C$99/mo | Free (self-hosted) or Grafana Cloud |
-| Approval gates (auto-fix/ask/alert) | ✅ | ❌ |
+| Approval gates (off/alert/ask/auto for supported actions) | ✅ in accepted artifact; access gated | ❌ |
 | Alerts | ✅ (webhooks — Slack, Discord, PagerDuty, anything HTTP) | ✅ (with Alertmanager) |
 | Enterprise SSO/RBAC | ❌ | ✅ (Grafana Enterprise) |
 
-## Where Grafana Wins
+## Where Grafana differs
 
-Let's be direct about what Grafana does better:
+These are areas where Grafana's documented scope differs; verify current edition details with Grafana:
 
-**Visualization is unmatched.** Grafana's dashboards are genuinely the best in the industry. You can build anything — custom panels, drill-downs, multi-variable queries, mixed data sources. If you need to show business stakeholders what's happening across your infrastructure, Grafana is the answer.
+**Visualization breadth.** Grafana supports custom panels, drill-downs, variables, and mixed data sources. Verify the capabilities required by your deployment against Grafana's current documentation.
 
 **Multi-data-source correlation.** Grafana can pull from Prometheus, Loki, Postgres, CloudWatch, Elasticsearch, and dozens of other sources in a single dashboard. That kind of cross-system visibility is hard to replicate.
 
 **Self-hosted = free.** If you have someone willing to set it up and maintain it, the Grafana stack is free software. The cost is ops time, not dollars.
 
-**Ecosystem and community.** Grafana has a huge community, pre-built dashboard templates for almost every service, and deep integrations with the broader observability ecosystem.
+**Ecosystem and community.** Grafana publishes integrations and dashboard templates across its ecosystem; verify current coverage for your services.
 
-**Enterprise-grade.** Multi-tenant, RBAC, SSO, audit logs, compliance features — Grafana has it all when you need it.
+**Broader organizational controls.** Grafana offers commercial and open-source capabilities across access control and audit use cases; verify current edition-specific scope.
 
-## Where AgentPulse Wins
+## Where the accepted AgentPulse artifact differs
 
-**It actually fixes things.** This is the fundamental difference. Grafana (and Prometheus, and Alertmanager) can detect a problem, show it on a beautiful chart, and fire off an alert to your phone. Then you have to wake up, log into the server, and fix it. AgentPulse can detect a disk filling up and clear it, or a crashed service and restart it — verified, before you ever get paged.
+**It can apply configured local fixes.** This is the fundamental difference. Grafana (and Prometheus, and Alertmanager) can detect a problem, show it on a chart, and fire an alert. The accepted AgentPulse artifact can apply allowlisted disk cleanup or restart a configured service under local policy, then verify the result; public onboarding remains gated.
 
-**Narrow intended footprint.** AgentPulse is designed around one bounded agent rather than a monitoring stack. Public packaging and clean-host setup-time proof are still release gates.
+**Narrow intended footprint.** AgentPulse is designed around one bounded agent rather than a monitoring stack. Exact-artifact clean-host acceptance passed; public self-serve onboarding remains gated behind commercial-lifecycle proof.
 
-**No ops overhead.** You're not running a mini observability platform; you're running one agent. Fewer things to maintain, fewer things to break.
+**Narrower component model.** The accepted artifact is one agent rather than a multi-service observability stack. That reduces component count, but customer operating effort has not yet been measured in a pilot.
 
 **Fixed pricing.** Grafana Cloud can get expensive at scale (storage, metrics volume, user seats). AgentPulse founding Pro pricing is C$99/month for up to 5 servers when fleet ships — no per-GB surprises.
 
-**Approval gates.** You decide how aggressive AgentPulse should be: auto-fix everything, ask before acting, or just alert. Fine-grained control without building a runbook automation system.
+**Approval gates.** Local policy offers off, alert-only, ask-first, or auto only for supported allowlisted actions; it never authorizes arbitrary fixes or automatic process killing.
 
-## Concrete Scenario: 3AM Disk Full
+## Illustrative Scenario: 3AM Disk Full
 
-Here's how each tool handles a disk filling to 95% at 3AM:
+This is an illustrative expected flow, not observed customer-pilot evidence:
 
 **With Grafana:**
 1. Prometheus scrapes the node and sees disk at 95%
@@ -95,31 +95,33 @@ Here's how each tool handles a disk filling to 95% at 3AM:
 4. You log into the server half-asleep
 5. You run `du -sh /var/log/*` to find the culprit
 6. You delete old logs or rotate them
-7. You go back to sleep (probably 45 minutes later)
+7. Record the response and recovery in your own incident timeline
 
-**With AgentPulse:**
+**With the accepted AgentPulse artifact, after explicit configuration and approved onboarding:**
 1. AgentPulse detects disk at 95%
 2. It removes old files inside the cleanup paths you configured — after a dry-run simulation and a safety-gate check
 3. It re-measures: disk dropped below the threshold
-4. Your Slack/Discord webhook gets: "decision loop succeeded: disk_cleanup / — removed 8.2GB of files older than 3 days"
-5. You see the message in the morning and go about your day
+4. A configured webhook can receive the verification result
+5. Record the actual response time and outcome during the pilot
 
-The Grafana approach gives you perfect visibility into the problem. The AgentPulse approach makes the problem disappear.
+Grafana provides visibility into the condition. After approved onboarding and explicit path configuration, the accepted AgentPulse artifact could attempt the bounded cleanup and verify whether it worked; that customer outcome has not yet been proven.
 
-## Concrete Scenario: Runaway Process
+## Illustrative Scenario: Runaway Process
+
+This comparison describes intended behavior and does not claim measured customer response times.
 
 **With Grafana:**
 1. CPU alert fires at 95% sustained
 2. You get paged
 3. You SSH in, run `top`, find the process
 4. You kill it, verify recovery
-5. Total time: 10–20 minutes, minimum
+5. Record the response and recovery in your own incident timeline
 
-**With AgentPulse:**
-1. AgentPulse flags the largest process the moment it crosses your memory threshold
-2. It queues the incident for your approval — killing a process is the one action AgentPulse never automates, because getting it wrong makes the night worse
-3. You approve (or dismiss) from the CLI with one command, with the full context in front of you
-4. Total time: about a minute, with a decision you made instead of a script guessing
+**With the accepted AgentPulse artifact after approved onboarding:**
+1. The configured check can flag the largest process after the memory threshold is crossed
+2. It queues the incident for human approval; AgentPulse never kills a process automatically
+3. The operator can approve or dismiss from the CLI with the available evidence
+4. Actual response time and outcome must be measured during a customer pilot
 
 ## Who Should Use Grafana
 
@@ -137,24 +139,24 @@ Grafana is the right choice if:
 AgentPulse is the right choice if:
 
 - **You're a solo developer or indie founder.** You don't have time to maintain an observability stack. You need something that works and stays out of your way.
-- **You want auto-remediation.** No dashboard restarts nginx or clears a full disk at 3AM. AgentPulse does — and verifies the fix held.
-- **You value simplicity.** AgentPulse is designed around one bounded agent and one flat monthly fee; public installation remains a release gate.
-- **You run 1–5 servers.** The Grafana stack adds significant overhead for a small number of servers. AgentPulse's $29–99/month is a better trade-off.
-- **You want predictable costs.** Fixed pricing means no surprises, no "we scaled our metrics volume and got a $500 overage."
+- **You want bounded remediation.** The accepted agent can restart an explicitly configured service or clean only allowlisted paths under local policy, then verify the result; access is still gated.
+- **You value simplicity.** AgentPulse is designed around one bounded agent and one flat monthly fee; the agent artifact is accepted, while public self-serve onboarding remains a paid-lifecycle gate.
+- **You run 1–20 servers.** The Grafana stack adds significant overhead for a small fleet. AgentPulse's approved plans range from C$29 to C$299 per month CAD, with access still gated.
+- **You want an approved fixed-plan model.** AgentPulse's CAD plans are fixed, but checkout and paid activation remain closed.
 - **You're not a monitoring specialist.** Sensible alert-only defaults, plus statistical baseline learning that flags "this server is behaving abnormally" before a hard threshold trips.
 
 ## Can You Use Both?
 
-Yes, and some teams do. AgentPulse handles the remediation layer — making sure things stay healthy — while Grafana provides the visibility layer for performance analysis and capacity planning. They're not mutually exclusive.
+Yes. The accepted AgentPulse artifact can provide configured, bounded local remediation under policy, while Grafana provides visibility for performance analysis and capacity planning. Public AgentPulse onboarding remains gated.
 
-That said, if you're a small team choosing one tool: pick based on whether you need dashboards (Grafana) or self-healing (AgentPulse). Most small teams benefit more from their servers fixing themselves than from beautiful dashboards showing the server broke.
+That said, if you're a small team choosing one tool: pick based on whether you need dashboards or bounded local remediation. The accepted AgentPulse artifact supports configured, policy-gated fixes; public onboarding remains gated.
 
 ## The Bottom Line
 
-**Grafana is the right tool** if you need world-class dashboards, you have the ops capacity to maintain the full stack, and visibility across complex systems is your core requirement.
+**Grafana may be the right tool** if you need rich dashboards, have capacity to operate the chosen stack, and visibility across complex systems is the core requirement.
 
-**AgentPulse is the right tool** if you want your servers to stay healthy without you babysitting them — free disk space, restart crashed services, flag runaway processes for one-command approval — with every fix verified after it runs.
+**The accepted AgentPulse artifact may be relevant to evaluate** if you need configured disk cleanup and service restarts under local policy, runaway-process evidence behind human approval, and verification after permitted actions. Access and customer-fit proof remain pending.
 
-Grafana shows you the fire. AgentPulse puts it out.
+Grafana documents broad visibility. After approved onboarding, the accepted AgentPulse artifact can attempt a configured, bounded local response and verify it; customer outcomes remain unproven.
 
-[Join the AgentPulse paid beta →](https://agentpulse.ca/signup) — 30-day guarantee: if it doesn't catch or reduce one repeat incident, the next month is free.
+[Request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup) — no charge at reservation. The 30-day guarantee begins only after paid activation.

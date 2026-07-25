@@ -1,27 +1,20 @@
 ---
 layout: default
 title: "AgentPulse vs Datadog for Small Teams (2026) — Auto-Remediation Without the Bill Shock"
-description: "Datadog is powerful but expensive. AgentPulse delivers auto-remediation at indie pricing — no sales calls, no complex billing, no surprises."
+description: "Datadog is broad and usage-priced; AgentPulse proposes fixed plans around bounded local remediation, with public onboarding and checkout still closed."
 ---
 
 # AgentPulse vs Datadog for Small Teams
 
-Datadog is the 800-pound gorilla of monitoring. It does everything — infrastructure, APM, logs, security, CI, the works. If you're a Fortune 500 company with a dedicated SRE team, Datadog is genuinely great.
+Datadog documents a broad commercial platform spanning infrastructure, APM, logs, security, and CI. Verify current product scope and terms directly with Datadog.
 
-But if you're a solo developer, indie founder, or small team? **Datadog's pricing will eat you alive.**
+For a small team, evaluate Datadog's current multi-product pricing against actual usage rather than relying on a generic estimate.
 
 ## The Pricing Reality
 
-Datadog's pricing is notoriously complex and scales aggressively:
+Datadog combines multiple products and usage dimensions, including hosts, APM, logs, metrics, and optional automation. Verify current vendor pricing and your own usage before comparing totals; this page does not estimate a Datadog bill.
 
-- **Infrastructure Pro:** $23/host/month
-- **APM:** $31/host/month  
-- **Log Management:** $0.10/GB ingested
-- **Bits AI SRE:** $12/host/month extra
-
-A team with 5 servers running Infrastructure + APM + Logs is easily looking at **$300-500+/month**. And that's before you get hit with overage charges for custom metrics or log volume spikes.
-
-AgentPulse founding Pro pricing is **C$99/month for up to 5 servers** when fleet ships, with auto-remediation on the local agent path. No per-GB billing. No surprise charges. No calculator needed.
+AgentPulse founding Pro is approved at **C$99/month for up to 5 servers** when fleet access ships, with bounded policy-gated remediation in the accepted artifact. This is a free reservation, not a live checkout offer.
 
 ## Feature Comparison
 
@@ -30,49 +23,41 @@ AgentPulse founding Pro pricing is **C$99/month for up to 5 servers** when fleet
 | Infrastructure monitoring | ✅ (disk, services, memory) | ✅ |
 | APM / Tracing | ❌ | ✅ |
 | Log management | ❌ | ✅ |
-| Auto-remediation | ✅ | ⚠️ (Bits AI SRE, extra cost) |
+| Auto-remediation | ✅ bounded/configured in accepted artifact; access gated | Available through Datadog products; verify current scope and pricing |
 | Baseline learning | ✅ (statistical, advisory) | ✅ (Watchdog) |
 | Dashboard | 🟡 Source implemented; public deployment pending | ✅ (very comprehensive) |
-| Integrations | Webhooks (Slack, Discord, PagerDuty, any HTTP) | 800+ |
+| Integrations | Generic webhooks in accepted artifact; hosted activation gated | Broad vendor catalogue; verify current count and tier scope |
 | Security monitoring | 🔜 roadmap | ✅ (separate product, extra cost) |
-| Pricing complexity | 3 plans | 20+ products, per-host + per-GB |
-| Setup time | Paid beta onboarding | Hours to days |
-| Sales call required | ❌ | For most features, yes |
+| Pricing model | 3 approved fixed AgentPulse plans; checkout closed | Multi-product and usage-based; verify current vendor terms |
+| Setup time | Not yet measured; onboarding starts only after staging and invitation | Hours to days |
+| Access path | Request only; no public purchase flow; guided onboarding after invitation | Self-serve or sales-assisted, depending on product |
 
-## Where Datadog Wins
+## Where Datadog differs
 
-- **Comprehensiveness** — it really does everything. APM, logs, traces, CI, security, cost management
-- **Integrations** — 800+ out of the box
+- **Broader scope** — Datadog documents products across APM, logs, traces, CI, security, and cost management; verify current editions
+- **Integrations** — broad vendor catalogue; verify current count and tier scope
 - **Enterprise features** — SSO, RBAC, compliance, audit logs
-- **AI features** — Bits AI is powerful if you can afford it
-- **Startup program** — free year for Series A and earlier (then the bill comes)
+- **AI features** — verify current Bits AI scope, availability, and pricing directly with Datadog
+- **Commercial programs** — verify current eligibility and terms directly with Datadog
 
-## Where AgentPulse Wins
+## Where the accepted AgentPulse artifact differs
 
-- **Price** — founding Pro C$99/mo for up to 5 servers (fleet Q3) with auto-remediation vs. $300-500+ for comparable Datadog setup
-- **Simplicity** — guided first-server onboarding, alert-only by default, and remediation policies you can promote when ready.
-- **Auto-remediation included** — not an upsell, not a separate product. Core feature.
-- **No bill shock** — fixed pricing. Your bill is the same every month whether your logs spike or not.
-- **Built for small teams** — no enterprise bloat, no features you'll never use.
+- **Approved fixed-plan model** — founding Pro is C$99/mo for up to 5 hosts when fleet access ships, with checkout and activation still closed
+- **Simplicity** — the planned service uses guided first-host onboarding and alert-only defaults; onboarding has not started.
+- **Bounded remediation in the approved plans** — configured local actions are part of the accepted artifact, but paid activation and public access remain gated.
+- **Approved fixed-plan model** — the AgentPulse plan prices are fixed, but checkout and paid activation remain closed.
+- **Narrow intended scope** — designed for specific local host incidents rather than a broad enterprise observability suite; customer fit remains to be proven in the pilot.
 
-## The Datadog Trap
+## Migration Consideration
 
-Here's the pattern we see over and over:
-
-1. Team signs up for Datadog startup program (free year!)
-2. They instrument everything — metrics, APM, logs, traces
-3. Year ends. The bill arrives. It's $800/month.
-4. They can't easily rip it out because everything depends on it.
-5. They're trapped paying enterprise prices with indie revenue.
-
-AgentPulse is designed to avoid that trap. Simple pricing from day one. No honeymoon period followed by sticker shock.
+Deep instrumentation can increase switching effort because dashboards, alerts, agents, and incident workflows become operational dependencies. Inventory those dependencies and verify replacement coverage before removing an existing platform. AgentPulse is not a feature-equivalent Datadog replacement.
 
 ## The Bottom Line
 
-**Choose Datadog if:** You're an established company with an SRE team, you need APM/tracing/log correlation, and your budget is $500+/month.
+**Choose Datadog if:** You need APM, tracing, log correlation, and the broader commercial observability platform.
 
-**Choose AgentPulse if:** You're a small team that wants auto-remediation and actionable alerts for the incidents that actually page you — without the enterprise price tag.
+**Consider AgentPulse if:** You're a small team that wants bounded, configured local responses and can wait for post-staging approved onboarding.
 
 **Datadog is a Swiss Army knife. AgentPulse is a scalpel.** Pick the tool that matches your problem.
 
-[Join the paid beta →](https://agentpulse.ca/signup)
+[Request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup)

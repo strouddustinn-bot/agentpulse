@@ -1,64 +1,59 @@
 ---
-title: Escape the Datadog Bill — Switch to AgentPulse
-description: "Auto-remediation without the bill shock. Switch from Datadog to AgentPulse and save $300+/month."
+title: Compare Datadog Costs with AgentPulse Founding Plans
+description: "Compare Datadog costs with AgentPulse's approved fixed CAD plans and bounded local-remediation design; AgentPulse onboarding and checkout remain closed."
 layout: default
 ---
 
 # Escape the Datadog Bill
 
-## You're paying too much for monitoring. We can fix that.
+## Compare your monitoring cost before changing tools
 
-If you're a small team running Datadog, you know the feeling:
+Datadog combines multiple products and usage dimensions. Export your own invoices and usage records, then compare only the capabilities your environment requires.
 
-- Your bill went from $200/mo to $800/mo and you're not sure why
-- You're afraid to add new hosts because of per-host pricing
-- Custom metrics cost extra. Log volume costs extra. APM costs extra. Everything costs extra.
-- Your free startup year ended and the real bill arrived
+Complex usage billing can make total monitoring cost difficult to predict; compare the products against the capabilities you actually need.
 
-**You're not alone.** This is the Datadog trap, and thousands of teams are stuck in it.
-
-## AgentPulse: Auto-Remediation Without the Bill Shock
+## AgentPulse's approved founding-plan model
 
 | | Datadog | AgentPulse |
 |---|---|---|
-| **5 servers, infra + APM + logs** | $300-500+/mo | C$99/mo founding Pro |
-| **Auto-remediation** | Bits AI SRE ($12/host/mo extra) | **Included in Pro** |
+| **Commercial model** | Multi-product and usage-based; verify current vendor pricing | C$99/mo approved founding Pro for up to 5 hosts when fleet access ships; no live checkout |
+| **Auto-remediation** | Available through Datadog products; verify current scope and pricing | Bounded/configured in accepted artifact; activation gated |
 | **Pricing model** | Per-host + per-GB + per-custom-metric | Simple per-plan |
-| **Bill predictability** | 🔴 Unpredictable | 🟢 Fixed monthly |
-| **Setup time** | Hours to days | Paid beta onboarding |
-| **Sales call required** | For most features | Never |
+| **Bill predictability** | 🔴 Usage-sensitive | Approved fixed monthly plans after activation |
+| **Setup time** | Hours to days | Not yet measured; onboarding begins only after staging and invitation |
+| **Access path** | Self-serve or sales-assisted, depending on product | Request only; no public purchase flow; guided onboarding after invitation |
 
-## What You Get with AgentPulse
+## What the accepted artifact and approved plan define
 
-For **C$99/month** founding Pro (up to 5 servers when fleet ships):
+For the approved **C$99/month** founding Pro plan (up to 5 servers when fleet access ships; no live checkout):
 
-- ✅ Continuous monitoring (disk, services, memory, runaway processes)
-- ✅ **Auto-remediation** — free disk space, restart services, flag runaway processes for one-command approval
-- ✅ Verify-or-escalate — every fix is simulated, safety-gated, and re-measured after it runs
-- ✅ Baseline learning — statistical anomaly detection tuned to *your* server's normal
-- ✅ Webhook alerts — wire into Slack, Discord, PagerDuty, or anything that accepts HTTP
+- ✅ Accepted artifact: local monitoring for disk, services, memory, and runaway processes; onboarding gated
+- ✅ Accepted artifact: configured, allowlisted disk cleanup and service restarts under local policy; process killing remains approval-only
+- ✅ Accepted artifact: permitted actions are simulated, safety-gated, and re-measured; failures escalate
+- ✅ Accepted artifact: statistical baseline learning is advisory
+- ✅ Accepted artifact: webhook delivery support; hosted activation remains gated
 - 🟡 Fleet and incident console source — bounded heartbeat evidence without remote shell access; public deployment pending
 - 🔜 Native Telegram alerts and SSH brute-force blocking remain on the roadmap
 
-The same feature set on Datadog? **$300-500+/month.**
+The Datadog bundle priced above includes capabilities AgentPulse does not provide, including APM and logs. AgentPulse's narrower approved plan is not a feature-equivalent replacement.
 
 ## How to Switch
 
-1. **Join the paid beta** for AgentPulse
-2. **Install the agent** with guided first-server setup
-3. **Configure remediation policies** — auto-fix, ask-first, or alert-only per action
-4. **Turn off Datadog** when you're ready
+1. **Request pilot consideration or reserve founding pricing** for AgentPulse
+2. **After staging passes and an invitation is confirmed, install the accepted agent artifact** with guided first-server setup
+3. **Configure bounded policies** — off, alert-only, ask-first, or auto only for supported allowlisted actions
+4. **Keep existing monitoring until an invited pilot has been verified in your environment**
 
-During the controlled beta, monitoring begins only after guided installation and verification. Public packaging is not yet released.
+After staging passes, an invited controlled pilot will begin only after guided installation and verification. The accepted prerelease exists, but public self-serve onboarding remains closed until the paid account lifecycle proves stable.
 
 ## "But I Need APM/Logs/Traces"
 
 If you need full APM with distributed tracing and log correlation, Datadog is genuinely better for that use case. We're not trying to be everything.
 
-AgentPulse is built for teams that want their servers to **heal themselves** without enterprise pricing. If your #1 pain is "I keep getting paged for the same fixable problems," that's our sweet spot.
+AgentPulse is built for teams that want configured, allowlisted local fixes under policy without enterprise pricing. If your #1 pain is "I keep getting paged for the same bounded, repeat problem," that is the intended fit; public onboarding remains gated.
 
-## Ready to Save?
+## Want to be considered later?
 
-**Founding Pro: C$99/mo for up to 5 servers when fleet ships.** No per-GB billing. No surprise charges. No sales calls.
+**Approved founding Pro: C$99/mo for up to 5 servers when fleet access ships.** It is a fixed plan without per-GB billing, but checkout and paid activation remain closed.
 
-[Join the paid beta →](https://agentpulse.ca/signup)
+[Request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup)

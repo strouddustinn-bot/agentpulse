@@ -1,12 +1,12 @@
 ---
 layout: default
 title: "AgentPulse vs Uptime Kuma (2026) — When Free Monitoring Isn't Enough"
-description: "Uptime Kuma is a great free uptime monitor. But it can't auto-fix your servers. AgentPulse monitors AND remediates."
+description: "Uptime Kuma provides external uptime checks; the accepted AgentPulse artifact supports bounded local remediation, with onboarding still gated."
 ---
 
 # AgentPulse vs Uptime Kuma
 
-Uptime Kuma is one of the most popular self-hosted monitoring tools on GitHub (60k+ stars). It's free, it's easy to set up, and it looks great. For basic uptime monitoring, it's genuinely excellent.
+Uptime Kuma is an open-source, self-hosted uptime monitor. Confirm its current capabilities and release status against the project documentation.
 
 But "free" has limitations. Uptime Kuma watches your servers from the outside. It can tell you when something's down. It can't do anything about it.
 
@@ -15,7 +15,7 @@ But "free" has limitations. Uptime Kuma watches your servers from the outside. I
 | Feature | AgentPulse | Uptime Kuma |
 |---------|-----------|-------------|
 | External uptime checks | ❌ (inside-the-server agent) | ✅ |
-| Auto-remediation | ✅ | ❌ |
+| Auto-remediation | ✅ bounded/configured in accepted artifact; access gated | ❌ |
 | Server-side agent | ✅ | ❌ |
 | Baseline learning | ✅ (statistical, advisory) | ❌ |
 | Process monitoring | ✅ (memory runaways) | ❌ |
@@ -23,22 +23,22 @@ But "free" has limitations. Uptime Kuma watches your servers from the outside. I
 | Service monitoring | ✅ (systemd, from inside) | ⚠️ (external only) |
 | Status pages | ❌ | ✅ |
 | Self-hosted | Agent runs on your server | Full stack |
-| Cost | $29-299/mo | Free (self-hosted) |
+| Cost | Fixed plans from C$29 to C$299/month CAD; access gated | Free (self-hosted) |
 | Maintenance | One dependency-free systemd service | You maintain it |
 | Alerts | Webhooks (Slack, Discord, PagerDuty, any HTTP) | Many built-in channels |
 | SSH brute-force blocking | 🔜 roadmap | ❌ |
 
-## Where Uptime Kuma Wins
+## Where Uptime Kuma differs
 
-- **It's free** — hard to beat that price
+- **Open-source distribution** — verify current license, release, and hosting requirements with the project
 - **Self-hosted** — full control over your data
-- **Beautiful UI** — genuinely one of the nicest monitoring interfaces
+- **Dashboard UI** — self-hosted interface; verify current project screenshots and release
 - **Status pages** — built-in, looks professional
-- **Community** — massive GitHub community, lots of contributors
+- **Community** — open-source project with public contributors
 
-## Where AgentPulse Wins
+## Where the accepted AgentPulse artifact differs
 
-- **Auto-remediation** — Uptime Kuma tells you your server is down. AgentPulse fixes the things that make it go down.
+- **Bounded remediation** — the accepted AgentPulse artifact can apply configured disk cleanup or service restarts under local policy, then verify the result; public onboarding remains gated.
 - **Server-side monitoring** — AgentPulse runs inside your server, so it sees RAM, disk, and processes — not just "is port 443 responding?"
 - **Minimal maintenance** — no Docker container, no database to back up; one dependency-free Python agent under systemd
 - **Baseline learning** — learns what's statistically normal for your server and flags deviations early
@@ -46,9 +46,9 @@ But "free" has limitations. Uptime Kuma watches your servers from the outside. I
 
 ## Different Vantage Points
 
-Uptime Kuma watches from the outside: is the port answering, is the site up. AgentPulse watches from the inside: is the disk filling, did a service die, is a process eating all the memory — and it can act on what it sees.
+Uptime Kuma documents outside-in checks. The accepted AgentPulse artifact uses inside-the-host checks and can attempt only configured, policy-gated local responses after approved onboarding; customer outcomes remain unproven.
 
-That's why they're not really substitutes. Kuma can't clean a disk or restart a failed unit; AgentPulse can't tell you whether your site is reachable from another continent. If external uptime matters to you, running both is a perfectly good setup — Kuma for the outside view, AgentPulse to fix what's fixable before it becomes an outage.
+They address different layers. Confirm Uptime Kuma's current external-check capabilities with the project; the accepted AgentPulse artifact supports configured local host responses but does not provide outside-in reachability checks. A combined operating model has not yet been validated in an AgentPulse customer pilot.
 
 ## When to Upgrade from Uptime Kuma
 
@@ -63,6 +63,6 @@ You've outgrown Uptime Kuma when:
 
 Uptime Kuma is a great *first step* into monitoring. But it's a thermometer — it tells you the temperature.
 
-AgentPulse is a thermostat — it detects the problem and adjusts automatically.
+AgentPulse is designed as a bounded thermostat: the accepted artifact detects supported conditions and can apply only configured, policy-gated local actions. Public onboarding remains gated.
 
-If you're ready to stop just watching problems and start fixing them, [join the paid beta →](https://agentpulse.ca/signup)
+If you're ready to stop just watching problems and start validating safe fixes, [request pilot consideration or reserve founding pricing →](https://agentpulse.ca/signup)

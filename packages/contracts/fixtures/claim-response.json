@@ -1,0 +1,12 @@
+{
+  "csrf_token": "csrf_00000000000000000000000000000000",
+  "account": {
+    "tenant_id": "00000000-0000-4000-8000-000000000001",
+    "email": "owner@example.com",
+    "plan": "pro",
+    "entitlement_status": "active",
+    "agent_limit": 5,
+    "current_period_end": 1784230400,
+    "grace_period_ends_at": null
+  }
+}
