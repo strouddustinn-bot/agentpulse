@@ -267,7 +267,7 @@ Hermes will derive and present a one-page decision table from current pricing an
 
 - Starter: C$29/month, 1 host;
 - Pro: C$99/month, 5 hosts;
-- Business: C$299/month, proposed explicit finite host limit for self-serve enforcement;
+- Business: C$299/month, 20 hosts, priority support, and guided onboarding;
 - trial behavior, if any;
 - cancellation timing;
 - failed-payment grace period or immediate fail-closed behavior;
