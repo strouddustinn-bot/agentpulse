@@ -46,6 +46,7 @@ paths:
     post:
       tags: [enrollment]
       operationId: createEnrollmentToken
+      x-implementation-status: implemented
       security:
         - AccountBearer: []
       requestBody:
@@ -63,6 +64,33 @@ paths:
                 $ref: '#/components/schemas/EnrollmentTokenResponse'
         '401': { description: Invalid account credential }
         '402': { description: Subscription inactive }
+        '422': { description: Invalid token TTL }
+
+  /v1/browser/enrollment-tokens:
+    post:
+      tags: [enrollment]
+      operationId: createBrowserEnrollmentToken
+      x-implementation-status: implemented
+      security:
+        - BrowserSession: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollmentTokenRequest'
+      responses:
+        '201':
+          description: Short-lived token created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentTokenResponse'
+        '401': { description: 'Missing, invalid, or expired browser session' }
+        '402': { description: Subscription inactive }
+        '403': { description: 'CSRF token missing or invalid, or origin untrusted' }
         '422': { description: Invalid token TTL }
 
   /v1/agents/enroll:
@@ -281,7 +309,7 @@ components:
     AccountBearer:
       type: http
       scheme: bearer
-      description: Hashed account credential; browser sessions are a later release blocker.
+      description: Hashed legacy service credential retained for non-browser compatibility; never exposed to browser JavaScript or storage.
     AgentBearer:
       type: http
       scheme: bearer

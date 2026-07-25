@@ -698,6 +698,27 @@ async function createBillingPortal(request: Request, env: WorkerEnv): Promise<Re
 
 async function createEnrollmentToken(request: Request, env: WorkerEnv): Promise<Response> {
   const account = await accountAuth(request, env);
+  return mintEnrollmentToken(request, env, account.tenantId, account.credentialId);
+}
+
+async function createBrowserEnrollmentToken(request: Request, env: WorkerEnv): Promise<Response> {
+  const session = await requireBrowserMutation(request, env);
+  if (!isHostedOk(session.entitlementStatus)) {
+    throw new HttpError(402, "subscription_inactive", "An active subscription is required");
+  }
+  const credential = await env.DB.prepare(
+    "SELECT id FROM account_credentials WHERE tenant_id=? AND revoked_at IS NULL LIMIT 1",
+  ).bind(session.tenantId).first<{ id: string }>();
+  if (credential === null) throw new HttpError(500, "internal_error", "Account credential is unavailable");
+  return mintEnrollmentToken(request, env, session.tenantId, credential.id);
+}
+
+async function mintEnrollmentToken(
+  request: Request,
+  env: WorkerEnv,
+  tenantId: string,
+  credentialId: string,
+): Promise<Response> {
   const body = objectValue(parseJson(await readBody(request)));
   const ttl = body.ttl_seconds;
   if (!Number.isInteger(ttl) || typeof ttl !== "number" || ttl < 60 || ttl > 900) {
@@ -708,7 +729,7 @@ async function createEnrollmentToken(request: Request, env: WorkerEnv): Promise<
   const expires = created + ttl;
   await env.DB.prepare(
     "INSERT INTO enrollment_tokens (id,tenant_id,token_hash,created_by_credential_id,created_at,expires_at) VALUES (?,?,?,?,?,?)",
-  ).bind(crypto.randomUUID(), account.tenantId, await sha256(token), account.credentialId, created, expires).run();
+  ).bind(crypto.randomUUID(), tenantId, await sha256(token), credentialId, created, expires).run();
   return responseJson({ enrollment_token: token, expires_at: expires }, 201);
 }
 
@@ -1084,6 +1105,7 @@ async function route(request: Request, env: WorkerEnv): Promise<Response> {
   if (request.method === "GET" && url.pathname === "/v1/account") return getAccount(request, env);
   if (request.method === "DELETE" && url.pathname === "/v1/session") return deleteSession(request, env);
   if (request.method === "POST" && url.pathname === "/v1/billing/portal") return createBillingPortal(request, env);
+  if (request.method === "POST" && url.pathname === "/v1/browser/enrollment-tokens") return createBrowserEnrollmentToken(request, env);
   if (request.method === "POST" && url.pathname === "/v1/enrollment-tokens") return createEnrollmentToken(request, env);
   if (request.method === "POST" && url.pathname === "/v1/agents/enroll") return enrollAgent(request, env);
   if (request.method === "POST" && url.pathname === "/v1/agents/heartbeat") return heartbeat(request, env);

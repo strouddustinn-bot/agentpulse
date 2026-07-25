@@ -39,9 +39,9 @@
         "PUBLIC_BASE_URL": "https://staging-api.agentpulse.ca",
         "APP_BASE_URL": "https://staging-app.agentpulse.ca",
         "AGENTPULSE_VERSION": "0.1.0",
-        "STRIPE_PRICE_STARTER": "",
-        "STRIPE_PRICE_PRO": "",
-        "STRIPE_PRICE_BUSINESS": ""
+        "STRIPE_PRICE_STARTER": "price_1TxBlVDVV9guBKy9NrWd1x0Q",
+        "STRIPE_PRICE_PRO": "price_1TxBo9DVV9guBKy9CkKp0mYf",
+        "STRIPE_PRICE_BUSINESS": "price_1TxBpaDVV9guBKy95mWou8FS"
       },
       "d1_databases": [
         {

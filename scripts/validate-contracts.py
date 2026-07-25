@@ -20,6 +20,7 @@ SCHEMA_DIR = CONTRACTS / "schemas"
 FIXTURES = CONTRACTS / "fixtures"
 
 REQUIRED_OPERATIONS: dict[tuple[str, str], dict[str, Any]] = {
+    ("/v1/browser/enrollment-tokens", "post"): {"security": [{"BrowserSession": []}], "csrf": True},
     ("/v1/billing/checkout", "post"): {"security": [], "csrf": False},
     ("/v1/onboarding/claim", "post"): {"security": [], "csrf": False},
     ("/v1/session", "delete"): {"security": [{"BrowserSession": []}], "csrf": True},

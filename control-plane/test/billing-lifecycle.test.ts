@@ -191,6 +191,19 @@ describe("billing lifecycle", () => {
     expect(account.status).toBe(200);
     expect(await account.json()).toMatchObject({ plan: "starter", entitlement_status: "active", agent_limit: 1 });
 
+    const enrollment = await SELF.fetch("https://agentpulse.test/v1/browser/enrollment-tokens", {
+      method: "POST",
+      headers: {
+        Cookie: sessionCookie,
+        "Content-Type": "application/json",
+        "X-CSRF-Token": claimed.csrf_token,
+        Origin: "https://app.agentpulse.test",
+      },
+      body: JSON.stringify({ ttl_seconds: 300 }),
+    });
+    expect(enrollment.status).toBe(201);
+    expect(await enrollment.json()).toMatchObject({ enrollment_token: expect.stringMatching(/^ap_enroll_/) });
+
     const badCsrf = await SELF.fetch("https://agentpulse.test/v1/billing/portal", {
       method: "POST",
       headers: { Cookie: sessionCookie, "X-CSRF-Token": "not-the-token", Origin: "https://app.agentpulse.test" },
