@@ -9,9 +9,9 @@ permalink: /api/
 AgentPulse's control-plane API contract is published for integration review and pre-pilot development.
 
 - **Machine-readable contract:** [OpenAPI 3.1 YAML on GitHub](https://github.com/strouddustinn-bot/agentpulse/blob/master/packages/contracts/openapi.yaml)
-- **Staging target:** `https://staging-api.agentpulse.ca` (health endpoint only; Phase 3A operations are not deployed)
+- **Staging target:** `https://staging-api.agentpulse.ca` (health is live; billing/session/migration `0002` remain undeployed until Owner Gate 3)
 - **Deployed staging health:** `https://staging-api.agentpulse.ca/health`
 
-The production API is not deployed. The `https://api.agentpulse.ca` server entry in the OpenAPI document records the intended production address, not current availability. Operations marked `x-implementation-status: contract-only` describe the approved Phase 3A interface but are not available on staging or production until Phase 3B handlers pass verification. Do not send production credentials or customer data to staging.
+The production API is not deployed. The `https://api.agentpulse.ca` server entry in the OpenAPI document records the intended production address, not current availability. Billing checkout, claim, browser session, account, and portal routes are implemented and locally verified in source (`x-implementation-status: implemented`) but are not available on staging or production until migration `0002`, Stripe test bindings, and staging lifecycle proof complete. Do not send production credentials or customer data to staging.
 
-Authentication currently uses scoped AgentPulse bearer credentials for controlled enrollment and agent communication. AgentPulse does not yet provide OAuth/OIDC authorization-server metadata, automated third-party registration, an MCP server, or WebMCP tools.
+Authentication currently uses scoped AgentPulse bearer credentials for controlled enrollment and agent communication, plus an implemented browser session cookie path for account lifecycle once claim is complete. AgentPulse does not yet provide OAuth/OIDC authorization-server metadata, automated third-party registration, an MCP server, or WebMCP tools.

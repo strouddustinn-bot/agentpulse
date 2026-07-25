@@ -1,4 +1,10 @@
 # Local Worker development only. Never commit real values.
-# Copy to .dev.vars and fill from Stripe test mode.
+# Copy to .dev.vars and fill from Stripe test mode / Cloudflare secrets.
 STRIPE_API_KEY=
 STRIPE_WEBHOOK_SECRET=
+
+# Non-secret plan bindings also live in wrangler.jsonc vars.
+# Set real test Price IDs there or override locally if needed:
+# STRIPE_PRICE_STARTER=price_...
+# STRIPE_PRICE_PRO=price_...
+# STRIPE_PRICE_BUSINESS=price_...

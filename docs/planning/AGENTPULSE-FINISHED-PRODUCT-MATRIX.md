@@ -130,12 +130,12 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Tenant-scoped fleet read | Account can read only its own hosts/incidents | Implemented and tested | ✅ |
 | Monotonic policy narrowing | Hosted policy cannot exceed agent local ceiling | Implemented and tested | ✅ |
 | Stripe signature/replay protection | Raw-body HMAC, timestamp window, event ID idempotency | Signature and event-recording code exists | ✅ |
-| Complete subscription ingestion | Checkout, create/update/delete, invoice paid/failed all update one deterministic entitlement model | Current handler materially acts only on `invoice.payment_failed` | 🟡 |
-| Self-serve checkout creation | API creates checkout only for allowlisted Price IDs and trusted return URLs | Phase 3A contract and migration exist; runtime handler remains absent until Phase 3B | 🟡 |
-| Checkout-to-account claim | Completed checkout can be claimed once for a secure account | Phase 3A contract and one-time claim/session schema exist; runtime handler remains absent until Phase 3B | 🟡 |
-| Billing portal | Authenticated tenant can open Stripe Customer Portal | Phase 3A contract exists; runtime handler remains absent until Phase 3B | 🟡 |
+| Complete subscription ingestion | Checkout, create/update/delete, invoice paid/failed all update one deterministic entitlement model | Implemented and covered by Worker tests: full event set, 3-day grace, recovery on `invoice.paid`, unknown Price ID blocks capacity | ✅ |
+| Self-serve checkout creation | API creates checkout only for allowlisted Price IDs and trusted return URLs | Implemented and tested; staging deploy and real Stripe Price IDs remain Owner Gate 3 | ✅ |
+| Checkout-to-account claim | Completed checkout can be claimed once for a secure account | Implemented and tested: one-time claim, hashed nonce, secure session cookie | ✅ |
+| Billing portal | Authenticated tenant can open Stripe Customer Portal | Implemented and tested with CSRF + trusted origin | ✅ |
 | Credential rotation/revocation | Account and agent credentials can be revoked/rotated without DB surgery | Schema has revocation fields; complete API/UX and proof are absent | 🟡 |
-| Session authentication | Browser uses short-lived secure HttpOnly/SameSite session rather than a bearer key in JavaScript storage | Not implemented | ⬜ |
+| Session authentication | Browser uses short-lived secure HttpOnly/SameSite session rather than a bearer key in JavaScript storage | Implemented and tested: HttpOnly `ap_session`, CSRF synchronizer token, logout revocation | ✅ |
 | Retention/deletion lifecycle | Documented and tested tenant deletion, evidence retention, and privacy-request procedure | Not implemented/documented as an executable runbook | ⬜ |
 | Production D1 | Real ID, migrations, backups/recovery, and rollback are verified | Production ID is `REPLACE_PRODUCTION_D1_ID` | ⬜ |
 | Staging control plane | Candidate D1 migrations are deployed and Worker custom-domain health passes | Older staging health returned HTTP 200, but Phase 3A migration `0002` is source-tested and not deployed | 🟡 |
@@ -176,9 +176,9 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
-| Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; planned contract-only routes are labeled by implementation state | OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 12 paths, 39 refs, 9 schemas, 7 typed fixtures, and 6 negative mutation tests pass; new billing/session handlers remain Phase 3B | 🟡 |
+| Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; planned contract-only routes are labeled by implementation state | OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 12 paths, 39 refs, 9 schemas, 7 typed fixtures, and 6 negative mutation tests pass; billing/session routes labeled implemented after Phase 3B Worker proof | ✅ |
 | Agent test suite | Safety/behavior suite passes on supported Python versions | Fresh local result: 193 passed; GitHub Tests at the pre-change master head succeeded | ✅ |
-| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 24 tests including 10 D1 schema/tenant-boundary tests; separate fresh-replay and true pre-`0002` fail-closed upgrade fixtures pass; typecheck and bindings pass | ✅ |
+| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 29 tests including migrations, fleet/agent routes, and billing lifecycle; typecheck and bindings pass | ✅ |
 | Dashboard build | TypeScript and Vite production build pass | Fresh build succeeded | ✅ |
 | Dashboard behavioral E2E | Browser tests cover auth, fleet, incidents, failure/empty states | No browser test suite | ⬜ |
 | Security dependency audits | Python invariant and npm high-severity audits pass | PostCSS fixed at 8.5.23 in both workspaces; dashboard moved to patched React Router 8.3.0; both fresh npm audits report zero vulnerabilities | ✅ |

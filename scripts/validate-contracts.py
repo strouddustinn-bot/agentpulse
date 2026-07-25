@@ -98,8 +98,8 @@ def check_required_operations(paths: dict[str, Any]) -> None:
         operation = item.get(method)
         if not isinstance(operation, dict):
             raise ValueError(f"path {path} {method} must be an operation object")
-        if operation.get("x-implementation-status") != "contract-only":
-            raise ValueError(f"path {path} {method} must be labeled contract-only until Phase 3B")
+        if operation.get("x-implementation-status") != "implemented":
+            raise ValueError(f"path {path} {method} must be labeled implemented after Phase 3B")
         if operation.get("security") != expected["security"]:
             raise ValueError(f"path {path} {method} has unsafe or unexpected security")
         parameters = operation.get("parameters", [])

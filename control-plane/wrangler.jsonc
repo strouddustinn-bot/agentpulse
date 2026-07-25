@@ -7,6 +7,7 @@
   "vars": {
     "ENVIRONMENT": "development",
     "PUBLIC_BASE_URL": "http://localhost:8787",
+    "APP_BASE_URL": "http://localhost:5173",
     "AGENTPULSE_VERSION": "0.1.0",
     "STRIPE_PRICE_STARTER": "",
     "STRIPE_PRICE_PRO": "",
@@ -36,6 +37,7 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "PUBLIC_BASE_URL": "https://staging-api.agentpulse.ca",
+        "APP_BASE_URL": "https://staging-app.agentpulse.ca",
         "AGENTPULSE_VERSION": "0.1.0",
         "STRIPE_PRICE_STARTER": "",
         "STRIPE_PRICE_PRO": "",
@@ -55,6 +57,7 @@
       "vars": {
         "ENVIRONMENT": "production",
         "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
+        "APP_BASE_URL": "https://app.agentpulse.ca",
         "AGENTPULSE_VERSION": "0.1.0",
         "STRIPE_PRICE_STARTER": "",
         "STRIPE_PRICE_PRO": "",

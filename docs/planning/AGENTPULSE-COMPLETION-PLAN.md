@@ -674,8 +674,11 @@ No phase is complete until its row is proven at the exact candidate commit.
 
 ## 6. Immediate next action
 
-Merge the accepted repaired source, then stop at **Owner Gate 1** for approval to
-publish immutable `v0.2.0-beta.2`. After publication, repeat the broad and
-real-systemd clean-host lifecycle against the exact downloadable wheel and
-checksums. Tier 1 closes only when that exact release passes. Repository ref
-deletion remains separately blocked by the historical-retention gate.
+**Tier 1 closed** on published `v0.2.0-beta.2`. **Owner Gate 2 approved.**
+Phase 3A contracts/migrations and Phase 3B Worker handlers are implemented in
+source with local proof.
+
+Next controlling step: finish any remaining non-secret 3C staging prep, then
+stop at **Owner Gate 3** for Stripe test Price IDs, webhook endpoint, Customer
+Portal settings, and Cloudflare/GitHub secret entry (names/locations only in
+chat). After Gate 3, Hermes runs 3D staging lifecycle proof.

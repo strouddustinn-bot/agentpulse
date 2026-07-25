@@ -16,13 +16,28 @@ async function seedTenant(options: {
   status?: string;
   plan?: string;
   limit?: number;
+  entitlement?: string;
+  graceEndsAt?: number | null;
 }): Promise<void> {
   const timestamp = now();
   await env.DB.batch([
     env.DB.prepare("INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)")
       .bind(options.tenantId, options.email, timestamp, timestamp),
-    env.DB.prepare("INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
-      .bind(`subscription-${options.tenantId}`, options.tenantId, `customer-${options.tenantId}`, `stripe-sub-${options.tenantId}`, options.status ?? "active", "price_test", options.plan ?? "pro", options.limit ?? 5, timestamp + 86400, timestamp),
+    env.DB.prepare("INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at,entitlement_status,grace_period_ends_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")
+      .bind(
+        `subscription-${options.tenantId}`,
+        options.tenantId,
+        `customer-${options.tenantId}`,
+        `stripe-sub-${options.tenantId}`,
+        options.status ?? "active",
+        "price_test_pro",
+        options.plan ?? "pro",
+        options.limit ?? 5,
+        timestamp + 86400,
+        timestamp,
+        options.entitlement ?? ((options.status ?? "active") === "active" || (options.status ?? "active") === "trialing" ? "active" : "blocked"),
+        options.graceEndsAt ?? null,
+      ),
     env.DB.prepare("INSERT INTO account_credentials (id,tenant_id,credential_hash,prefix,created_at) VALUES (?,?,?,?,?)")
       .bind(`credential-${options.tenantId}`, options.tenantId, await sha256(options.accountKey), options.accountKey.slice(0, 12), timestamp),
   ]);
@@ -64,7 +79,20 @@ async function stripeSignature(payload: string, timestamp = now()): Promise<stri
 }
 
 beforeEach(async () => {
-  const tables = ["heartbeat_events", "incidents", "agents", "enrollment_tokens", "onboarding_claims", "account_credentials", "policies", "subscriptions", "tenants", "stripe_events"];
+  const tables = [
+    "heartbeat_events",
+    "incidents",
+    "agents",
+    "enrollment_tokens",
+    "onboarding_claims",
+    "browser_sessions",
+    "checkout_sessions",
+    "account_credentials",
+    "policies",
+    "subscriptions",
+    "tenants",
+    "stripe_events",
+  ];
   for (const table of tables) await env.DB.prepare(`DELETE FROM ${table}`).run();
 });
 
@@ -231,18 +259,29 @@ describe("AgentPulse control-plane contract", () => {
     expect(count?.count).toBe(1);
   });
 
-  it("disables agent heartbeat after failed payment", async () => {
+  it("keeps heartbeat during failed-payment grace, then blocks after grace ends", async () => {
     await seedTenant({ tenantId: "tenant-a", email: "a@example.com", accountKey: "ap_account_a" });
     const enrolled = await enroll(await mintEnrollment("ap_account_a"), "node-1", "host-1");
     const event = { id: "evt_failed", type: "invoice.payment_failed", data: { object: { subscription: "stripe-sub-tenant-a" } } };
     const payload = JSON.stringify(event);
     await SELF.fetch("https://agentpulse.test/v1/stripe/webhook", { method: "POST", headers: { "Stripe-Signature": await stripeSignature(payload) }, body: payload });
-    const response = await SELF.fetch("https://agentpulse.test/v1/agents/heartbeat", {
+    const duringGrace = await SELF.fetch("https://agentpulse.test/v1/agents/heartbeat", {
       method: "POST",
       headers: { Authorization: `Bearer ${enrolled.credential}`, "Content-Type": "application/json" },
       body: JSON.stringify({ idempotency_key: "cycle-2", observed_at: now(), summary: {}, incidents: [] }),
     });
-    expect(response.status).toBe(402);
+    expect(duringGrace.status).toBe(202);
+    const row = await env.DB.prepare("SELECT entitlement_status,grace_period_ends_at FROM subscriptions WHERE stripe_subscription_id='stripe-sub-tenant-a'")
+      .first<{ entitlement_status: string; grace_period_ends_at: number }>();
+    expect(row?.entitlement_status).toBe("grace");
+    await env.DB.prepare("UPDATE subscriptions SET grace_period_ends_at=?,entitlement_status='grace' WHERE stripe_subscription_id='stripe-sub-tenant-a'")
+      .bind(now() - 1).run();
+    const afterGrace = await SELF.fetch("https://agentpulse.test/v1/agents/heartbeat", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${enrolled.credential}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ idempotency_key: "cycle-3", observed_at: now(), summary: {}, incidents: [] }),
+    });
+    expect(afterGrace.status).toBe(402);
   });
 
   it("rejects oversized bodies before parsing JSON", async () => {

@@ -14,7 +14,7 @@ servers:
   - url: https://api.agentpulse.ca
     description: Reserved production contract target; not deployed
   - url: https://staging-api.agentpulse.ca
-    description: Staging health target; Phase 3A operations remain contract-only and undeployed
+    description: Staging API target; billing/session routes are implemented in source and undeployed until Owner Gate 3/3D
   - url: http://localhost:8787
     description: Local Worker
 
@@ -173,7 +173,7 @@ paths:
     post:
       tags: [billing]
       operationId: createBillingCheckout
-      x-implementation-status: contract-only
+      x-implementation-status: implemented
       security: []
       requestBody:
         required: true
@@ -198,7 +198,7 @@ paths:
     post:
       tags: [onboarding]
       operationId: claimOnboarding
-      x-implementation-status: contract-only
+      x-implementation-status: implemented
       security: []
       requestBody:
         required: true
@@ -230,7 +230,7 @@ paths:
     delete:
       tags: [session]
       operationId: deleteSession
-      x-implementation-status: contract-only
+      x-implementation-status: implemented
       security:
         - BrowserSession: []
       parameters:
@@ -244,7 +244,7 @@ paths:
     get:
       tags: [account]
       operationId: getAccount
-      x-implementation-status: contract-only
+      x-implementation-status: implemented
       security:
         - BrowserSession: []
       responses:
@@ -260,7 +260,7 @@ paths:
     post:
       tags: [billing]
       operationId: createBillingPortalSession
-      x-implementation-status: contract-only
+      x-implementation-status: implemented
       security:
         - BrowserSession: []
       parameters:
