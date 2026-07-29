@@ -21,6 +21,11 @@ export default defineConfig(async () => {
         },
       }),
     ],
-    test: { setupFiles: ["./test/apply-migrations.ts"] },
+    test: {
+      setupFiles: ["./test/apply-migrations.ts"],
+      // Billing suites replace global fetch with Stripe mocks; serialize files
+      // so independent mocks cannot race inside the Workers pool isolate.
+      fileParallelism: false,
+    },
   };
 });

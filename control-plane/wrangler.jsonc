@@ -7,7 +7,7 @@
   "vars": {
     "ENVIRONMENT": "development",
     "PUBLIC_BASE_URL": "http://localhost:8787",
-    "APP_BASE_URL": "http://localhost:5173",
+    "APP_BASE_URL": "http://localhost:5174",
     "AGENTPULSE_VERSION": "0.1.0",
     "STRIPE_PRICE_STARTER": "",
     "STRIPE_PRICE_PRO": "",

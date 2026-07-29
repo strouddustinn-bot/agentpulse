@@ -40,6 +40,22 @@ class ContractValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "CSRF"):
             validate_contracts.check_required_operations(document["paths"])
 
+    def test_rejects_fleet_auth_or_claim_response_drift(self) -> None:
+        mutations = (
+            lambda document: document["paths"]["/v1/fleet"]["get"].update(
+                {"security": [{"AccountBearer": []}]}
+            ),
+            lambda document: document["paths"]["/v1/onboarding/claim"]["post"][
+                "responses"
+            ].pop("500"),
+        )
+        for mutate in mutations:
+            with self.subTest():
+                document = copy.deepcopy(self.document)
+                mutate(document)
+                with self.assertRaises(ValueError):
+                    validate_contracts.check_required_operations(document["paths"])
+
     def test_rejects_weakened_browser_session_and_csrf_components(self) -> None:
         mutations = (
             (
@@ -81,7 +97,12 @@ class ContractValidationTests(unittest.TestCase):
             validate_contracts.validate_fixture(
                 self.document,
                 "checkout-response.json",
-                {"checkout_url": "not a uri", "expires_at": 1784144000},
+                {
+                    "checkout_url": "not a uri",
+                    "checkout_session_id": "cs_test_contract_fixture",
+                    "livemode": False,
+                    "expires_at": 1784144000,
+                },
             )
 
     def test_rejects_wrong_fixture_types_and_nested_enums(self) -> None:
@@ -89,7 +110,12 @@ class ContractValidationTests(unittest.TestCase):
             validate_contracts.validate_fixture(
                 self.document,
                 "checkout-response.json",
-                {"checkout_url": 7, "expires_at": "never"},
+                {
+                    "checkout_url": 7,
+                    "checkout_session_id": "cs_test_contract_fixture",
+                    "livemode": False,
+                    "expires_at": "never",
+                },
             )
         invalid_claim = {
             "csrf_token": "csrf_00000000000000000000000000000000",

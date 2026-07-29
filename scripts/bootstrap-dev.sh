@@ -13,7 +13,7 @@ python3 -m venv "$VENV"
 # shellcheck source=/dev/null
 source "$VENV/bin/activate"
 python -m pip install --upgrade pip >/dev/null
-python -m pip install PyYAML jsonschema ruff >/dev/null
+python -m pip install PyYAML jsonschema openapi-spec-validator ruff==0.4.10 >/dev/null
 
 python agent/tools/run_tests.py
 python scripts/validate-contracts.py

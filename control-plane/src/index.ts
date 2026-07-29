@@ -7,6 +7,7 @@ type Mode = "off" | "alert" | "ask" | "auto";
 type Plan = "starter" | "pro" | "business";
 type EntitlementStatus = "active" | "grace" | "blocked";
 type CheckoutStatus = "pending" | "ready" | "claimed" | "expired" | "canceled";
+type WebhookLease = { eventId: string; token: string };
 
 const MAX_BODY_BYTES = 65_536;
 const HOSTED_OK = new Set<EntitlementStatus>(["active", "grace"]);
@@ -15,6 +16,7 @@ const PLAN_LIMITS: Record<Plan, number> = { starter: 1, pro: 5, business: 20 };
 const GRACE_SECONDS = 3 * 24 * 60 * 60;
 const SESSION_TTL_SECONDS = 12 * 60 * 60;
 const CHECKOUT_TTL_SECONDS = 30 * 60;
+const WEBHOOK_STALE_SECONDS = 5 * 60;
 const SESSION_COOKIE = "ap_session";
 
 class HttpError extends Error {
@@ -38,6 +40,75 @@ function failure(status: number, code: string, message: string): Response {
   return responseJson({ error: { code, message } }, status);
 }
 
+function appOrigin(env: WorkerEnv): string {
+  try {
+    const configured = new URL(env.APP_BASE_URL);
+    const isHttp = configured.protocol === "http:" || configured.protocol === "https:";
+    const hasOriginOnly = configured.pathname === "/" && configured.search === "" && configured.hash === "";
+    if (!isHttp || configured.username !== "" || configured.password !== "" || !hasOriginOnly) throw new Error();
+    return configured.origin;
+  } catch {
+    throw new HttpError(500, "configuration_error", "APP_BASE_URL must be an absolute HTTP(S) origin");
+  }
+}
+
+function trustedCorsOrigin(env: WorkerEnv, origin: string | null): string | null {
+  if (origin === null) return null;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.origin !== origin) return null;
+    return parsed.origin === appOrigin(env) ? parsed.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+function appendVary(headers: Headers, value: string): void {
+  const values = (headers.get("Vary") ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!values.some((item) => item.toLowerCase() === value.toLowerCase())) values.push(value);
+  headers.set("Vary", values.join(", "));
+}
+
+function withCors(response: Response, env: WorkerEnv, request: Request): Response {
+  if (request.headers.get("Origin") === null) return response;
+  const headers = new Headers(response.headers);
+  appendVary(headers, "Origin");
+  const origin = trustedCorsOrigin(env, request.headers.get("Origin"));
+  if (origin !== null) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Access-Control-Allow-Credentials", "true");
+  }
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
+function preflight(request: Request, env: WorkerEnv): Response {
+  const origin = trustedCorsOrigin(env, request.headers.get("Origin"));
+  const requestedMethod = request.headers.get("Access-Control-Request-Method")?.toUpperCase() ?? "";
+  const allowedMethods = new Set(["GET", "POST", "DELETE"]);
+  const allowedHeaders = new Set(["accept", "content-type", "x-csrf-token"]);
+  const requestedHeaders = (request.headers.get("Access-Control-Request-Headers") ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (origin === null || !allowedMethods.has(requestedMethod) || requestedHeaders.some((value) => !allowedHeaders.has(value))) {
+    return new Response(null, { status: 403, headers: { Vary: "Origin" } });
+  }
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Accept, Content-Type, X-CSRF-Token",
+      "Access-Control-Max-Age": "600",
+      Vary: "Origin",
+    },
+  });
+}
+
 function bearer(request: Request): string {
   const value = request.headers.get("Authorization") ?? "";
   if (!value.startsWith("Bearer ") || value.length <= 7) {
@@ -52,8 +123,9 @@ function hex(buffer: ArrayBuffer): string {
     .join("");
 }
 
-async function sha256(value: string): Promise<string> {
-  return hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+async function sha256(value: string | Uint8Array): Promise<string> {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : Uint8Array.from(value);
+  return hex(await crypto.subtle.digest("SHA-256", bytes));
 }
 
 function secureToken(prefix: string): string {
@@ -158,6 +230,12 @@ function entitlementFromStripeStatus(status: string, graceEndsAt: number | null,
   if (status === "active" || status === "trialing") return "active";
   if (status === "past_due" && graceEndsAt !== null && graceEndsAt > now) return "grace";
   return "blocked";
+}
+
+function entitlementRank(status: EntitlementStatus): number {
+  if (status === "blocked") return 2;
+  if (status === "grace") return 1;
+  return 0;
 }
 
 const SUMMARY_COUNTERS = [
@@ -353,26 +431,18 @@ async function requireCsrf(request: Request, session: BrowserAuth): Promise<void
   if ((await sha256(token)) !== session.csrfHash) {
     throw new HttpError(403, "csrf_invalid", "CSRF token is missing or invalid");
   }
-  const origin = request.headers.get("Origin");
-  if (origin) {
-    // Origin is optional for same-site cookie calls; when present it must match app/api bases.
-    // Validated against trusted bases below if provided.
-  }
-  void origin;
 }
 
-function trustedOrigin(env: WorkerEnv, origin: string | null): boolean {
-  if (origin === null) return true;
-  const trusted = new Set([env.APP_BASE_URL.replace(/\/$/, ""), env.PUBLIC_BASE_URL.replace(/\/$/, "")]);
-  return trusted.has(origin.replace(/\/$/, ""));
+function requireTrustedAppOrigin(request: Request, env: WorkerEnv): void {
+  if (trustedCorsOrigin(env, request.headers.get("Origin")) === null) {
+    throw new HttpError(403, "origin_untrusted", "Request origin is not trusted");
+  }
 }
 
 async function requireBrowserMutation(request: Request, env: WorkerEnv): Promise<BrowserAuth> {
   const session = await browserAuth(request, env);
   await requireCsrf(request, session);
-  if (!trustedOrigin(env, request.headers.get("Origin"))) {
-    throw new HttpError(403, "origin_untrusted", "Request origin is not trusted");
-  }
+  requireTrustedAppOrigin(request, env);
   return session;
 }
 
@@ -428,12 +498,25 @@ async function createBillingCheckout(request: Request, env: WorkerEnv): Promise<
   form.set("expires_at", String(expiresAt));
   const session = await stripeRequest(env, "POST", "/checkout/sessions", form);
   const checkoutId = stringField(session.id, "checkout.id", 255);
+  const livemode = session.livemode === true;
+  if (env.ENVIRONMENT === "staging" && (livemode || !checkoutId.startsWith("cs_test_"))) {
+    throw new HttpError(503, "stripe_mode_mismatch", "Staging checkout must use a Stripe test-mode Checkout Session");
+  }
   const url = stringField(session.url, "checkout.url", 2048);
   const stripeExpires = typeof session.expires_at === "number" ? session.expires_at : expiresAt;
   await env.DB.prepare(
     "INSERT INTO checkout_sessions (stripe_checkout_session_id,claim_nonce_hash,price_id,plan,status,created_at,expires_at) VALUES (?,?,?,?,?,?,?)",
   ).bind(checkoutId, claimHash, priceId, body.plan, "pending", now, stripeExpires).run();
-  return responseJson({ checkout_url: url, expires_at: stripeExpires }, 201);
+  return responseJson({ checkout_url: url, checkout_session_id: checkoutId, livemode, expires_at: stripeExpires }, 201);
+}
+
+async function webhookLeaseOwned(env: WorkerEnv, lease?: WebhookLease): Promise<boolean> {
+  if (!lease) return true;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const row = await env.DB.prepare(
+    "SELECT 1 AS owned FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=? AND COALESCE(lease_expires_at,0)>?",
+  ).bind(lease.eventId, lease.token, timestamp).first<{ owned: number }>();
+  return row?.owned === 1;
 }
 
 async function upsertTenantSubscription(env: WorkerEnv, input: {
@@ -445,50 +528,28 @@ async function upsertTenantSubscription(env: WorkerEnv, input: {
   plan: Plan;
   periodEnd: number | null;
   graceEndsAt: number | null;
+  eventCreated: number;
   now: number;
-}): Promise<string> {
+}, lease?: WebhookLease): Promise<string> {
   const entitlement = entitlementFromStripeStatus(input.status, input.graceEndsAt, input.now);
-  const existing = await env.DB.prepare(
-    "SELECT tenant_id FROM subscriptions WHERE stripe_subscription_id=? OR stripe_customer_id=? LIMIT 1",
-  ).bind(input.subscriptionId, input.customerId).first<{ tenant_id: string }>();
-  let tenantId = existing?.tenant_id;
-  if (!tenantId) {
-    const byEmail = await env.DB.prepare("SELECT id FROM tenants WHERE email=? COLLATE NOCASE").bind(input.email)
-      .first<{ id: string }>();
-    tenantId = byEmail?.id ?? crypto.randomUUID();
-    if (!byEmail) {
-      await env.DB.prepare("INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)")
-        .bind(tenantId, input.email, input.now, input.now).run();
+  const findByStripeIds = () => env.DB.prepare(
+    "SELECT id,tenant_id,stripe_customer_id,stripe_subscription_id FROM subscriptions " +
+      "WHERE stripe_subscription_id=? OR stripe_customer_id=?",
+  ).bind(input.subscriptionId, input.customerId).all<{
+    id: string;
+    tenant_id: string;
+    stripe_customer_id: string;
+    stripe_subscription_id: string;
+  }>();
+  let subRows = (await findByStripeIds()).results;
+  if (subRows.length === 0) {
+    const byEmail = await env.DB.prepare("SELECT id FROM tenants WHERE email=? COLLATE NOCASE")
+      .bind(input.email).first<{ id: string }>();
+    if (byEmail !== null) {
+      throw new HttpError(409, "subscription_conflict", "Email already belongs to another account");
     }
-  } else {
-    await env.DB.prepare("UPDATE tenants SET email=?,updated_at=? WHERE id=?")
-      .bind(input.email, input.now, tenantId).run();
-  }
-  const subRow = await env.DB.prepare(
-    "SELECT id FROM subscriptions WHERE stripe_subscription_id=? OR tenant_id=? LIMIT 1",
-  ).bind(input.subscriptionId, tenantId).first<{ id: string }>();
-  if (subRow) {
-    await env.DB.prepare(
-      "UPDATE subscriptions SET stripe_customer_id=?,stripe_subscription_id=?,status=?,price_id=?,plan=?,agent_limit=?," +
-        "current_period_end=?,entitlement_status=?,grace_period_ends_at=?,updated_at=? WHERE id=?",
-    ).bind(
-      input.customerId,
-      input.subscriptionId,
-      input.status,
-      input.priceId,
-      input.plan,
-      PLAN_LIMITS[input.plan],
-      input.periodEnd,
-      entitlement,
-      input.graceEndsAt,
-      input.now,
-      subRow.id,
-    ).run();
-  } else {
-    await env.DB.prepare(
-      "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit," +
-        "current_period_end,updated_at,entitlement_status,grace_period_ends_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-    ).bind(
+    const tenantId = crypto.randomUUID();
+    const subscriptionValues = [
       crypto.randomUUID(),
       tenantId,
       input.customerId,
@@ -501,18 +562,110 @@ async function upsertTenantSubscription(env: WorkerEnv, input: {
       input.now,
       entitlement,
       input.graceEndsAt,
-    ).run();
+      input.eventCreated,
+    ];
+    const tenantInsert = lease
+      ? env.DB.prepare(
+          "INSERT INTO tenants (id,email,created_at,updated_at) SELECT ?,?,?,? " +
+            "WHERE EXISTS (SELECT 1 FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=?)",
+        ).bind(tenantId, input.email, input.now, input.now, lease.eventId, lease.token)
+      : env.DB.prepare("INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)")
+        .bind(tenantId, input.email, input.now, input.now);
+    const subscriptionInsert = lease
+      ? env.DB.prepare(
+          "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit," +
+            "current_period_end,updated_at,entitlement_status,grace_period_ends_at,stripe_event_created_at) " +
+            "SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM tenants WHERE id=?) " +
+            "AND EXISTS (SELECT 1 FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=?)",
+        ).bind(...subscriptionValues, tenantId, lease.eventId, lease.token)
+      : env.DB.prepare(
+          "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit," +
+            "current_period_end,updated_at,entitlement_status,grace_period_ends_at,stripe_event_created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        ).bind(...subscriptionValues);
+    try {
+      // Plain INSERTs make uniqueness conflicts roll back both rows atomically.
+      await env.DB.batch([tenantInsert, subscriptionInsert]);
+    } catch {
+      // A concurrent exact-identifier event may have won. Re-read below.
+    }
+    // A same-customer Stripe event may have won the race. Only exact
+    // identifier convergence is safe; shared email is never account proof.
+    subRows = (await findByStripeIds()).results;
+    if (subRows.length === 0 && !(await webhookLeaseOwned(env, lease))) {
+      throw new HttpError(409, "event_lease_lost", "Stripe event processing lease was superseded");
+    }
   }
-  return tenantId;
+  const subRow = subRows[0];
+  if (
+    subRows.length !== 1 ||
+    subRow === undefined ||
+    subRow.stripe_customer_id !== input.customerId ||
+    subRow.stripe_subscription_id !== input.subscriptionId
+  ) {
+    throw new HttpError(409, "subscription_conflict", "Stripe subscription identifiers conflict with an existing account");
+  }
+  const updateSql =
+    "UPDATE subscriptions SET status=?,price_id=?,plan=?,agent_limit=?,current_period_end=?," +
+      "entitlement_status=?,grace_period_ends_at=?,updated_at=?,stripe_event_created_at=? " +
+      "WHERE id=? AND (stripe_event_created_at<? OR (stripe_event_created_at=? AND " +
+      "(CASE entitlement_status WHEN 'blocked' THEN 2 WHEN 'grace' THEN 1 ELSE 0 END<? OR " +
+      "(CASE entitlement_status WHEN 'blocked' THEN 2 WHEN 'grace' THEN 1 ELSE 0 END=? " +
+      "AND (agent_limit>? OR (agent_limit=? AND " +
+      "(COALESCE(current_period_end,0)>COALESCE(?,0) OR " +
+      "(COALESCE(current_period_end,0)=COALESCE(?,0) AND " +
+      "(COALESCE(grace_period_ends_at,0)>COALESCE(?,0) OR " +
+      "(COALESCE(grace_period_ends_at,0)=COALESCE(?,0) AND price_id>=?))))))))))" +
+      (lease ? " AND EXISTS (SELECT 1 FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=?)" : "");
+  const updateValues: unknown[] = [
+    input.status,
+    input.priceId,
+    input.plan,
+    PLAN_LIMITS[input.plan],
+    input.periodEnd,
+    entitlement,
+    input.graceEndsAt,
+    input.now,
+    input.eventCreated,
+    subRow.id,
+    input.eventCreated,
+    input.eventCreated,
+    entitlementRank(entitlement),
+    entitlementRank(entitlement),
+    PLAN_LIMITS[input.plan],
+    PLAN_LIMITS[input.plan],
+    input.periodEnd,
+    input.periodEnd,
+    input.graceEndsAt,
+    input.graceEndsAt,
+    input.priceId,
+  ];
+  if (lease) updateValues.push(lease.eventId, lease.token);
+  await env.DB.prepare(updateSql).bind(...updateValues).run();
+  return subRow.tenant_id;
 }
 
-async function markCheckoutReady(env: WorkerEnv, checkoutId: string, tenantId: string, now: number): Promise<void> {
-  await env.DB.prepare(
-    "UPDATE checkout_sessions SET status='ready',tenant_id=?,ready_at=? WHERE stripe_checkout_session_id=? AND status IN ('pending','ready')",
-  ).bind(tenantId, now, checkoutId).run();
+async function markCheckoutReady(
+  env: WorkerEnv,
+  checkoutId: string,
+  tenantId: string,
+  now: number,
+  lease?: WebhookLease,
+): Promise<void> {
+  const sql =
+    "UPDATE checkout_sessions SET status='ready',tenant_id=?,ready_at=? WHERE stripe_checkout_session_id=? " +
+    "AND status IN ('pending','ready')" +
+    (lease ? " AND EXISTS (SELECT 1 FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=?)" : "");
+  const values: unknown[] = [tenantId, now, checkoutId];
+  if (lease) values.push(lease.eventId, lease.token);
+  await env.DB.prepare(sql).bind(...values).run();
 }
 
-async function materializePaidCheckout(env: WorkerEnv, checkoutId: string): Promise<{
+async function materializePaidCheckout(
+  env: WorkerEnv,
+  checkoutId: string,
+  stripeEventCreated?: number,
+  lease?: WebhookLease,
+): Promise<{
   tenantId: string;
   plan: Plan;
   email: string;
@@ -530,6 +683,7 @@ async function materializePaidCheckout(env: WorkerEnv, checkoutId: string): Prom
   }>();
   if (local === null || !isPlan(local.plan)) throw new HttpError(401, "invalid_claim", "Claim nonce is invalid or unknown");
   const now = Math.floor(Date.now() / 1000);
+  const eventCreated = stripeEventCreated ?? now;
   if (local.status === "claimed") throw new HttpError(409, "already_claimed", "Checkout was already claimed");
   if (local.status === "canceled" || local.status === "expired" || local.expires_at < now) {
     throw new HttpError(409, "checkout_unavailable", "Checkout is expired or canceled");
@@ -537,7 +691,7 @@ async function materializePaidCheckout(env: WorkerEnv, checkoutId: string): Prom
   const session = await stripeRequest(env, "GET", `/checkout/sessions/${encodeURIComponent(checkoutId)}`);
   const paymentStatus = typeof session.payment_status === "string" ? session.payment_status : "";
   const status = typeof session.status === "string" ? session.status : "";
-  if (paymentStatus !== "paid" && status !== "complete") {
+  if (paymentStatus !== "paid" || status !== "complete") {
     throw new HttpError(409, "checkout_incomplete", "Checkout is not yet completed");
   }
   const customerId = typeof session.customer === "string" ? session.customer : "";
@@ -551,14 +705,36 @@ async function materializePaidCheckout(env: WorkerEnv, checkoutId: string): Prom
   if (!email && typeof session.customer_email === "string") email = session.customer_email;
   if (!email) email = `customer+${customerId.slice(-8)}@users.agentpulse.invalid`;
   const priceId = local.price_id;
-  const plan = planFromPriceId(env, priceId) ?? local.plan;
-  if (!isPlan(plan)) throw new HttpError(503, "price_unmapped", "Plan is not mapped to a Stripe Price ID");
-  let periodEnd: number | null = null;
-  try {
-    const sub = await stripeRequest(env, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
-    if (typeof sub.current_period_end === "number") periodEnd = sub.current_period_end;
-  } catch {
-    periodEnd = now + 30 * 24 * 60 * 60;
+  const plan = planFromPriceId(env, priceId);
+  if (plan === null) throw new HttpError(503, "price_unmapped", "Plan is not mapped to a Stripe Price ID");
+  const sub = await stripeRequest(env, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
+  let canonicalPriceId = "";
+  if (typeof sub.items === "object" && sub.items !== null) {
+    const items = sub.items as Record<string, unknown>;
+    if (Array.isArray(items.data) && items.data[0] && typeof items.data[0] === "object") {
+      const first = items.data[0] as Record<string, unknown>;
+      if (typeof first.price === "object" && first.price !== null) {
+        const price = first.price as Record<string, unknown>;
+        if (typeof price.id === "string") canonicalPriceId = price.id;
+      }
+    }
+  }
+  if (
+    sub.id !== subscriptionId ||
+    sub.customer !== customerId ||
+    sub.status !== "active" ||
+    canonicalPriceId !== priceId
+  ) {
+    throw new HttpError(409, "subscription_conflict", "Canonical Stripe subscription does not match the paid checkout");
+  }
+  const periodEnd = typeof sub.current_period_end === "number" && sub.current_period_end > now
+    ? sub.current_period_end
+    : null;
+  if (periodEnd === null) {
+    throw new HttpError(409, "subscription_inactive", "Canonical Stripe subscription period is invalid");
+  }
+  if (!(await webhookLeaseOwned(env, lease))) {
+    throw new HttpError(409, "event_lease_lost", "Stripe event processing lease was superseded");
   }
   const tenantId = await upsertTenantSubscription(env, {
     email,
@@ -569,13 +745,20 @@ async function materializePaidCheckout(env: WorkerEnv, checkoutId: string): Prom
     plan,
     periodEnd,
     graceEndsAt: null,
+    eventCreated,
     now,
-  });
-  await markCheckoutReady(env, checkoutId, tenantId, now);
+  }, lease);
+  await markCheckoutReady(env, checkoutId, tenantId, now, lease);
   return { tenantId, plan, email };
 }
 
-async function issueBrowserSession(env: WorkerEnv, tenantId: string, now: number): Promise<{
+async function issueClaimedBrowserSession(
+  env: WorkerEnv,
+  tenantId: string,
+  checkoutId: string,
+  credential: { id: string; hash: string | null; prefix: string | null },
+  now: number,
+): Promise<{
   cookie: string;
   csrfToken: string;
   account: Record<string, unknown>;
@@ -584,9 +767,52 @@ async function issueBrowserSession(env: WorkerEnv, tenantId: string, now: number
   const csrfToken = secureToken("ap_csrf_");
   const sessionId = crypto.randomUUID();
   const expires = now + SESSION_TTL_SECONDS;
-  await env.DB.prepare(
-    "INSERT INTO browser_sessions (id,tenant_id,session_hash,csrf_token_hash,created_at,expires_at,last_seen_at) VALUES (?,?,?,?,?,?,?)",
-  ).bind(sessionId, tenantId, await sha256(sessionToken), await sha256(csrfToken), now, expires, now).run();
+  const statements = [
+    env.DB.prepare(
+      "UPDATE checkout_sessions SET status='claimed',claimed_at=?,tenant_id=? " +
+        "WHERE stripe_checkout_session_id=? AND status='ready' AND tenant_id=?",
+    ).bind(now, tenantId, checkoutId, tenantId),
+  ];
+  if (credential.hash !== null && credential.prefix !== null) {
+    statements.push(env.DB.prepare(
+      "INSERT INTO account_credentials (id,tenant_id,credential_hash,prefix,created_at) " +
+        "SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM checkout_sessions WHERE stripe_checkout_session_id=? AND status='claimed' AND tenant_id=?)",
+    ).bind(credential.id, tenantId, credential.hash, credential.prefix, now, checkoutId, tenantId));
+  }
+  statements.push(
+    env.DB.prepare(
+      "INSERT INTO onboarding_claims (checkout_session_id,tenant_id,claimed_at,account_credential_id) " +
+        "SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM checkout_sessions WHERE stripe_checkout_session_id=? AND status='claimed' AND tenant_id=?)",
+    ).bind(checkoutId, tenantId, now, credential.id, checkoutId, tenantId),
+    env.DB.prepare(
+      "INSERT INTO browser_sessions (id,tenant_id,session_hash,csrf_token_hash,created_at,expires_at,last_seen_at) " +
+        "SELECT ?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM onboarding_claims WHERE checkout_session_id=? AND tenant_id=?)",
+    ).bind(
+      sessionId,
+      tenantId,
+      await sha256(sessionToken),
+      await sha256(csrfToken),
+      now,
+      expires,
+      now,
+      checkoutId,
+      tenantId,
+    ),
+  );
+  let results: D1Result[];
+  try {
+    results = await env.DB.batch(statements);
+  } catch (error) {
+    const checkout = await env.DB.prepare("SELECT status FROM checkout_sessions WHERE stripe_checkout_session_id=?")
+      .bind(checkoutId).first<{ status: string }>();
+    if (checkout?.status === "claimed") {
+      throw new HttpError(409, "already_claimed", "Checkout was already claimed");
+    }
+    throw error;
+  }
+  if ((results[0]?.meta.changes ?? 0) !== 1) {
+    throw new HttpError(409, "already_claimed", "Checkout was already claimed");
+  }
   const account = await env.DB.prepare(
     "SELECT t.id AS tenant_id,t.email,s.plan,s.entitlement_status,s.agent_limit,s.current_period_end,s.grace_period_ends_at " +
       "FROM tenants t JOIN subscriptions s ON s.tenant_id=t.id WHERE t.id=? ORDER BY s.updated_at DESC LIMIT 1",
@@ -616,6 +842,7 @@ async function issueBrowserSession(env: WorkerEnv, tenantId: string, now: number
 }
 
 async function claimOnboarding(request: Request, env: WorkerEnv): Promise<Response> {
+  requireTrustedAppOrigin(request, env);
   const body = objectValue(parseJson(await readBody(request)));
   const claimNonce = stringField(body.claim_nonce, "claim_nonce", 255);
   if (claimNonce.length < 16) throw new HttpError(422, "invalid_payload", "claim_nonce must be at least 16 characters");
@@ -627,28 +854,28 @@ async function claimOnboarding(request: Request, env: WorkerEnv): Promise<Respon
   if (local.status === "claimed") throw new HttpError(409, "already_claimed", "Checkout was already claimed");
   const materialized = await materializePaidCheckout(env, local.stripe_checkout_session_id);
   const now = Math.floor(Date.now() / 1000);
-  // Ensure an account credential exists for agent enrollment (server-side only; never returned to browser).
+  // Ensure an account credential exists for legacy enrollment (server-side only; never returned to browser).
   const existingCred = await env.DB.prepare(
     "SELECT id FROM account_credentials WHERE tenant_id=? AND revoked_at IS NULL LIMIT 1",
   ).bind(materialized.tenantId).first<{ id: string }>();
-  let credentialId = existingCred?.id;
-  if (!credentialId) {
+  let credential: { id: string; hash: string | null; prefix: string | null };
+  if (existingCred) {
+    credential = { id: existingCred.id, hash: null, prefix: null };
+  } else {
     const accountKey = secureToken("ap_account_");
-    credentialId = crypto.randomUUID();
-    await env.DB.prepare(
-      "INSERT INTO account_credentials (id,tenant_id,credential_hash,prefix,created_at) VALUES (?,?,?,?,?)",
-    ).bind(credentialId, materialized.tenantId, await sha256(accountKey), accountKey.slice(0, 12), now).run();
+    credential = {
+      id: crypto.randomUUID(),
+      hash: await sha256(accountKey),
+      prefix: accountKey.slice(0, 12),
+    };
   }
-  const claimed = await env.DB.prepare(
-    "UPDATE checkout_sessions SET status='claimed',claimed_at=?,tenant_id=? WHERE stripe_checkout_session_id=? AND status='ready'",
-  ).bind(now, materialized.tenantId, local.stripe_checkout_session_id).run();
-  if ((claimed.meta.changes ?? 0) !== 1) {
-    throw new HttpError(409, "already_claimed", "Checkout was already claimed");
-  }
-  await env.DB.prepare(
-    "INSERT OR IGNORE INTO onboarding_claims (checkout_session_id,tenant_id,claimed_at,account_credential_id) VALUES (?,?,?,?)",
-  ).bind(local.stripe_checkout_session_id, materialized.tenantId, now, credentialId).run();
-  const issued = await issueBrowserSession(env, materialized.tenantId, now);
+  const issued = await issueClaimedBrowserSession(
+    env,
+    materialized.tenantId,
+    local.stripe_checkout_session_id,
+    credential,
+    now,
+  );
   return responseJson({ csrf_token: issued.csrfToken, account: issued.account }, 200, {
     "Set-Cookie": issued.cookie,
   });
@@ -665,6 +892,17 @@ async function getAccount(request: Request, env: WorkerEnv): Promise<Response> {
     current_period_end: session.currentPeriodEnd,
     grace_period_ends_at: session.gracePeriodEndsAt,
   });
+}
+
+async function refreshSessionCsrf(request: Request, env: WorkerEnv): Promise<Response> {
+  if (trustedCorsOrigin(env, request.headers.get("Origin")) === null) {
+    throw new HttpError(403, "origin_untrusted", "Request origin is not trusted");
+  }
+  const session = await browserAuth(request, env);
+  const csrfToken = secureToken("ap_csrf_");
+  await env.DB.prepare("UPDATE browser_sessions SET csrf_token_hash=? WHERE id=? AND tenant_id=?")
+    .bind(await sha256(csrfToken), session.sessionId, session.tenantId).run();
+  return responseJson({ csrf_token: csrfToken });
 }
 
 async function deleteSession(request: Request, env: WorkerEnv): Promise<Response> {
@@ -875,6 +1113,9 @@ async function fleet(request: Request, env: WorkerEnv): Promise<Response> {
   const cookie = cookieValue(request, SESSION_COOKIE);
   if (cookie) {
     const session = await browserAuth(request, env);
+    if (!isHostedOk(session.entitlementStatus)) {
+      throw new HttpError(402, "subscription_inactive", "An active subscription is required");
+    }
     tenantId = session.tenantId;
   } else {
     const account = await accountAuth(request, env);
@@ -942,16 +1183,35 @@ async function stripeSignatureValid(raw: Uint8Array, header: string, secret: str
   });
 }
 
-async function applySubscriptionObject(env: WorkerEnv, item: Record<string, unknown>, now: number, forceGrace = false): Promise<void> {
+async function applySubscriptionObject(
+  env: WorkerEnv,
+  item: Record<string, unknown>,
+  now: number,
+  eventCreated: number,
+  forceGrace = false,
+  lease?: WebhookLease,
+): Promise<void> {
   const subscriptionId = stringField(item.id, "subscription.id", 255);
   const customerId = stringField(item.customer, "subscription.customer", 255);
   const status = stringField(item.status, "subscription.status", 64);
-  let priceId = "";
-  let plan: Plan | null = null;
-  if (typeof item.metadata === "object" && item.metadata !== null) {
-    const metadata = item.metadata as Record<string, unknown>;
-    if (isPlan(metadata.plan)) plan = metadata.plan;
+  const identifierRows = (await env.DB.prepare(
+    "SELECT stripe_customer_id,stripe_subscription_id FROM subscriptions " +
+      "WHERE stripe_subscription_id=? OR stripe_customer_id=?",
+  ).bind(subscriptionId, customerId).all<{
+    stripe_customer_id: string;
+    stripe_subscription_id: string;
+  }>()).results;
+  if (
+    identifierRows.length > 0 &&
+    (
+      identifierRows.length !== 1 ||
+      identifierRows[0]?.stripe_customer_id !== customerId ||
+      identifierRows[0]?.stripe_subscription_id !== subscriptionId
+    )
+  ) {
+    throw new HttpError(409, "subscription_conflict", "Stripe subscription identifiers conflict with an existing account");
   }
+  let priceId = "";
   if (typeof item.items === "object" && item.items !== null) {
     const items = item.items as Record<string, unknown>;
     if (Array.isArray(items.data) && items.data[0] && typeof items.data[0] === "object") {
@@ -964,31 +1224,71 @@ async function applySubscriptionObject(env: WorkerEnv, item: Record<string, unkn
       }
     }
   }
+  // Entitlement plan is derived only from configured Stripe Price IDs.
+  // Metadata plan labels are never trusted for capacity.
+  let plan: Plan | null = priceId ? planFromPriceId(env, priceId) : null;
+  const metadataPlan = (() => {
+    if (typeof item.metadata === "object" && item.metadata !== null) {
+      const metadata = item.metadata as Record<string, unknown>;
+      if (isPlan(metadata.plan)) return metadata.plan;
+    }
+    return null;
+  })();
+  if (metadataPlan && plan && metadataPlan !== plan) {
+    // Price and metadata disagree: fail closed by blocking capacity.
+    plan = null;
+  }
+  // Normalize provider statuses that the local schema does not store.
+  // incomplete_expired is a terminal Stripe status and must block entitlement.
+  const normalizedStatus = status === "incomplete_expired" ? "canceled" : status;
   // Unknown Price IDs never grant capacity.
-  if (priceId && !planFromPriceId(env, priceId)) {
-    await env.DB.prepare(
-      "UPDATE subscriptions SET status=?,entitlement_status='blocked',grace_period_ends_at=NULL,updated_at=? WHERE stripe_subscription_id=?",
-    ).bind(status === "canceled" ? "canceled" : status, now, subscriptionId).run();
+  if (priceId && !plan) {
+    const sql =
+      "UPDATE subscriptions SET status=?,entitlement_status='blocked',grace_period_ends_at=NULL,updated_at=?,stripe_event_created_at=? " +
+        "WHERE stripe_subscription_id=? AND stripe_customer_id=? " +
+        "AND (stripe_event_created_at<? OR (stripe_event_created_at=? AND " +
+        "CASE entitlement_status WHEN 'blocked' THEN 2 WHEN 'grace' THEN 1 ELSE 0 END<=2))" +
+        (lease ? " AND EXISTS (SELECT 1 FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=?)" : "");
+    const values: unknown[] = [
+      normalizedStatus === "canceled" || !["incomplete","trialing","active","past_due","canceled","unpaid","paused"].includes(normalizedStatus)
+        ? "canceled"
+        : normalizedStatus,
+      now,
+      eventCreated,
+      subscriptionId,
+      customerId,
+      eventCreated,
+      eventCreated,
+    ];
+    if (lease) values.push(lease.eventId, lease.token);
+    await env.DB.prepare(sql).bind(...values).run();
     return;
   }
-  if (!plan && priceId) plan = planFromPriceId(env, priceId);
   if (!plan || !priceId) {
     const existing = await env.DB.prepare("SELECT tenant_id,price_id,plan FROM subscriptions WHERE stripe_subscription_id=?").bind(subscriptionId)
       .first<{ tenant_id: string; price_id: string; plan: string }>();
     if (!existing || !isPlan(existing.plan)) return;
-    priceId = existing.price_id;
-    plan = existing.plan;
+    // Keep existing mapped price/plan only when the event carries no usable price.
+    if (!priceId) priceId = existing.price_id;
+    if (!plan) plan = existing.plan;
+    // If the event carries a price that is unmapped/conflicted, already returned above.
   }
   const periodEnd = typeof item.current_period_end === "number" ? item.current_period_end : null;
   const existing = await env.DB.prepare(
     "SELECT grace_period_ends_at,entitlement_status FROM subscriptions WHERE stripe_subscription_id=?",
   ).bind(subscriptionId).first<{ grace_period_ends_at: number | null; entitlement_status: string }>();
   let graceEndsAt: number | null = existing?.grace_period_ends_at ?? null;
-  if (status === "active" || status === "trialing") graceEndsAt = null;
-  if (forceGrace || status === "past_due") {
+  if (normalizedStatus === "active" || normalizedStatus === "trialing") graceEndsAt = null;
+  if (forceGrace || normalizedStatus === "past_due") {
     if (graceEndsAt === null) graceEndsAt = now + GRACE_SECONDS;
   }
-  if (status === "canceled" || status === "unpaid" || status === "incomplete" || status === "paused") {
+  if (
+    normalizedStatus === "canceled" ||
+    normalizedStatus === "unpaid" ||
+    normalizedStatus === "incomplete" ||
+    normalizedStatus === "paused" ||
+    status === "incomplete_expired"
+  ) {
     graceEndsAt = null;
   }
   let email = `customer+${customerId.slice(-8)}@users.agentpulse.invalid`;
@@ -1002,22 +1302,58 @@ async function applySubscriptionObject(env: WorkerEnv, item: Record<string, unkn
     email,
     customerId,
     subscriptionId,
-    status,
+    status: normalizedStatus,
     priceId,
     plan,
     periodEnd,
     graceEndsAt,
+    eventCreated,
     now,
-  });
+  }, lease);
 }
 
-async function handleStripeEvent(env: WorkerEnv, eventType: string, event: Record<string, unknown>, now: number): Promise<"processed" | "skipped"> {
+async function invoiceStripeIdentifiers(
+  env: WorkerEnv,
+  item: Record<string, unknown>,
+): Promise<{ customerId: string; subscriptionId: string }> {
+  const customerId = stringField(item.customer, "invoice.customer", 255);
+  const subscriptionId = stringField(item.subscription, "invoice.subscription", 255);
+  const rows = (await env.DB.prepare(
+    "SELECT stripe_customer_id,stripe_subscription_id FROM subscriptions " +
+      "WHERE stripe_subscription_id=? OR stripe_customer_id=?",
+  ).bind(subscriptionId, customerId).all<{
+    stripe_customer_id: string;
+    stripe_subscription_id: string;
+  }>()).results;
+  if (
+    rows.length > 0 &&
+    (
+      rows.length !== 1 ||
+      rows[0]?.stripe_customer_id !== customerId ||
+      rows[0]?.stripe_subscription_id !== subscriptionId
+    )
+  ) {
+    throw new HttpError(409, "subscription_conflict", "Invoice customer does not own the Stripe subscription");
+  }
+  return { customerId, subscriptionId };
+}
+
+async function handleStripeEvent(
+  env: WorkerEnv,
+  eventType: string,
+  event: Record<string, unknown>,
+  now: number,
+  lease: WebhookLease,
+): Promise<"processed" | "skipped"> {
   const data = objectValue(event.data);
   const item = objectValue(data.object);
+  const eventCreated = typeof event.created === "number" && Number.isFinite(event.created)
+    ? Math.floor(event.created)
+    : now;
   if (eventType === "checkout.session.completed") {
     const checkoutId = stringField(item.id, "checkout.id", 255);
     try {
-      await materializePaidCheckout(env, checkoutId);
+      await materializePaidCheckout(env, checkoutId, eventCreated, lease);
     } catch (error) {
       if (error instanceof HttpError && error.status === 409 && error.code === "already_claimed") return "processed";
       if (error instanceof HttpError && error.status === 401) return "skipped";
@@ -1033,29 +1369,48 @@ async function handleStripeEvent(env: WorkerEnv, eventType: string, event: Recor
     if (eventType === "customer.subscription.deleted") {
       item.status = "canceled";
     }
-    await applySubscriptionObject(env, item, now, false);
+    await applySubscriptionObject(env, item, now, eventCreated, false, lease);
     return "processed";
   }
   if (eventType === "invoice.paid") {
-    const subscriptionId = typeof item.subscription === "string" ? item.subscription : "";
-    if (!subscriptionId) return "skipped";
+    const { customerId, subscriptionId } = await invoiceStripeIdentifiers(env, item);
     await env.DB.prepare(
-      "UPDATE subscriptions SET status='active',entitlement_status='active',grace_period_ends_at=NULL,updated_at=? WHERE stripe_subscription_id=?",
-    ).bind(now, subscriptionId).run();
+      "UPDATE subscriptions SET status='active',entitlement_status='active',grace_period_ends_at=NULL,updated_at=?,stripe_event_created_at=? " +
+        "WHERE stripe_subscription_id=? AND stripe_customer_id=? AND (stripe_event_created_at<? OR (stripe_event_created_at=? AND " +
+        "CASE entitlement_status WHEN 'blocked' THEN 2 WHEN 'grace' THEN 1 ELSE 0 END<=0)) " +
+        "AND EXISTS (SELECT 1 FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=?)",
+    ).bind(now, eventCreated, subscriptionId, customerId, eventCreated, eventCreated, lease.eventId, lease.token).run();
     return "processed";
   }
   if (eventType === "invoice.payment_failed") {
-    const subscriptionId = typeof item.subscription === "string" ? item.subscription : "";
-    if (!subscriptionId) return "skipped";
+    const { customerId, subscriptionId } = await invoiceStripeIdentifiers(env, item);
     const existing = await env.DB.prepare(
-      "SELECT grace_period_ends_at FROM subscriptions WHERE stripe_subscription_id=?",
-    ).bind(subscriptionId).first<{ grace_period_ends_at: number | null }>();
-    const graceEndsAt = existing?.grace_period_ends_at && existing.grace_period_ends_at > now
-      ? existing.grace_period_ends_at
-      : now + GRACE_SECONDS;
+      "SELECT grace_period_ends_at FROM subscriptions WHERE stripe_subscription_id=? AND stripe_customer_id=?",
+    ).bind(subscriptionId, customerId).first<{ grace_period_ends_at: number | null }>();
+    // The first failed-payment event starts grace. Retries and later distinct
+    // failures preserve that fixed deadline so repeated failures cannot defer denial.
+    // A successful invoice clears the deadline, allowing a future billing cycle to
+    // start a new grace window if it later fails.
+    const graceEndsAt = existing?.grace_period_ends_at ?? (now + GRACE_SECONDS);
     await env.DB.prepare(
-      "UPDATE subscriptions SET status='past_due',entitlement_status='grace',grace_period_ends_at=?,updated_at=? WHERE stripe_subscription_id=?",
-    ).bind(graceEndsAt, now, subscriptionId).run();
+      "UPDATE subscriptions SET status='past_due',entitlement_status='grace',grace_period_ends_at=?,updated_at=?,stripe_event_created_at=? " +
+        "WHERE stripe_subscription_id=? AND stripe_customer_id=? AND (stripe_event_created_at<? OR (stripe_event_created_at=? AND (" +
+        "CASE entitlement_status WHEN 'blocked' THEN 2 WHEN 'grace' THEN 1 ELSE 0 END<1 OR " +
+        "(CASE entitlement_status WHEN 'blocked' THEN 2 WHEN 'grace' THEN 1 ELSE 0 END=1 AND " +
+        "COALESCE(grace_period_ends_at,0)>=?)))) " +
+        "AND EXISTS (SELECT 1 FROM stripe_events WHERE id=? AND outcome='pending' AND lease_token=?)",
+    ).bind(
+      graceEndsAt,
+      now,
+      eventCreated,
+      subscriptionId,
+      customerId,
+      eventCreated,
+      eventCreated,
+      graceEndsAt,
+      lease.eventId,
+      lease.token,
+    ).run();
     return "processed";
   }
   return "skipped";
@@ -1070,28 +1425,85 @@ async function stripeWebhook(request: Request, env: WorkerEnv): Promise<Response
   const event = objectValue(parseJson(raw));
   const eventId = stringField(event.id, "event.id", 255);
   const eventType = stringField(event.type, "event.type", 255);
-  const existing = await env.DB.prepare("SELECT 1 AS found FROM stripe_events WHERE id=?").bind(eventId).first<{ found: number }>();
-  if (existing !== null) return responseJson({ ok: true, duplicate: true });
+  const payloadHash = await sha256(raw);
   const timestamp = Math.floor(Date.now() / 1000);
-  await env.DB.prepare(
-    "INSERT OR IGNORE INTO stripe_events (id,event_type,received_at,outcome) VALUES (?,?,?,?)",
-  ).bind(eventId, eventType, timestamp, "pending").run();
+  const leaseToken = crypto.randomUUID();
+  const leaseExpiresAt = timestamp + WEBHOOK_STALE_SECONDS;
+  const inserted = await env.DB.prepare(
+    "INSERT OR IGNORE INTO stripe_events (id,event_type,received_at,outcome,lease_token,lease_expires_at,attempt_count,payload_sha256) " +
+      "VALUES (?,?,?,?,?,?,1,?)",
+  ).bind(eventId, eventType, timestamp, "pending", leaseToken, leaseExpiresAt, payloadHash).run();
+  if ((inserted.meta.changes ?? 0) !== 1) {
+    const existing = await env.DB.prepare(
+      "SELECT event_type,outcome,lease_expires_at,payload_sha256 FROM stripe_events WHERE id=?",
+    ).bind(eventId).first<{
+      event_type: string;
+      outcome: string;
+      lease_expires_at: number | null;
+      payload_sha256: string;
+    }>();
+    if (existing === null || existing.event_type !== eventType) {
+      throw new HttpError(409, "event_conflict", "Stripe event ID conflicts with an existing event");
+    }
+    if (existing.payload_sha256 !== "" && existing.payload_sha256 !== payloadHash) {
+      throw new HttpError(409, "event_conflict", "Stripe event ID was retried with a different payload");
+    }
+    if (existing.outcome === "processed" || existing.outcome === "skipped") {
+      // Bind the first signed body for legacy rows that predate payload fingerprints.
+      // After binding, later retries with a different body fail closed.
+      if (existing.payload_sha256 === "") {
+        const bound = await env.DB.prepare(
+          "UPDATE stripe_events SET payload_sha256=? WHERE id=? AND payload_sha256='' AND outcome IN ('processed','skipped')",
+        ).bind(payloadHash, eventId).run();
+        if ((bound.meta.changes ?? 0) !== 1) {
+          const current = await env.DB.prepare("SELECT payload_sha256 FROM stripe_events WHERE id=?")
+            .bind(eventId)
+            .first<{ payload_sha256: string }>();
+          if (current === null || (current.payload_sha256 !== "" && current.payload_sha256 !== payloadHash)) {
+            throw new HttpError(409, "event_conflict", "Stripe event ID was retried with a different payload");
+          }
+        }
+      }
+      return responseJson({ ok: true, duplicate: true });
+    }
+    if (existing.outcome === "pending" && (existing.lease_expires_at ?? 0) > timestamp) {
+      throw new HttpError(409, "event_in_progress", "Stripe event is already being processed");
+    }
+    const acquired = await env.DB.prepare(
+      "UPDATE stripe_events SET received_at=?,processed_at=NULL,outcome='pending',processing_error=NULL," +
+        "lease_token=?,lease_expires_at=?,attempt_count=attempt_count+1,payload_sha256=? " +
+        "WHERE id=? AND (payload_sha256='' OR payload_sha256=?) " +
+        "AND (outcome='failed' OR (outcome='pending' AND COALESCE(lease_expires_at,0)<=?))",
+    ).bind(timestamp, leaseToken, leaseExpiresAt, payloadHash, eventId, payloadHash, timestamp).run();
+    if ((acquired.meta.changes ?? 0) !== 1) {
+      throw new HttpError(409, "event_in_progress", "Stripe event is already being processed");
+    }
+  }
   try {
-    const outcome = await handleStripeEvent(env, eventType, event, timestamp);
-    await env.DB.prepare(
-      "UPDATE stripe_events SET processed_at=?,outcome=?,processing_error=NULL WHERE id=?",
-    ).bind(timestamp, outcome, eventId).run();
+    const outcome = await handleStripeEvent(env, eventType, event, timestamp, { eventId, token: leaseToken });
+    const finalized = await env.DB.prepare(
+      "UPDATE stripe_events SET processed_at=?,outcome=?,processing_error=NULL,lease_token=NULL,lease_expires_at=NULL " +
+        "WHERE id=? AND outcome='pending' AND lease_token=?",
+    ).bind(timestamp, outcome, eventId, leaseToken).run();
+    if ((finalized.meta.changes ?? 0) !== 1) {
+      throw new HttpError(409, "event_lease_lost", "Stripe event processing lease was superseded");
+    }
     return responseJson({ ok: true, duplicate: false });
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : "processing failed";
-    await env.DB.prepare(
-      "UPDATE stripe_events SET processed_at=?,outcome='failed',processing_error=? WHERE id=?",
-    ).bind(timestamp, message, eventId).run();
+    const failed = await env.DB.prepare(
+      "UPDATE stripe_events SET processed_at=?,outcome='failed',processing_error=?,lease_token=NULL,lease_expires_at=NULL " +
+        "WHERE id=? AND outcome='pending' AND lease_token=?",
+    ).bind(timestamp, message, eventId, leaseToken).run();
+    if ((failed.meta.changes ?? 0) !== 1) {
+      throw new HttpError(409, "event_lease_lost", "Stripe event processing lease was superseded");
+    }
     throw error instanceof HttpError ? error : new HttpError(500, "internal_error", "Internal server error");
   }
 }
 
 async function route(request: Request, env: WorkerEnv): Promise<Response> {
+  if (request.method === "OPTIONS") return preflight(request, env);
   const url = new URL(request.url);
   const contentLength = request.headers.get("Content-Length");
   if (contentLength !== null && Number(contentLength) > MAX_BODY_BYTES) {
@@ -1103,6 +1515,7 @@ async function route(request: Request, env: WorkerEnv): Promise<Response> {
   if (request.method === "POST" && url.pathname === "/v1/billing/checkout") return createBillingCheckout(request, env);
   if (request.method === "POST" && url.pathname === "/v1/onboarding/claim") return claimOnboarding(request, env);
   if (request.method === "GET" && url.pathname === "/v1/account") return getAccount(request, env);
+  if (request.method === "POST" && url.pathname === "/v1/session/csrf") return refreshSessionCsrf(request, env);
   if (request.method === "DELETE" && url.pathname === "/v1/session") return deleteSession(request, env);
   if (request.method === "POST" && url.pathname === "/v1/billing/portal") return createBillingPortal(request, env);
   if (request.method === "POST" && url.pathname === "/v1/browser/enrollment-tokens") return createBrowserEnrollmentToken(request, env);
@@ -1118,11 +1531,11 @@ async function route(request: Request, env: WorkerEnv): Promise<Response> {
 export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     try {
-      return await route(request, env);
+      return withCors(await route(request, env), env, request);
     } catch (error) {
-      if (error instanceof HttpError) return failure(error.status, error.code, error.message);
+      if (error instanceof HttpError) return withCors(failure(error.status, error.code, error.message), env, request);
       console.error(JSON.stringify({ message: "unhandled_error", path: new URL(request.url).pathname }));
-      return failure(500, "internal_error", "Internal server error");
+      return withCors(failure(500, "internal_error", "Internal server error"), env, request);
     }
   },
 } satisfies ExportedHandler<WorkerEnv>;

@@ -1,6 +1,6 @@
 # AgentPulse Status
 
-**Status date:** 2026-07-25
+**Status date:** 2026-07-29
 **Canonical GitHub branch:** `master`
 
 ## Consolidated product
@@ -24,12 +24,12 @@ Historical source retention is governed by `ARCHIVES.md`. Confidential operation
 | Local agent behavior | PASS | `python3 agent/tools/run_tests.py`: 193 passed, 0 failed |
 | Agent lint | PASS | `ruff check agent/` |
 | Agent config contract | PASS | Draft 7 schema and current example validated with format checks |
-| Agent packaging | PASS | `python3 tests/test_packaging.py`: 20 lifecycle and packaging tests passed |
-| Worker control plane | PASS | 29 Vitest tests covering fleet/agent routes plus checkout, claim, browser session/CSRF, portal, full Stripe event set, grace entitlement, and unknown-price fail-closed behavior |
-| Cloudflare staging control plane | PARTIAL | Staging health previously passed; Phase 3B handlers and migration `0002` are source-tested but not deployed |
+| Agent packaging | PASS | `python3 -m unittest tests.test_packaging -v`: 22 lifecycle, packaging, and development/release gate tests passed |
+| Worker control plane | PASS | `npm --prefix control-plane test`: 77 tests passed across fleet/agent routes, checkout, claim, browser session/CSRF, portal, full Stripe event set, grace entitlement, webhook fencing, staging harness, Stripe-mode fail-closed behavior, and unknown-price denial |
+| Cloudflare staging control plane | PARTIAL | Staging health is live and migration `0003` was applied after a zero-duplicate preflight; the exact Phase 3D Worker candidate and commercial lifecycle remain undeployed/unproven |
 | Worker dependency audit | PASS | PostCSS fixed at 8.5.23 through a narrow override; fresh audit reports zero vulnerabilities |
 | Shared contracts | PASS | OpenAPI 3.1 meta-schema, enforced cookie-session/CSRF shape, operation-bound response fixtures with URI checks; billing/session routes labeled `implemented` after Phase 3B |
-| React dashboard | PASS | TypeScript and Vite production build |
+| React dashboard | PASS | 9 browser-auth/API tests plus TypeScript and Vite production build |
 | Dashboard dependency audit | PASS | React Router 8.3.0 and PostCSS 8.5.23; fresh audit reports zero vulnerabilities |
 | Repository hardening | PASS | shell syntax, workflow YAML, credential patterns, tracked dependencies, and retired paths |
 | Secret scanning | PASS on release path design | TruffleHog pinned 3.95.9 with `--only-verified` remains fail-closed for verified findings |
@@ -77,10 +77,10 @@ source:
 - browser `ap_session` cookie + CSRF for mutations
 - enrollment/heartbeat/fleet enforce hosted entitlement without disabling local agent operation
 
-Still required before staging lifecycle proof:
+Still required to complete staging lifecycle proof:
 
-- Owner Gate 3: Stripe test Price IDs, webhook endpoint, Customer Portal settings, Cloudflare secret entry
-- Hermes 3C/3D: deploy migration `0002` + Worker to staging and run redacted test-mode lifecycle
+- deploy the exact Phase 3D Worker candidate to staging and record its Cloudflare deployment/version identity;
+- execute and independently verify the redacted test-mode lifecycle, webhook convergence, denial/recovery, replay, and tenant-isolation receipts.
 
 ## Supported boundary
 
@@ -102,7 +102,7 @@ handled as a controlled manual pilot until those gates pass.
 
 The following remain staging/deploy gates rather than missing source handlers:
 
-- deploy migration `0002` and Phase 3B Worker routes to staging;
-- Stripe test-mode bindings and webhook configuration (Owner Gate 3);
-- browser-level dashboard acceptance against staging; the staging dashboard is not deployed;
+- deploy the exact Phase 3B/3D Worker routes to staging (`0003` is applied; Worker deployment remains pending);
+- validate the configured Stripe test-mode webhook and Customer Portal behavior through the live lifecycle proof;
+- browser-level dashboard acceptance against staging; the staging dashboard is not deployed, so Phase 3D needs a disposable callback proof;
 - production deployment and rollback evidence.

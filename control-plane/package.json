@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run test/billing-adversarial.test.ts && vitest run test/billing-adversarial-claims.test.ts && vitest run test/billing-lifecycle.test.ts && vitest run test/billing-lifecycle-concurrency.test.ts && vitest run test/staging-lifecycle-script.test.ts && vitest run test/staging-lifecycle-callback.test.ts && vitest run test/control-plane.test.ts && vitest run test/migrations.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "types": "wrangler types",
     "types:check": "node -e \"process.exit(process.versions.node.split('.')[0] >= 22 ? 0 : 1)\" && wrangler types --check",

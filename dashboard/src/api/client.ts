@@ -1,11 +1,11 @@
 /**
- * Read-only client for the authenticated Cloudflare Worker fleet contract.
+ * Client for the authenticated Cloudflare Worker contract.
  *
- * The beta dashboard stores the account credential in sessionStorage only.
- * No mutation, remote command, or legacy FastAPI endpoint is exposed here.
+ * Browser authentication uses the Worker HttpOnly session cookie. The CSRF
+ * token is kept in memory only for state-changing requests.
  */
 
-import { getCredential } from '../auth/credential'
+import { clearCredential, getCsrfToken, setCsrfToken } from '../auth/credential'
 import type {
   AgentListResponse,
   ApiErrorBody,
@@ -33,17 +33,12 @@ export class ApiError extends Error {
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const credential = getCredential()
-  if (!credential) throw new ApiError(401, 'Connect an AgentPulse account credential first')
-
   let response: Response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${credential}`,
-      },
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
     })
   } catch {
     throw new ApiError(0, `Could not reach the AgentPulse API at ${API_BASE_URL}`)
@@ -97,6 +92,70 @@ function normalizeAgent(value: FleetResponse['agents'][number]): FleetAgent {
     config_version: 'unknown',
     machine_id: id,
     tags: [],
+  }
+}
+
+export interface AccountResponse {
+  tenant_id: string
+  email: string
+  plan: string
+  entitlement_status: string
+  agent_limit: number
+  current_period_end: number | null
+  grace_period_ends_at: number | null
+}
+
+async function toApiError(response: Response): Promise<ApiError> {
+  let body: ApiErrorBody | null = null
+  let message = `Request failed with status ${response.status}`
+  try {
+    body = (await response.json()) as ApiErrorBody
+    message = body.error?.message || body.message || body.detail || message
+  } catch {
+    // Preserve the status-based message for non-JSON responses.
+  }
+  return new ApiError(response.status, message, body)
+}
+
+export async function claimAccount(claimNonce: string): Promise<AccountResponse> {
+  const response = await fetch(`${API_BASE_URL}/v1/onboarding/claim`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ claim_nonce: claimNonce }),
+  })
+  if (!response.ok) throw await toApiError(response)
+  const payload = (await response.json()) as { csrf_token: string; account: AccountResponse }
+  setCsrfToken(payload.csrf_token)
+  return payload.account
+}
+
+export async function getAccount(): Promise<AccountResponse> {
+  return getJson<AccountResponse>('/v1/account')
+}
+
+export async function bootstrapCsrf(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/v1/session/csrf`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  })
+  if (!response.ok) throw await toApiError(response)
+  const payload = (await response.json()) as { csrf_token: string }
+  setCsrfToken(payload.csrf_token)
+}
+
+export async function disconnectSession(): Promise<void> {
+  try {
+    if (!getCsrfToken()) await bootstrapCsrf()
+    const response = await fetch(`${API_BASE_URL}/v1/session`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'X-CSRF-Token': getCsrfToken() ?? '' },
+    })
+    if (!response.ok) throw await toApiError(response)
+  } finally {
+    clearCredential()
   }
 }
 

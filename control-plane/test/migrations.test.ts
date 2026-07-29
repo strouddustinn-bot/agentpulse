@@ -148,6 +148,26 @@ describe("Phase 3A schema: checkout claim, browser sessions, entitlement, webhoo
     ).rejects.toThrow();
   });
 
+  it("enforces one subscription per tenant and adds fenced webhook ordering state", async () => {
+    expect(await columnNames("subscriptions")).toEqual(expect.arrayContaining(["stripe_event_created_at"]));
+    expect(await columnNames("stripe_events")).toEqual(
+      expect.arrayContaining(["lease_token", "lease_expires_at", "attempt_count", "payload_sha256"]),
+    );
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    await env.DB.prepare("INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)")
+      .bind("tenant-one-subscription", "one-subscription@example.com", timestamp, timestamp)
+      .run();
+    await env.DB.prepare(
+      "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,updated_at,entitlement_status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+    ).bind("sub-first", "tenant-one-subscription", "cus_first", "stripe_sub_first", "active", "price_test", "starter", 1, timestamp, "active").run();
+    await expect(
+      env.DB.prepare(
+        "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,updated_at,entitlement_status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+      ).bind("sub-second", "tenant-one-subscription", "cus_second", "stripe_sub_second", "active", "price_test", "starter", 1, timestamp, "active").run(),
+    ).rejects.toThrow();
+  });
+
   it("replays the full migration set idempotently without error or duplicated schema", async () => {
     await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
     await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
@@ -174,9 +194,9 @@ describe("Phase 3A schema: checkout claim, browser sessions, entitlement, webhoo
     expect(subscription?.entitlement_status).toBe("blocked");
     expect(subscription?.grace_period_ends_at).toBeNull();
 
-    const event = await env.DB.prepare("SELECT outcome FROM stripe_events WHERE id=?")
+    const event = await env.DB.prepare("SELECT outcome,payload_sha256 FROM stripe_events WHERE id=?")
       .bind("evt_upgrade")
-      .first<{ outcome: string }>();
-    expect(event?.outcome).toBe("pending");
+      .first<{ outcome: string; payload_sha256: string }>();
+    expect(event).toEqual({ outcome: "pending", payload_sha256: "" });
   });
 });

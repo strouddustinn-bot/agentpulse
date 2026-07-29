@@ -61,18 +61,19 @@ def validate_upgrade_fixture() -> None:
         connection.execute("PRAGMA foreign_keys = ON")
         apply_migrations(connection, MIGRATIONS[:1])
         timestamp = 1_721_868_800
-        connection.execute(
-            "INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)",
-            ("tenant-upgrade", "upgrade@example.com", timestamp, timestamp),
-        )
         for status in ("active", "trialing", "past_due", "canceled", "unpaid", "paused"):
+            tenant_id = f"tenant-{status}"
+            connection.execute(
+                "INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)",
+                (tenant_id, f"{status}@example.com", timestamp, timestamp),
+            )
             connection.execute(
                 "INSERT INTO subscriptions "
                 "(id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,updated_at) "
                 "VALUES (?,?,?,?,?,?,?,?,?)",
                 (
                     f"sub-{status}",
-                    "tenant-upgrade",
+                    tenant_id,
                     f"cus_{status}",
                     f"stripe_sub_{status}",
                     status,
@@ -125,20 +126,74 @@ def validate_upgrade_fixture() -> None:
         if events != expected_events:
             raise ValueError(f"Stripe event upgrade backfill is unsafe: {events!r}")
         required = {
-            "subscriptions": {"entitlement_status", "grace_period_ends_at"},
-            "stripe_events": {"outcome", "retention_purge_at"},
+            "subscriptions": {"entitlement_status", "grace_period_ends_at", "stripe_event_created_at"},
+            "stripe_events": {
+                "outcome",
+                "retention_purge_at",
+                "lease_token",
+                "lease_expires_at",
+                "attempt_count",
+                "payload_sha256",
+            },
         }
         for table, expected in required.items():
             missing = expected - columns(connection, table)
             if missing:
                 raise ValueError(f"{table} missing upgraded columns: {sorted(missing)}")
+        if connection.execute(
+            "SELECT COUNT(*) FROM subscriptions WHERE stripe_event_created_at != 0"
+        ).fetchone()[0] != 0:
+            raise ValueError("legacy subscriptions did not receive fail-closed event-order defaults")
+        if connection.execute(
+            "SELECT COUNT(*) FROM stripe_events "
+            "WHERE attempt_count != 0 OR lease_token IS NOT NULL OR lease_expires_at IS NOT NULL "
+            "OR payload_sha256 != ''"
+        ).fetchone()[0] != 0:
+            raise ValueError("legacy Stripe events did not receive neutral lease/fingerprint defaults")
+
+
+def validate_duplicate_tenant_rejected() -> None:
+    if len(MIGRATIONS) < 3:
+        raise ValueError("duplicate-tenant validation requires the fencing migration")
+    with sqlite3.connect(":memory:") as connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        apply_migrations(connection, MIGRATIONS[:2])
+        timestamp = 1_721_868_800
+        connection.execute(
+            "INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)",
+            ("tenant-duplicate", "duplicate@example.com", timestamp, timestamp),
+        )
+        for suffix in ("first", "second"):
+            connection.execute(
+                "INSERT INTO subscriptions "
+                "(id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,updated_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
+                (
+                    f"sub-{suffix}",
+                    "tenant-duplicate",
+                    f"cus_{suffix}",
+                    f"stripe_sub_{suffix}",
+                    "active",
+                    "price_test",
+                    "starter",
+                    1,
+                    timestamp,
+                ),
+            )
+        connection.commit()
+        try:
+            apply_migrations(connection, MIGRATIONS[2:])
+        except sqlite3.IntegrityError:
+            return
+        raise ValueError("fencing migration accepted duplicate subscriptions for one tenant")
 
 
 def main() -> int:
     validate_fresh_replay()
     validate_upgrade_fixture()
+    validate_duplicate_tenant_rejected()
     print(
-        f"Migrations: PASS ({len(MIGRATIONS)} files; fresh replay and upgraded fixture)"
+        f"Migrations: PASS ({len(MIGRATIONS)} files; fresh replay, upgraded fixture, duplicate rejection)"
     )
     return 0
 
