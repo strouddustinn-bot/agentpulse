@@ -375,7 +375,7 @@ Owner returns only:
 
 ### Hermes work block 3D — staging lifecycle proof
 
-1. Deploy all pending migrations, including `0002` and hard-fail `0003`, and Worker to staging after duplicate-subscription preflight passes.
+1. Confirm staging D1 already has migrations `0001` through hard-fail `0003` applied with no pending migration, then deploy the exact Phase 3D Worker candidate after duplicate-subscription preflight passes.
 2. Execute Stripe test checkout → claim → session → portal → enrollment → heartbeat → fleet, using a disposable callback Worker while `staging-app.agentpulse.ca` has no DNS.
 3. Test duplicate webhook, token replay, expired claim/session, failed payment denial, paid recovery, and two-tenant isolation.
 4. Verify logs contain no credentials or customer-sensitive payloads.
