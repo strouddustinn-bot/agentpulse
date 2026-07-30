@@ -18,9 +18,12 @@ mint, billing portal handoff, logout, and no browser bearer storage.
 
 ## Owner Gate 4 (required for live browser cookies)
 
-Worker CORS and cookie trust only accept `APP_BASE_URL` origin
-(`https://staging-app.agentpulse.ca` on staging). Until that hostname resolves
-to the Cloudflare Pages project `agentpulse-staging-app`, live E2E cannot pass.
+**Status 2026-07-30:** Gate 4 DNS/TLS is live. `staging-app.agentpulse.ca`
+resolves to Pages project `agentpulse-staging-app` and serves the real console
+shell (not the placeholder). Worker CORS accepts
+`Origin: https://staging-app.agentpulse.ca` with credentials.
+
+Historical setup notes retained below for recovery:
 
 Suggested DNS (owner applies exact rows if tooling cannot):
 

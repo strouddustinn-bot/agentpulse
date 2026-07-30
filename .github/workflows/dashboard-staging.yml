@@ -98,9 +98,12 @@ jobs:
       - name: Verify production host serves console shell
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4 5 6; do
-            body="$(curl -4 -fsS -m 20 -H 'Cache-Control: no-cache' https://staging-app.agentpulse.ca/ || true)"
-            if printf '%s' "$body" | grep -q 'id="root"' && ! printf '%s' "$body" | grep -qi 'placeholder'; then
+          # Pages custom-domain propagation can lag the deployment receipt.
+          for attempt in $(seq 1 18); do
+            body="$(curl -4 -fsS -m 20 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "https://staging-app.agentpulse.ca/?v=${GITHUB_RUN_ID}-${attempt}" || true)"
+            if printf '%s' "$body" | grep -q 'id="root"' \
+              && printf '%s' "$body" | grep -q 'AgentPulse Dashboard' \
+              && ! printf '%s' "$body" | grep -qi 'placeholder'; then
               echo "staging-app serves real console shell"
               exit 0
             fi
