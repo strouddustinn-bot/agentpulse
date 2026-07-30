@@ -226,6 +226,73 @@ function planFromPriceId(env: WorkerEnv, priceId: string): Plan | null {
   return null;
 }
 
+/** First subscription item from a Stripe Subscription object, if present. */
+function stripeSubscriptionFirstItem(sub: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof sub.items !== "object" || sub.items === null) return null;
+  const items = sub.items as Record<string, unknown>;
+  if (!Array.isArray(items.data) || items.data.length === 0) return null;
+  const first = items.data[0];
+  return typeof first === "object" && first !== null ? first as Record<string, unknown> : null;
+}
+
+/**
+ * Billing period end for a Stripe Subscription.
+ * Pre-Basil APIs expose current_period_end on the subscription; Basil+ moved it
+ * onto subscription items. Accept either shape.
+ * When `now` is provided, only future timestamps are accepted (claim path).
+ * When omitted, any finite timestamp is accepted (lifecycle webhook path).
+ */
+function stripeSubscriptionPeriodEnd(sub: Record<string, unknown>, now?: number): number | null {
+  const candidates: unknown[] = [sub.current_period_end];
+  const firstItem = stripeSubscriptionFirstItem(sub);
+  if (firstItem !== null) candidates.push(firstItem.current_period_end);
+  for (const value of candidates) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const period = Math.floor(value);
+      if (now === undefined || period > now) return period;
+    }
+  }
+  return null;
+}
+
+/** Canonical price id from a Stripe Subscription (items.data[0].price.id). */
+function stripeSubscriptionPriceId(sub: Record<string, unknown>): string {
+  const firstItem = stripeSubscriptionFirstItem(sub);
+  if (firstItem === null) return "";
+  if (typeof firstItem.price === "object" && firstItem.price !== null) {
+    const price = firstItem.price as Record<string, unknown>;
+    if (typeof price.id === "string") return price.id;
+  }
+  if (typeof firstItem.price === "string") return firstItem.price;
+  return "";
+}
+
+/**
+ * Subscription id referenced by a Stripe Invoice.
+ * Classic APIs use invoice.subscription; Basil+ nests it under
+ * parent.subscription_details.subscription (and sometimes subscription_details).
+ */
+function stripeInvoiceSubscriptionId(item: Record<string, unknown>): string {
+  if (typeof item.subscription === "string" && item.subscription.length > 0) {
+    return item.subscription;
+  }
+  const nestedRoots: unknown[] = [item.parent, item.subscription_details];
+  for (const root of nestedRoots) {
+    if (typeof root !== "object" || root === null) continue;
+    const obj = root as Record<string, unknown>;
+    if (typeof obj.subscription === "string" && obj.subscription.length > 0) {
+      return obj.subscription;
+    }
+    if (typeof obj.subscription_details === "object" && obj.subscription_details !== null) {
+      const details = obj.subscription_details as Record<string, unknown>;
+      if (typeof details.subscription === "string" && details.subscription.length > 0) {
+        return details.subscription;
+      }
+    }
+  }
+  return "";
+}
+
 function entitlementFromStripeStatus(status: string, graceEndsAt: number | null, now: number): EntitlementStatus {
   if (status === "active" || status === "trialing") return "active";
   if (status === "past_due" && graceEndsAt !== null && graceEndsAt > now) return "grace";
@@ -708,17 +775,7 @@ async function materializePaidCheckout(
   const plan = planFromPriceId(env, priceId);
   if (plan === null) throw new HttpError(503, "price_unmapped", "Plan is not mapped to a Stripe Price ID");
   const sub = await stripeRequest(env, "GET", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
-  let canonicalPriceId = "";
-  if (typeof sub.items === "object" && sub.items !== null) {
-    const items = sub.items as Record<string, unknown>;
-    if (Array.isArray(items.data) && items.data[0] && typeof items.data[0] === "object") {
-      const first = items.data[0] as Record<string, unknown>;
-      if (typeof first.price === "object" && first.price !== null) {
-        const price = first.price as Record<string, unknown>;
-        if (typeof price.id === "string") canonicalPriceId = price.id;
-      }
-    }
-  }
+  const canonicalPriceId = stripeSubscriptionPriceId(sub);
   if (
     sub.id !== subscriptionId ||
     sub.customer !== customerId ||
@@ -727,9 +784,7 @@ async function materializePaidCheckout(
   ) {
     throw new HttpError(409, "subscription_conflict", "Canonical Stripe subscription does not match the paid checkout");
   }
-  const periodEnd = typeof sub.current_period_end === "number" && sub.current_period_end > now
-    ? sub.current_period_end
-    : null;
+  const periodEnd = stripeSubscriptionPeriodEnd(sub, now);
   if (periodEnd === null) {
     throw new HttpError(409, "subscription_inactive", "Canonical Stripe subscription period is invalid");
   }
@@ -1273,7 +1328,9 @@ async function applySubscriptionObject(
     if (!plan) plan = existing.plan;
     // If the event carries a price that is unmapped/conflicted, already returned above.
   }
-  const periodEnd = typeof item.current_period_end === "number" ? item.current_period_end : null;
+  // Basil+ moves current_period_end onto items; accept classic top-level too.
+  // Lifecycle updates store missing periods as null; claim requires a future period.
+  const periodEnd = stripeSubscriptionPeriodEnd(item);
   const existing = await env.DB.prepare(
     "SELECT grace_period_ends_at,entitlement_status FROM subscriptions WHERE stripe_subscription_id=?",
   ).bind(subscriptionId).first<{ grace_period_ends_at: number | null; entitlement_status: string }>();
@@ -1317,7 +1374,8 @@ async function invoiceStripeIdentifiers(
   item: Record<string, unknown>,
 ): Promise<{ customerId: string; subscriptionId: string }> {
   const customerId = stringField(item.customer, "invoice.customer", 255);
-  const subscriptionId = stringField(item.subscription, "invoice.subscription", 255);
+  const nestedSubscriptionId = stripeInvoiceSubscriptionId(item);
+  const subscriptionId = stringField(nestedSubscriptionId, "invoice.subscription", 255);
   const rows = (await env.DB.prepare(
     "SELECT stripe_customer_id,stripe_subscription_id FROM subscriptions " +
       "WHERE stripe_subscription_id=? OR stripe_customer_id=?",

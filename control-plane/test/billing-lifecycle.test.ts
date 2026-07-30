@@ -342,4 +342,124 @@ describe("billing lifecycle", () => {
       "SELECT plan,agent_limit,entitlement_status FROM subscriptions WHERE stripe_subscription_id='sub_meta'",
     ).first()).toMatchObject({ plan: "starter", agent_limit: 1, entitlement_status: "blocked" });
   });
+
+  it("accepts Basil subscription item current_period_end for checkout.session.completed", async () => {
+    const timestamp = now();
+    await env.DB.prepare(
+      "INSERT INTO checkout_sessions (stripe_checkout_session_id,claim_nonce_hash,price_id,plan,status,created_at,expires_at) VALUES (?,?,?,?,?,?,?)",
+    ).bind("cs_basil_period", await sha256("ap_claim_basil_period_123456"), "price_test_starter", "starter", "pending", timestamp, timestamp + 1800).run();
+
+    installStripeMock((method, path) => {
+      if (method === "GET" && path === "/checkout/sessions/cs_basil_period") {
+        return jsonResponse({
+          id: "cs_basil_period",
+          status: "complete",
+          payment_status: "paid",
+          customer: "cus_basil_period",
+          subscription: "sub_basil_period",
+          customer_details: { email: "basil-period@example.com" },
+        });
+      }
+      if (method === "GET" && path === "/subscriptions/sub_basil_period") {
+        // Basil: no top-level current_period_end; period lives on the item.
+        return jsonResponse({
+          id: "sub_basil_period",
+          customer: "cus_basil_period",
+          status: "active",
+          items: {
+            data: [{
+              id: "si_basil_period",
+              current_period_end: timestamp + 86400,
+              price: { id: "price_test_starter" },
+            }],
+          },
+        });
+      }
+      throw new Error(`unexpected stripe ${method} ${path}`);
+    });
+
+    const event = {
+      id: "evt_basil_period",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_basil_period" } },
+    };
+    const payload = JSON.stringify(event);
+    const response = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
+      method: "POST",
+      headers: { "Stripe-Signature": await stripeSignature(payload) },
+      body: payload,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, duplicate: false });
+    expect(await env.DB.prepare("SELECT outcome FROM stripe_events WHERE id='evt_basil_period'").first())
+      .toMatchObject({ outcome: "processed" });
+    expect(await env.DB.prepare(
+      "SELECT cs.status AS checkout_status,s.current_period_end,s.entitlement_status FROM checkout_sessions cs JOIN subscriptions s ON s.tenant_id=cs.tenant_id WHERE cs.stripe_checkout_session_id='cs_basil_period'",
+    ).first()).toMatchObject({
+      checkout_status: "ready",
+      current_period_end: timestamp + 86400,
+      entitlement_status: "active",
+    });
+  });
+
+  it("accepts Basil invoice parent.subscription_details.subscription for invoice.paid", async () => {
+    const timestamp = now();
+    await env.DB.prepare(
+      "INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)",
+    ).bind("tenant_basil_inv", "basil-inv@example.com", timestamp, timestamp).run();
+    await env.DB.prepare(
+      "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at,entitlement_status,grace_period_ends_at,stripe_event_created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    ).bind(
+      "subrow_basil_inv",
+      "tenant_basil_inv",
+      "cus_basil_inv",
+      "sub_basil_inv",
+      "past_due",
+      "price_test_starter",
+      "starter",
+      1,
+      timestamp + 86400,
+      timestamp,
+      "grace",
+      timestamp + 1000,
+      timestamp - 10,
+    ).run();
+
+    // invoice.paid only re-activates entitlement; it does not re-fetch the subscription.
+    installStripeMock((method, path) => {
+      throw new Error(`unexpected stripe ${method} ${path}`);
+    });
+
+    const event = {
+      id: "evt_basil_invoice_paid",
+      type: "invoice.paid",
+      created: timestamp,
+      data: {
+        object: {
+          id: "in_basil",
+          customer: "cus_basil_inv",
+          // Basil: no top-level subscription field.
+          parent: {
+            type: "subscription_details",
+            subscription_details: { subscription: "sub_basil_inv" },
+          },
+        },
+      },
+    };
+    const payload = JSON.stringify(event);
+    const response = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
+      method: "POST",
+      headers: { "Stripe-Signature": await stripeSignature(payload) },
+      body: payload,
+    });
+    expect(response.status).toBe(200);
+    expect(await env.DB.prepare(
+      "SELECT status,entitlement_status,grace_period_ends_at,current_period_end FROM subscriptions WHERE stripe_subscription_id='sub_basil_inv'",
+    ).first()).toMatchObject({
+      status: "active",
+      entitlement_status: "active",
+      grace_period_ends_at: null,
+      current_period_end: timestamp + 86400,
+    });
+  });
 });
