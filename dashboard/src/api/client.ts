@@ -159,6 +159,107 @@ export async function disconnectSession(): Promise<void> {
   }
 }
 
+async function ensureCsrfToken(): Promise<string> {
+  const existing = getCsrfToken()
+  if (existing) return existing
+  await bootstrapCsrf()
+  const token = getCsrfToken()
+  if (!token) throw new ApiError(401, 'CSRF token is unavailable')
+  return token
+}
+
+async function mutateJson<T>(
+  path: string,
+  method: 'POST' | 'DELETE',
+  body?: unknown,
+  expectedStatus = 200,
+): Promise<T> {
+  const csrf = await ensureCsrfToken()
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrf,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  } catch {
+    throw new ApiError(0, `Could not reach the AgentPulse API at ${API_BASE_URL}`)
+  }
+  if (response.status === 401 || response.status === 403) {
+    // Session/CSRF may be stale after reload; one bootstrap retry.
+    clearCredential()
+    const retryCsrf = await ensureCsrfToken()
+    try {
+      response = await fetch(`${API_BASE_URL}${path}`, {
+        method,
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': retryCsrf,
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    } catch {
+      throw new ApiError(0, `Could not reach the AgentPulse API at ${API_BASE_URL}`)
+    }
+  }
+  if (response.status !== expectedStatus) throw await toApiError(response)
+  if (response.status === 204) return undefined as T
+  return (await response.json()) as T
+}
+
+export interface EnrollmentTokenResponse {
+  enrollment_token: string
+  expires_at: number
+}
+
+export interface BillingPortalResponse {
+  portal_url: string
+}
+
+/** Create a one-time browser enrollment token (cookie + CSRF). Token is returned once. */
+export async function createBrowserEnrollmentToken(
+  ttlSeconds = 600,
+): Promise<EnrollmentTokenResponse> {
+  if (!Number.isInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > 900) {
+    throw new ApiError(422, 'ttl_seconds must be an integer between 60 and 900')
+  }
+  return mutateJson<EnrollmentTokenResponse>(
+    '/v1/browser/enrollment-tokens',
+    'POST',
+    { ttl_seconds: ttlSeconds },
+    201,
+  )
+}
+
+/** Open Stripe Customer Portal for the authenticated paid account. */
+export async function createBillingPortalSession(): Promise<BillingPortalResponse> {
+  return mutateJson<BillingPortalResponse>('/v1/billing/portal', 'POST', {})
+}
+
+/**
+ * Truthful enrollment guidance. Token is never embedded in a shell one-liner
+ * (CLI rejects argv tokens). Operator pastes via prompt or stdin.
+ */
+export function buildEnrollmentGuidance(apiBaseUrl: string = API_BASE_URL): {
+  configureHint: string
+  enrollCommand: string
+  stdinCommand: string
+} {
+  const base = apiBaseUrl.replace(/\/+$/, '')
+  return {
+    configureHint: `Set control_plane.enabled=true and control_plane.base_url=${base} in the agent config before enroll.`,
+    enrollCommand: 'agentpulse enroll /etc/agentpulse/config.json',
+    stdinCommand: 'agentpulse enroll /etc/agentpulse/config.json --token-stdin',
+  }
+}
+
 export async function getFleet(): Promise<FleetAgent[]> {
   const response = await getJson<FleetResponse>('/v1/fleet')
   return response.agents.map(normalizeAgent)

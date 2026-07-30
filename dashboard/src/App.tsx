@@ -1,17 +1,24 @@
 /**
- * AgentPulse dashboard — read-only screens for the backend v1 API.
+ * AgentPulse dashboard — read-only fleet screens + post-pay account console.
+ *
+ * Auth: Worker HttpOnly cookie + in-memory CSRF. No browser bearer storage.
  *
  * Routes:
- *   /servers            server inventory
- *   /servers/:agentId   server detail
- *   /incidents          incident list
- *   /incidents/:id      incident detail
+ *   /                    session landing
+ *   /connect /claim      checkout claim
+ *   /account             subscription, enrollment, billing portal
+ *   /servers             server inventory
+ *   /servers/:agentId    server detail
+ *   /incidents           incident list
+ *   /incidents/:id       incident detail
  */
 
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router'
 import { Shield } from 'lucide-react'
 import { disconnectSession, getAccount } from './api/client'
+import RequireSession from './components/RequireSession'
+import AccountPage from './pages/AccountPage'
 import ServerInventoryPage from './pages/ServerInventoryPage'
 import ServerDetailPage from './pages/ServerDetailPage'
 import IncidentListPage from './pages/IncidentListPage'
@@ -57,6 +64,9 @@ function Layout({ children }: { children: React.ReactNode }) {
             </NavLink>
             <NavLink to="/incidents" className={navLinkClass}>
               Incidents
+            </NavLink>
+            <NavLink to="/account" className={navLinkClass}>
+              Account
             </NavLink>
             <button type="button" onClick={disconnect} className={navLinkClass({ isActive: false })}>
               Disconnect
@@ -114,10 +124,46 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/connect" element={<ConnectPage />} />
           <Route path="/claim" element={<ConnectPage />} />
-          <Route path="/servers" element={<ServerInventoryPage />} />
-          <Route path="/servers/:agentId" element={<ServerDetailPage />} />
-          <Route path="/incidents" element={<IncidentListPage />} />
-          <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
+          <Route
+            path="/account"
+            element={
+              <RequireSession allowInactive>
+                <AccountPage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/servers"
+            element={
+              <RequireSession>
+                <ServerInventoryPage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/servers/:agentId"
+            element={
+              <RequireSession>
+                <ServerDetailPage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/incidents"
+            element={
+              <RequireSession>
+                <IncidentListPage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/incidents/:incidentId"
+            element={
+              <RequireSession>
+                <IncidentDetailPage />
+              </RequireSession>
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
