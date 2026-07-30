@@ -20,6 +20,7 @@ import {
 import { isEntitlementUsable } from '../auth/session'
 import { EmptyState, ErrorState, LoadingState, Panel } from '../components/ui'
 import { formatDateTime } from '../lib/format'
+import { navigateExternal } from '../lib/navigation'
 
 function entitlementLabel(status: string): string {
   if (status === 'active') return 'Active'
@@ -100,7 +101,7 @@ export default function AccountPage() {
       if (url.hostname !== 'billing.stripe.com' && !url.hostname.endsWith('.stripe.com')) {
         throw new Error('Billing portal URL host is not trusted')
       }
-      window.location.assign(url.toString())
+      navigateExternal(url.toString())
     } catch (reason) {
       setPortalError(reason instanceof Error ? reason.message : 'Billing portal unavailable')
       setPortalBusy(false)

@@ -29,7 +29,7 @@ Historical source retention is governed by `ARCHIVES.md`. Confidential operation
 | Cloudflare staging control plane | PASS (staging lifecycle) | Health live; migrations `0001`–`0003` applied; Worker `f319e12d-e776-4b90-94b2-1e0c57ce5649` from `7aee6b5` (Basil period/invoice fix) with canonical `APP_BASE_URL`; disposable callback torn down after proof |
 | Worker dependency audit | PASS | PostCSS fixed at 8.5.23 through a narrow override; fresh audit reports zero vulnerabilities |
 | Shared contracts | PASS | OpenAPI 3.1 meta-schema, enforced cookie-session/CSRF shape, operation-bound response fixtures with URI checks; billing/session routes labeled `implemented` after Phase 3B |
-| React dashboard | PASS | 19 browser-auth/account/API tests plus TypeScript and Vite production build; Account page (enrollment token + billing portal), RequireSession gate, cookie+CSRF mutations |
+| React dashboard | PASS | 19 browser-auth/account/API tests plus TypeScript and Vite production build; Account page (enrollment token + billing portal), RequireSession gate, cookie+CSRF mutations; Phase 4B mocked Playwright E2E scaffolded (`npm run test:e2e`) |
 | Dashboard dependency audit | PASS | React Router 8.3.0 and PostCSS 8.5.23; fresh audit reports zero vulnerabilities |
 | Repository hardening | PASS | shell syntax, workflow YAML, credential patterns, tracked dependencies, and retired paths |
 | Secret scanning | PASS on release path design | TruffleHog pinned 3.95.9 with `--only-verified` remains fail-closed for verified findings |
@@ -105,11 +105,12 @@ host-limit enforcement is revalidated on the merged tip, and a controlled pilot
 path is approved. Staging test-mode checkout→claim→session→portal→enrollment→
 heartbeat→fleet is now proven with redacted receipts.
 
-- Phase 4A console (source): Account route with subscription status, one-time browser enrollment token mint (cookie+CSRF), Stripe portal launch with host allowlist, RequireSession on fleet routes; no browser bearer storage. Staging-app DNS / Playwright E2E remain Owner Gate 4 / 4B.
+- Phase 4A console (source): Account route with subscription status, one-time browser enrollment token mint (cookie+CSRF), Stripe portal launch with host allowlist, RequireSession on fleet routes; no browser bearer storage.
+- Phase 4B progress (source): mocked Playwright console E2E + `dashboard-staging` workflow (Pages deploy opt-in) + runbook `docs/runbooks/staging-console-e2e.md`. Live staging browser E2E still blocked on Owner Gate 4 DNS.
 
 Remaining gates:
 
-- merge `fix/gate3-webhook-concurrency` (`7aee6b5`) after fresh CI on the tip;
-- browser dashboard acceptance when `staging-app` DNS exists (disposable callback proof already covers API lifecycle);
+- Owner Gate 4: attach `staging-app.agentpulse.ca` DNS/TLS to staging Pages project and confirm cookie domain/CORS against `staging-api.agentpulse.ca`;
+- Hermes 4B live: deploy staging console + run Playwright staging project with a real claim nonce;
 - production deployment and rollback evidence;
 - controlled pilot customers only until public multi-host checkout opens.

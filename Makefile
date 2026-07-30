@@ -4,7 +4,7 @@
 PYTHON := python3
 
 .PHONY: help agent-test packaging-test agent-lint agent-config-validate dashboard-install dashboard-build \
-        cp-install cp-test cp-typecheck contracts-validate clean
+        dashboard-test dashboard-e2e cp-install cp-test cp-typecheck contracts-validate clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -29,6 +29,12 @@ dashboard-install: ## Install dashboard dependencies
 
 dashboard-build: ## Build the single React dashboard
 	cd dashboard && npm run build
+
+dashboard-test: ## Run dashboard unit tests
+	cd dashboard && npm test
+
+dashboard-e2e: ## Run mocked Playwright console E2E (Phase 4B)
+	cd dashboard && npm run test:e2e
 
 cp-install: ## Install Cloudflare Worker dependencies
 	cd control-plane && npm ci

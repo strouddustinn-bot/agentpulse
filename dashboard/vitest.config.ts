@@ -7,5 +7,13 @@ export default defineConfig({
     environment: 'jsdom',
     clearMocks: true,
     restoreMocks: true,
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/e2e/**',
+      '**/*.e2e.*',
+      '**/playwright-report/**',
+      '**/test-results/**',
+    ],
   },
 })

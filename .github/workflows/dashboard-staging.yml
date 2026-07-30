@@ -1,0 +1,94 @@
+name: Dashboard Staging
+
+# Phase 4B: build + mocked Playwright always; Cloudflare Pages deploy is
+# manual/workflow_dispatch until Owner Gate 4 attaches staging-app DNS.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/dashboard-staging.yml'
+  pull_request:
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/dashboard-staging.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Deploy built console to Cloudflare Pages project agentpulse-staging-app'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: dashboard-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-mocked:
+    name: Dashboard mocked Playwright
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Unit tests
+        run: npm test
+      - name: Mocked browser E2E
+        run: npm run test:e2e
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-mocked
+          path: dashboard/playwright-report
+          if-no-files-found: ignore
+
+  deploy-staging-pages:
+    name: Deploy staging console (Cloudflare Pages)
+    needs: e2e-mocked
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.deploy == 'true' &&
+      github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
+      deployments: write
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - name: Build console against staging API
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: https://staging-api.agentpulse.ca
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          workingDirectory: dashboard
+          # Project must exist (or wrangler creates it). Custom domain
+          # staging-app.agentpulse.ca is Owner Gate 4 — attach in Cloudflare UI/DNS.
+          command: pages deploy dist --project-name=agentpulse-staging-app --commit-dirty=true
