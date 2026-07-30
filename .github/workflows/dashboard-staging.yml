@@ -83,15 +83,29 @@ jobs:
         run: npm run build
         env:
           VITE_API_BASE_URL: https://staging-api.agentpulse.ca
-      - name: Publish to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          # Prefer staging-env names; fall back to repo CLOUDFLARE_* secrets.
-          # Token must include Account → Cloudflare Pages → Edit (DNS-only fails).
-          apiToken: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: dashboard
-          # Project must exist (or wrangler creates it). Custom domain
-          # staging-app.agentpulse.ca is Owner Gate 4 — attach in Cloudflare UI/DNS.
-          command: pages deploy dist --project-name=agentpulse-staging-app --commit-dirty=true
-          packageManager: npm
+      - name: Publish to Cloudflare Pages (production branch)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          # Resolve Pages production branch so custom domain + apex pages.dev update.
+          PROD_BRANCH="$(python3 -c 'import json,os,urllib.request;a=os.environ["CLOUDFLARE_ACCOUNT_ID"];t=os.environ["CLOUDFLARE_API_TOKEN"];u=f"https://api.cloudflare.com/client/v4/accounts/{a}/pages/projects/agentpulse-staging-app";r=urllib.request.Request(u,headers={"Authorization":f"Bearer {t}"});d=json.load(urllib.request.urlopen(r,timeout=30));print((d.get("result") or {}).get("production_branch") or "production")')"
+          echo "pages_production_branch=${PROD_BRANCH}"
+          npx --yes wrangler@4.115.0 pages deploy dist             --project-name=agentpulse-staging-app             --branch="${PROD_BRANCH}"             --commit-dirty=true
+      - name: Verify production host serves console shell
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6; do
+            body="$(curl -4 -fsS -m 20 -H 'Cache-Control: no-cache' https://staging-app.agentpulse.ca/ || true)"
+            if printf '%s' "$body" | grep -q 'id="root"' && ! printf '%s' "$body" | grep -qi 'placeholder'; then
+              echo "staging-app serves real console shell"
+              exit 0
+            fi
+            echo "attempt=${attempt} still placeholder or empty; waiting"
+            sleep 10
+          done
+          echo "staging-app still not serving built console" >&2
+          exit 1
