@@ -1,6 +1,6 @@
 # AgentPulse Status
 
-**Status date:** 2026-07-29
+**Status date:** 2026-07-30
 **Canonical GitHub branch:** `master`
 
 ## Consolidated product
@@ -26,7 +26,7 @@ Historical source retention is governed by `ARCHIVES.md`. Confidential operation
 | Agent config contract | PASS | Draft 7 schema and current example validated with format checks |
 | Agent packaging | PASS | `python3 -m unittest tests.test_packaging -v`: 22 lifecycle, packaging, and development/release gate tests passed |
 | Worker control plane | PASS | `npm --prefix control-plane test`: 77 tests passed across fleet/agent routes, checkout, claim, browser session/CSRF, portal, full Stripe event set, grace entitlement, webhook fencing, staging harness, Stripe-mode fail-closed behavior, and unknown-price denial |
-| Cloudflare staging control plane | PARTIAL | Staging health is live and migration `0003` was applied after a zero-duplicate preflight; the exact Phase 3D Worker candidate and commercial lifecycle remain undeployed/unproven |
+| Cloudflare staging control plane | PASS (staging lifecycle) | Health live; migrations `0001`–`0003` applied; Worker `f319e12d-e776-4b90-94b2-1e0c57ce5649` from `7aee6b5` (Basil period/invoice fix) with canonical `APP_BASE_URL`; disposable callback torn down after proof |
 | Worker dependency audit | PASS | PostCSS fixed at 8.5.23 through a narrow override; fresh audit reports zero vulnerabilities |
 | Shared contracts | PASS | OpenAPI 3.1 meta-schema, enforced cookie-session/CSRF shape, operation-bound response fixtures with URI checks; billing/session routes labeled `implemented` after Phase 3B |
 | React dashboard | PASS | 9 browser-auth/API tests plus TypeScript and Vite production build |
@@ -77,10 +77,14 @@ source:
 - browser `ap_session` cookie + CSRF for mutations
 - enrollment/heartbeat/fleet enforce hosted entitlement without disabling local agent operation
 
-Still required to complete staging lifecycle proof:
+Staging lifecycle proof completed 2026-07-30 (redacted):
 
-- deploy the exact Phase 3D Worker candidate to staging and record its Cloudflare deployment/version identity;
-- execute and independently verify the redacted test-mode lifecycle, webhook convergence, denial/recovery, replay, and tenant-isolation receipts.
+- exact tip `7aee6b53b50cd3d3608fc581d189059285d9476e` deployed; temporary callback Worker used while `staging-app` DNS is unresolved, then deleted;
+- Stripe test checkout (`livemode=false`, plan=starter) paid and claimed;
+- disposable callback receipt: `complete=true`, `passed=true` for claim/replay, account, CSRF denials, portal, enrollment, heartbeat, fleet, logout;
+- checkout_sessions gained one `claimed` row; browser session issued then revoked by logout path;
+- restored canonical staging `APP_BASE_URL=https://staging-app.agentpulse.ca`; recovery route not retained in source;
+- remaining before public multi-host checkout: merge Gate 3 branch after fresh CI, broader negative/isolation matrix if not already covered by unit tests, controlled pilot path, production deploy gates.
 
 ## Supported boundary
 
@@ -96,13 +100,14 @@ Cloud policy can narrow but cannot increase the local authority ceiling. Unknown
 
 The repository contains Worker enrollment/heartbeat/fleet APIs, billing/session
 handlers, an accepted exact-release agent artifact, and a read-only console.
-Public multi-host checkout is closed because the complete paid onboarding
-lifecycle has not yet been proven on staging. Any paid-beta customer must therefore be
-handled as a controlled manual pilot until those gates pass.
+Public multi-host checkout remains closed until the Gate 3 branch is merged,
+host-limit enforcement is revalidated on the merged tip, and a controlled pilot
+path is approved. Staging test-mode checkout→claim→session→portal→enrollment→
+heartbeat→fleet is now proven with redacted receipts.
 
-The following remain staging/deploy gates rather than missing source handlers:
+Remaining gates:
 
-- deploy the exact Phase 3B/3D Worker routes to staging (`0003` is applied; Worker deployment remains pending);
-- validate the configured Stripe test-mode webhook and Customer Portal behavior through the live lifecycle proof;
-- browser-level dashboard acceptance against staging; the staging dashboard is not deployed, so Phase 3D needs a disposable callback proof;
-- production deployment and rollback evidence.
+- merge `fix/gate3-webhook-concurrency` (`7aee6b5`) after fresh CI on the tip;
+- browser dashboard acceptance when `staging-app` DNS exists (disposable callback proof already covers API lifecycle);
+- production deployment and rollback evidence;
+- controlled pilot customers only until public multi-host checkout opens.
