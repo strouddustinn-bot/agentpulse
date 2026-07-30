@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Staging commercial lifecycle harness now has fail-closed `prepare`/`prove` phases, private checkout handoff semantics, exact receipt markers, and a disposable callback Worker artifact for absent staging-app DNS.
+
+### Changed
+- Checkout responses now include server-derived `checkout_session_id` and `livemode`; staging rejects non-`cs_test_` or live-mode Stripe sessions before persisting capability URLs.
+- Phase 3D planning/status/API/runbook claims now require migrations `0002` and hard-fail `0003`, duplicate-subscription preflight, and redacted staging proof before any completion claim.
+
+### Fixed
+- Control-plane webhook concurrency tests no longer depend on body-consumption/rendezvous ordering that can hang the Worker test pool.
+
+
 ## [0.2.0b2] — 2026-07-22
 
 ### Fixed

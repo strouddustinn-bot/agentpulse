@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const now = () => Math.floor(Date.now() / 1000);
 const originalFetch = globalThis.fetch;
+const originalEnvironment = env.ENVIRONMENT;
 
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -48,7 +49,25 @@ function jsonResponse(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
 }
 
-beforeEach(async () => {
+async function workerFetch(input: string, init?: RequestInit): Promise<Response> {
+  const response = await SELF.fetch(input, init);
+  const bytes = await response.arrayBuffer();
+  const body = [101, 204, 205, 304].includes(response.status) ? null : bytes;
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
+beforeEach(() => {
+  globalThis.fetch = originalFetch;
+  env.ENVIRONMENT = originalEnvironment;
+});
+
+afterEach(async () => {
+  globalThis.fetch = originalFetch;
+  env.ENVIRONMENT = originalEnvironment;
   const tables = [
     "heartbeat_events",
     "incidents",
@@ -64,11 +83,6 @@ beforeEach(async () => {
     "stripe_events",
   ];
   for (const table of tables) await env.DB.prepare(`DELETE FROM ${table}`).run();
-  globalThis.fetch = originalFetch;
-});
-
-afterEach(() => {
-  globalThis.fetch = originalFetch;
 });
 
 describe("billing lifecycle", () => {
@@ -82,19 +96,24 @@ describe("billing lifecycle", () => {
       expect(form.billing_address_collection).toBe("required");
       return jsonResponse({
         id: "cs_test_1",
+        livemode: false,
         url: "https://checkout.stripe.com/c/pay/cs_test_1",
         expires_at: now() + 1800,
       });
     });
 
-    const response = await SELF.fetch("https://agentpulse.test/v1/billing/checkout", {
+    const response = await workerFetch("https://agentpulse.test/v1/billing/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ plan: "pro" }),
     });
     expect(response.status).toBe(201);
-    const payload = await response.json<{ checkout_url: string; expires_at: number }>();
-    expect(payload.checkout_url).toBe("https://checkout.stripe.com/c/pay/cs_test_1");
+    const payload = await response.json() as { checkout_url: string; checkout_session_id: string; livemode: boolean; expires_at: number };
+    expect(payload).toMatchObject({
+      checkout_url: "https://checkout.stripe.com/c/pay/cs_test_1",
+      checkout_session_id: "cs_test_1",
+      livemode: false,
+    });
     const row = await env.DB.prepare("SELECT claim_nonce_hash,status,plan,price_id FROM checkout_sessions WHERE stripe_checkout_session_id='cs_test_1'")
       .first<{ claim_nonce_hash: string; status: string; plan: string; price_id: string }>();
     expect(row).toMatchObject({ status: "pending", plan: "pro", price_id: "price_test_pro" });
@@ -102,8 +121,27 @@ describe("billing lifecycle", () => {
     expect(JSON.stringify(row)).not.toContain("ap_claim_");
   });
 
+  it("rejects staging checkout before persistence when Stripe identity is not test-mode", async () => {
+    env.ENVIRONMENT = "staging";
+    installStripeMock(() => jsonResponse({
+      id: "cs_live_unsafe",
+      livemode: true,
+      url: "https://checkout.stripe.com/c/pay/cs_live_unsafe",
+      expires_at: now() + 1800,
+    }));
+
+    const response = await workerFetch("https://agentpulse.test/v1/billing/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: "starter" }),
+    });
+
+    expect(response.status).toBe(503);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM checkout_sessions").first()).toMatchObject({ count: 0 });
+  });
+
   it("rejects unknown plans", async () => {
-    const invalid = await SELF.fetch("https://agentpulse.test/v1/billing/checkout", {
+    const invalid = await workerFetch("https://agentpulse.test/v1/billing/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ plan: "enterprise" }),
@@ -111,223 +149,317 @@ describe("billing lifecycle", () => {
     expect(invalid.status).toBe(422);
   });
 
-  it("claims a paid checkout once, issues HttpOnly session cookie + CSRF, and rejects replay", async () => {
-    let claimNonce = "";
-    installStripeMock((method, path, body) => {
-      if (method === "POST" && path === "/checkout/sessions") {
-        const form = formMap(body);
-        const successUrl = form.success_url;
-        expect(successUrl).toBeTruthy();
-        const success = new URL(successUrl!);
-        claimNonce = success.searchParams.get("claim_nonce") ?? "";
+  it("reprocesses a failed Stripe event when Stripe retries the same event ID", async () => {
+    const timestamp = now();
+    await env.DB.prepare(
+      "INSERT INTO checkout_sessions (stripe_checkout_session_id,claim_nonce_hash,price_id,plan,status,created_at,expires_at) VALUES (?,?,?,?,?,?,?)",
+    ).bind("cs_test_retry", await sha256("ap_claim_retry_1234567890"), "price_test_starter", "starter", "pending", timestamp, timestamp + 1800).run();
+
+    let checkoutFetchFails = true;
+    installStripeMock((method, path) => {
+      if (method === "GET" && path === "/checkout/sessions/cs_test_retry") {
+        if (checkoutFetchFails) return jsonResponse({ error: { message: "temporary failure" } }, 500);
         return jsonResponse({
-          id: "cs_test_claim",
-          url: "https://checkout.stripe.com/c/pay/cs_test_claim",
-          expires_at: now() + 1800,
-        });
-      }
-      if (method === "GET" && path === "/checkout/sessions/cs_test_claim") {
-        return jsonResponse({
-          id: "cs_test_claim",
+          id: "cs_test_retry",
           status: "complete",
           payment_status: "paid",
-          customer: "cus_1",
-          subscription: "sub_1",
-          customer_details: { email: "owner@example.com" },
+          customer: "cus_retry",
+          subscription: "sub_retry",
+          customer_details: { email: "retry@example.com" },
         });
       }
-      if (method === "GET" && path === "/subscriptions/sub_1") {
-        return jsonResponse({ id: "sub_1", status: "active", current_period_end: now() + 86400 });
+      if (method === "GET" && path === "/subscriptions/sub_retry") {
+        return jsonResponse({ id: "sub_retry", customer: "cus_retry", status: "active", current_period_end: timestamp + 86400, items: { data: [{ price: { id: "price_test_starter" } }] } });
       }
-      if (method === "POST" && path === "/billing_portal/sessions") {
-        const form = formMap(body);
-        expect(form.customer).toBe("cus_1");
-        return jsonResponse({ url: "https://billing.stripe.com/p/session/test" });
-      }
-      throw new Error(`unexpected stripe ${method} ${path} ${body}`);
-    });
-
-    const checkout = await SELF.fetch("https://agentpulse.test/v1/billing/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan: "starter" }),
-    });
-    expect(checkout.status).toBe(201);
-    expect(claimNonce.length).toBeGreaterThan(16);
-
-    const claim = await SELF.fetch("https://agentpulse.test/v1/onboarding/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ claim_nonce: claimNonce }),
-    });
-    expect(claim.status).toBe(200);
-    const setCookie = claim.headers.get("Set-Cookie") ?? "";
-    expect(setCookie).toContain("ap_session=");
-    expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("SameSite=Lax");
-    expect(setCookie).not.toContain("ap_account_");
-    const claimed = await claim.json<{ csrf_token: string; account: { plan: string; entitlement_status: string; agent_limit: number; email: string } }>();
-    expect(claimed.csrf_token.length).toBeGreaterThanOrEqual(16);
-    expect(claimed.account).toMatchObject({
-      plan: "starter",
-      entitlement_status: "active",
-      agent_limit: 1,
-      email: "owner@example.com",
-    });
-    expect(JSON.stringify(claimed)).not.toContain("ap_account_");
-    expect(JSON.stringify(claimed)).not.toContain(claimNonce);
-
-    const replay = await SELF.fetch("https://agentpulse.test/v1/onboarding/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ claim_nonce: claimNonce }),
-    });
-    expect(replay.status).toBe(409);
-
-    const sessionCookie = setCookie.split(";")[0] ?? "";
-    const account = await SELF.fetch("https://agentpulse.test/v1/account", {
-      headers: { Cookie: sessionCookie },
-    });
-    expect(account.status).toBe(200);
-    expect(await account.json()).toMatchObject({ plan: "starter", entitlement_status: "active", agent_limit: 1 });
-
-    const enrollment = await SELF.fetch("https://agentpulse.test/v1/browser/enrollment-tokens", {
-      method: "POST",
-      headers: {
-        Cookie: sessionCookie,
-        "Content-Type": "application/json",
-        "X-CSRF-Token": claimed.csrf_token,
-        Origin: "https://app.agentpulse.test",
-      },
-      body: JSON.stringify({ ttl_seconds: 300 }),
-    });
-    expect(enrollment.status).toBe(201);
-    expect(await enrollment.json()).toMatchObject({ enrollment_token: expect.stringMatching(/^ap_enroll_/) });
-
-    const badCsrf = await SELF.fetch("https://agentpulse.test/v1/billing/portal", {
-      method: "POST",
-      headers: { Cookie: sessionCookie, "X-CSRF-Token": "not-the-token", Origin: "https://app.agentpulse.test" },
-    });
-    expect(badCsrf.status).toBe(403);
-
-    const portal = await SELF.fetch("https://agentpulse.test/v1/billing/portal", {
-      method: "POST",
-      headers: {
-        Cookie: sessionCookie,
-        "X-CSRF-Token": claimed.csrf_token,
-        Origin: "https://app.agentpulse.test",
-      },
-    });
-    expect(portal.status).toBe(200);
-    expect(await portal.json()).toEqual({ portal_url: "https://billing.stripe.com/p/session/test" });
-
-    const logout = await SELF.fetch("https://agentpulse.test/v1/session", {
-      method: "DELETE",
-      headers: {
-        Cookie: sessionCookie,
-        "X-CSRF-Token": claimed.csrf_token,
-        Origin: "https://app.agentpulse.test",
-      },
-    });
-    expect(logout.status).toBe(204);
-    const afterLogout = await SELF.fetch("https://agentpulse.test/v1/account", {
-      headers: { Cookie: sessionCookie },
-    });
-    expect(afterLogout.status).toBe(401);
-  });
-
-  it("processes subscription lifecycle events idempotently and never grants unknown prices", async () => {
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)")
-        .bind("tenant-x", "x@example.com", now(), now()),
-      env.DB.prepare(
-        "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at,entitlement_status,grace_period_ends_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-      ).bind("subrow", "tenant-x", "cus_x", "sub_x", "active", "price_test_pro", "pro", 5, now() + 1000, now(), "active", null),
-    ]);
-
-    installStripeMock((method, path) => {
-      if (method === "GET" && path === "/customers/cus_x") return jsonResponse({ id: "cus_x", email: "x@example.com" });
       throw new Error(`unexpected stripe ${method} ${path}`);
     });
 
-    const updated = {
-      id: "evt_sub_updated",
-      type: "customer.subscription.updated",
-      data: {
-        object: {
-          id: "sub_x",
-          customer: "cus_x",
-          status: "active",
-          current_period_end: now() + 2000,
-          metadata: { plan: "business" },
-          items: { data: [{ price: { id: "price_test_business" } }] },
-        },
-      },
+    const event = {
+      id: "evt_checkout_retry",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_test_retry" } },
     };
-    const payload = JSON.stringify(updated);
-    const first = await SELF.fetch("https://agentpulse.test/v1/stripe/webhook", {
+    const payload = JSON.stringify(event);
+    const signature = await stripeSignature(payload);
+    const first = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
       method: "POST",
-      headers: { "Stripe-Signature": await stripeSignature(payload) },
+      headers: { "Stripe-Signature": signature },
       body: payload,
     });
-    const second = await SELF.fetch("https://agentpulse.test/v1/stripe/webhook", {
-      method: "POST",
-      headers: { "Stripe-Signature": await stripeSignature(payload) },
-      body: payload,
-    });
-    expect(first.status).toBe(200);
-    expect(await second.json()).toMatchObject({ duplicate: true });
-    const row = await env.DB.prepare("SELECT plan,agent_limit,entitlement_status FROM subscriptions WHERE stripe_subscription_id='sub_x'")
-      .first<{ plan: string; agent_limit: number; entitlement_status: string }>();
-    expect(row).toEqual({ plan: "business", agent_limit: 20, entitlement_status: "active" });
+    expect(first.status).toBeGreaterThanOrEqual(500);
+    expect(await env.DB.prepare("SELECT outcome FROM stripe_events WHERE id='evt_checkout_retry'").first()).toMatchObject({ outcome: "failed" });
 
-    const unknown = {
-      id: "evt_unknown_price",
-      type: "customer.subscription.updated",
-      data: {
-        object: {
-          id: "sub_x",
-          customer: "cus_x",
-          status: "active",
-          current_period_end: now() + 2000,
-          items: { data: [{ price: { id: "price_unknown" } }] },
-        },
-      },
-    };
-    const unknownPayload = JSON.stringify(unknown);
-    expect((await SELF.fetch("https://agentpulse.test/v1/stripe/webhook", {
+    checkoutFetchFails = false;
+    const retry = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
       method: "POST",
-      headers: { "Stripe-Signature": await stripeSignature(unknownPayload) },
-      body: unknownPayload,
-    })).status).toBe(200);
-    const blocked = await env.DB.prepare("SELECT entitlement_status FROM subscriptions WHERE stripe_subscription_id='sub_x'")
-      .first<{ entitlement_status: string }>();
-    expect(blocked?.entitlement_status).toBe("blocked");
+      headers: { "Stripe-Signature": signature },
+      body: payload,
+    });
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({ ok: true, duplicate: false });
+    expect(await env.DB.prepare("SELECT outcome FROM stripe_events WHERE id='evt_checkout_retry'").first()).toMatchObject({ outcome: "processed" });
+    expect(await env.DB.prepare("SELECT status FROM checkout_sessions WHERE stripe_checkout_session_id='cs_test_retry'").first()).toMatchObject({ status: "ready" });
   });
 
-  it("recovers hosted entitlement after invoice.paid", async () => {
-    await env.DB.batch([
-      env.DB.prepare("INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)")
-        .bind("tenant-y", "y@example.com", now(), now()),
-      env.DB.prepare(
-        "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at,entitlement_status,grace_period_ends_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-      ).bind("subrow-y", "tenant-y", "cus_y", "sub_y", "past_due", "price_test_starter", "starter", 1, now() + 1000, now(), "grace", now() + 1000),
-      env.DB.prepare("INSERT INTO account_credentials (id,tenant_id,credential_hash,prefix,created_at) VALUES (?,?,?,?,?)")
-        .bind("cred-y", "tenant-y", await sha256("ap_account_y"), "ap_account_y", now()),
-    ]);
-    const paid = {
-      id: "evt_paid",
-      type: "invoice.paid",
-      data: { object: { subscription: "sub_y" } },
-    };
-    const payload = JSON.stringify(paid);
-    expect((await SELF.fetch("https://agentpulse.test/v1/stripe/webhook", {
+  it("does not process the same Stripe event while an active lease is pending", async () => {
+    const timestamp = now();
+    const payload = JSON.stringify({
+      id: "evt_checkout_inflight",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_test_inflight" } },
+    });
+    await env.DB.prepare(
+      "INSERT INTO stripe_events (id,event_type,received_at,outcome,lease_token,lease_expires_at,attempt_count,payload_sha256) VALUES (?,?,?,?,?,?,?,?)",
+    ).bind("evt_checkout_inflight", "checkout.session.completed", timestamp, "pending", "active-owner", timestamp + 300, 1, await sha256(payload)).run();
+
+    let stripeFetches = 0;
+    installStripeMock((method, path) => {
+      stripeFetches += 1;
+      throw new Error(`unexpected stripe ${method} ${path}`);
+    });
+
+    const concurrent = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
       method: "POST",
       headers: { "Stripe-Signature": await stripeSignature(payload) },
       body: payload,
-    })).status).toBe(200);
-    const row = await env.DB.prepare("SELECT status,entitlement_status,grace_period_ends_at FROM subscriptions WHERE stripe_subscription_id='sub_y'")
-      .first<{ status: string; entitlement_status: string; grace_period_ends_at: number | null }>();
-    expect(row).toEqual({ status: "active", entitlement_status: "active", grace_period_ends_at: null });
+    });
+
+    expect(concurrent.status).toBe(409);
+    expect(stripeFetches).toBe(0);
+    expect(await env.DB.prepare("SELECT outcome,lease_token FROM stripe_events WHERE id='evt_checkout_inflight'").first())
+      .toMatchObject({ outcome: "pending", lease_token: "active-owner" });
+  });
+
+  it("maps incomplete_expired to canceled/blocked without CHECK failure", async () => {
+    const timestamp = now();
+    await env.DB.prepare(
+      "INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)",
+    ).bind("tenant_expired", "expired@example.com", timestamp, timestamp).run();
+    await env.DB.prepare(
+      "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at,entitlement_status,grace_period_ends_at,stripe_event_created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    ).bind(
+      "subrow_expired",
+      "tenant_expired",
+      "cus_expired",
+      "sub_expired",
+      "active",
+      "price_test_starter",
+      "starter",
+      1,
+      timestamp + 86400,
+      timestamp,
+      "active",
+      null,
+      timestamp - 10,
+    ).run();
+
+    installStripeMock((method, path) => {
+      if (method === "GET" && path === "/customers/cus_expired") {
+        return jsonResponse({ id: "cus_expired", email: "expired@example.com" });
+      }
+      throw new Error(`unexpected stripe ${method} ${path}`);
+    });
+
+    const event = {
+      id: "evt_incomplete_expired",
+      type: "customer.subscription.updated",
+      created: timestamp,
+      data: {
+        object: {
+          id: "sub_expired",
+          customer: "cus_expired",
+          status: "incomplete_expired",
+          current_period_end: timestamp + 86400,
+          items: { data: [{ price: { id: "price_test_starter" } }] },
+        },
+      },
+    };
+    const payload = JSON.stringify(event);
+    const response = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
+      method: "POST",
+      headers: { "Stripe-Signature": await stripeSignature(payload) },
+      body: payload,
+    });
+    expect(response.status).toBe(200);
+    expect(await env.DB.prepare(
+      "SELECT status,entitlement_status,grace_period_ends_at FROM subscriptions WHERE stripe_subscription_id='sub_expired'",
+    ).first()).toMatchObject({ status: "canceled", entitlement_status: "blocked", grace_period_ends_at: null });
+  });
+
+  it("derives plan only from configured Price IDs and blocks metadata/price disagreement", async () => {
+    const timestamp = now();
+    await env.DB.prepare(
+      "INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)",
+    ).bind("tenant_meta", "meta@example.com", timestamp, timestamp).run();
+    await env.DB.prepare(
+      "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at,entitlement_status,grace_period_ends_at,stripe_event_created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    ).bind(
+      "subrow_meta",
+      "tenant_meta",
+      "cus_meta",
+      "sub_meta",
+      "active",
+      "price_test_starter",
+      "starter",
+      1,
+      timestamp + 86400,
+      timestamp,
+      "active",
+      null,
+      timestamp - 10,
+    ).run();
+
+    installStripeMock((method, path) => {
+      if (method === "GET" && path === "/customers/cus_meta") {
+        return jsonResponse({ id: "cus_meta", email: "meta@example.com" });
+      }
+      throw new Error(`unexpected stripe ${method} ${path}`);
+    });
+
+    const event = {
+      id: "evt_metadata_disagreement",
+      type: "customer.subscription.updated",
+      created: timestamp,
+      data: {
+        object: {
+          id: "sub_meta",
+          customer: "cus_meta",
+          status: "active",
+          metadata: { plan: "business" },
+          current_period_end: timestamp + 86400,
+          items: { data: [{ price: { id: "price_test_starter" } }] },
+        },
+      },
+    };
+    const payload = JSON.stringify(event);
+    const response = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
+      method: "POST",
+      headers: { "Stripe-Signature": await stripeSignature(payload) },
+      body: payload,
+    });
+    expect(response.status).toBe(200);
+    expect(await env.DB.prepare(
+      "SELECT plan,agent_limit,entitlement_status FROM subscriptions WHERE stripe_subscription_id='sub_meta'",
+    ).first()).toMatchObject({ plan: "starter", agent_limit: 1, entitlement_status: "blocked" });
+  });
+
+  it("accepts Basil subscription item current_period_end for checkout.session.completed", async () => {
+    const timestamp = now();
+    await env.DB.prepare(
+      "INSERT INTO checkout_sessions (stripe_checkout_session_id,claim_nonce_hash,price_id,plan,status,created_at,expires_at) VALUES (?,?,?,?,?,?,?)",
+    ).bind("cs_basil_period", await sha256("ap_claim_basil_period_123456"), "price_test_starter", "starter", "pending", timestamp, timestamp + 1800).run();
+
+    installStripeMock((method, path) => {
+      if (method === "GET" && path === "/checkout/sessions/cs_basil_period") {
+        return jsonResponse({
+          id: "cs_basil_period",
+          status: "complete",
+          payment_status: "paid",
+          customer: "cus_basil_period",
+          subscription: "sub_basil_period",
+          customer_details: { email: "basil-period@example.com" },
+        });
+      }
+      if (method === "GET" && path === "/subscriptions/sub_basil_period") {
+        // Basil: no top-level current_period_end; period lives on the item.
+        return jsonResponse({
+          id: "sub_basil_period",
+          customer: "cus_basil_period",
+          status: "active",
+          items: {
+            data: [{
+              id: "si_basil_period",
+              current_period_end: timestamp + 86400,
+              price: { id: "price_test_starter" },
+            }],
+          },
+        });
+      }
+      throw new Error(`unexpected stripe ${method} ${path}`);
+    });
+
+    const event = {
+      id: "evt_basil_period",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_basil_period" } },
+    };
+    const payload = JSON.stringify(event);
+    const response = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
+      method: "POST",
+      headers: { "Stripe-Signature": await stripeSignature(payload) },
+      body: payload,
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, duplicate: false });
+    expect(await env.DB.prepare("SELECT outcome FROM stripe_events WHERE id='evt_basil_period'").first())
+      .toMatchObject({ outcome: "processed" });
+    expect(await env.DB.prepare(
+      "SELECT cs.status AS checkout_status,s.current_period_end,s.entitlement_status FROM checkout_sessions cs JOIN subscriptions s ON s.tenant_id=cs.tenant_id WHERE cs.stripe_checkout_session_id='cs_basil_period'",
+    ).first()).toMatchObject({
+      checkout_status: "ready",
+      current_period_end: timestamp + 86400,
+      entitlement_status: "active",
+    });
+  });
+
+  it("accepts Basil invoice parent.subscription_details.subscription for invoice.paid", async () => {
+    const timestamp = now();
+    await env.DB.prepare(
+      "INSERT INTO tenants (id,email,created_at,updated_at) VALUES (?,?,?,?)",
+    ).bind("tenant_basil_inv", "basil-inv@example.com", timestamp, timestamp).run();
+    await env.DB.prepare(
+      "INSERT INTO subscriptions (id,tenant_id,stripe_customer_id,stripe_subscription_id,status,price_id,plan,agent_limit,current_period_end,updated_at,entitlement_status,grace_period_ends_at,stripe_event_created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    ).bind(
+      "subrow_basil_inv",
+      "tenant_basil_inv",
+      "cus_basil_inv",
+      "sub_basil_inv",
+      "past_due",
+      "price_test_starter",
+      "starter",
+      1,
+      timestamp + 86400,
+      timestamp,
+      "grace",
+      timestamp + 1000,
+      timestamp - 10,
+    ).run();
+
+    // invoice.paid only re-activates entitlement; it does not re-fetch the subscription.
+    installStripeMock((method, path) => {
+      throw new Error(`unexpected stripe ${method} ${path}`);
+    });
+
+    const event = {
+      id: "evt_basil_invoice_paid",
+      type: "invoice.paid",
+      created: timestamp,
+      data: {
+        object: {
+          id: "in_basil",
+          customer: "cus_basil_inv",
+          // Basil: no top-level subscription field.
+          parent: {
+            type: "subscription_details",
+            subscription_details: { subscription: "sub_basil_inv" },
+          },
+        },
+      },
+    };
+    const payload = JSON.stringify(event);
+    const response = await workerFetch("https://agentpulse.test/v1/stripe/webhook", {
+      method: "POST",
+      headers: { "Stripe-Signature": await stripeSignature(payload) },
+      body: payload,
+    });
+    expect(response.status).toBe(200);
+    expect(await env.DB.prepare(
+      "SELECT status,entitlement_status,grace_period_ends_at,current_period_end FROM subscriptions WHERE stripe_subscription_id='sub_basil_inv'",
+    ).first()).toMatchObject({
+      status: "active",
+      entitlement_status: "active",
+      grace_period_ends_at: null,
+      current_period_end: timestamp + 86400,
+    });
   });
 });

@@ -194,6 +194,26 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(mod_ver.returncode, 0, mod_ver.stderr)
         self.assertRegex(mod_ver.stdout.strip(), r"^\d+\.\d+\.\d+(?:[a-zA-Z]+\d+(?:\.\d+)*)?$")
 
+    def test_dev_bootstrap_uses_ci_linter_version(self) -> None:
+        expected = "ruff==0.4.10"
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        bootstrap = (ROOT / "scripts" / "bootstrap-dev.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        precommit = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+        self.assertIn(expected, pyproject, "dev dependencies must pin the CI Ruff version")
+        self.assertIn(expected, bootstrap, "bootstrap must install the CI Ruff version")
+        self.assertIn(expected, workflow, "CI must use the canonical Ruff version")
+        self.assertIn("rev: v0.4.10", precommit, "pre-commit must use the canonical Ruff version")
+
+    def test_ci_and_release_run_dashboard_tests(self) -> None:
+        test_workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        dashboard_job = test_workflow.split("\n  dashboard:", 1)[1].split("\n  packaging:", 1)[0]
+        release_workflow = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        release_verify = release_workflow.split("\n  verify:", 1)[1].split("\n  build-agent-artifacts:", 1)[0]
+        self.assertIn("npm test", dashboard_job)
+        self.assertIn("npm test", release_verify)
+        self.assertIn("openapi-spec-validator", release_verify)
+
     def test_release_workflow_publishes_checksums(self) -> None:
         text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         self.assertIn("python -m build", text)

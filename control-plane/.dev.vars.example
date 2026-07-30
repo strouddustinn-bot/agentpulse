@@ -3,6 +3,10 @@
 STRIPE_API_KEY=
 STRIPE_WEBHOOK_SECRET=
 
+# Non-secret origins used for trusted browser session and portal redirects.
+PUBLIC_BASE_URL=http://localhost:8787
+APP_BASE_URL=http://localhost:5174
+
 # Non-secret plan bindings also live in wrangler.jsonc vars.
 # Set real test Price IDs there or override locally if needed:
 # STRIPE_PRICE_STARTER=price_...

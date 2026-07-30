@@ -138,7 +138,7 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Session authentication | Browser uses short-lived secure HttpOnly/SameSite session rather than a bearer key in JavaScript storage | Implemented and tested: HttpOnly `ap_session`, CSRF synchronizer token, logout revocation | ✅ |
 | Retention/deletion lifecycle | Documented and tested tenant deletion, evidence retention, and privacy-request procedure | Not implemented/documented as an executable runbook | ⬜ |
 | Production D1 | Real ID, migrations, backups/recovery, and rollback are verified | Production ID is `REPLACE_PRODUCTION_D1_ID` | ⬜ |
-| Staging control plane | Candidate D1 migrations are deployed and Worker custom-domain health passes | Older staging health returned HTTP 200, but Phase 3A migration `0002` is source-tested and not deployed | 🟡 |
+| Staging control plane | Candidate D1 migrations are deployed and Worker custom-domain health passes | Staging health is live and migrations `0001` through hard-fail `0003` are applied; the exact Phase 3D Worker candidate and lifecycle proof remain pending | 🟡 |
 | Production control plane | `api.agentpulse.ca` resolves, health passes, and rollback evidence exists | Domain did not resolve during probe | ⬜ |
 
 ### C. Customer console
@@ -176,9 +176,9 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
-| Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; planned contract-only routes are labeled by implementation state | OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 12 paths, 39 refs, 9 schemas, 7 typed fixtures, and 6 negative mutation tests pass; billing/session routes labeled implemented after Phase 3B Worker proof | ✅ |
+| Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; planned contract-only routes are labeled by implementation state | OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 14 paths, 55 local refs, 9 schemas, and 7 typed fixtures pass validation; billing/session routes are implemented in source pending Phase 3D staging proof | ✅ |
 | Agent test suite | Safety/behavior suite passes on supported Python versions | Fresh local result: 193 passed; GitHub Tests at the pre-change master head succeeded | ✅ |
-| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 29 tests including migrations, fleet/agent routes, and billing lifecycle; typecheck and bindings pass | ✅ |
+| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 77 tests including migrations, fleet/agent routes, billing lifecycle, concurrency fencing, and staging harnesses; typecheck and generated bindings pass | ✅ |
 | Dashboard build | TypeScript and Vite production build pass | Fresh build succeeded | ✅ |
 | Dashboard behavioral E2E | Browser tests cover auth, fleet, incidents, failure/empty states | No browser test suite | ⬜ |
 | Security dependency audits | Python invariant and npm high-severity audits pass | PostCSS fixed at 8.5.23 in both workspaces; dashboard moved to patched React Router 8.3.0; both fresh npm audits report zero vulnerabilities | ✅ |
@@ -198,10 +198,10 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Check | Fresh result |
 |---|---|
 | Agent suite | `193 passed, 0 failed` |
-| Agent lint | PASS: project Ruff 0.15.21 reports all checks passed |
+| Agent lint | PASS: project Ruff 0.4.10 reports all checks passed |
 | Agent config validation | PASS: example and local configurations validate against Draft 7 schema with format checks |
-| Shared contracts | PASS: OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 12 paths, 39 local refs, 9 schemas, 7 typed fixtures, 6 negative mutation tests |
-| Worker tests | PASS: 24 tests, including 10 D1 schema/tenant-boundary tests; fresh replay and fail-closed upgraded fixture PASS |
+| Shared contracts | PASS: OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 14 paths, 55 local refs, 9 schemas, 7 typed fixtures, 7 negative mutation tests |
+| Worker tests | PASS: fresh local 77 tests including migrations, fleet/agent routes, billing lifecycle, concurrency fencing, and staging harnesses |
 | Worker TypeScript/bindings | PASS |
 | Dashboard production build | PASS: 1,576 modules transformed |
 | Master GitHub Tests | Pre-change master was green; candidate post-push run pending |

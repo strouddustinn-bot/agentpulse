@@ -27,6 +27,9 @@ classifiers = [
 # Zero third-party runtime dependencies by design.
 dependencies = []
 
+[project.optional-dependencies]
+dev = ["openapi-spec-validator", "jsonschema", "PyYAML", "ruff==0.4.10"]
+
 [project.urls]
 Homepage = "https://agentpulse.ca"
 Repository = "https://github.com/strouddustinn-bot/agentpulse"

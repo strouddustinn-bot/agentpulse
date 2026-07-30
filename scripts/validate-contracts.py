@@ -20,12 +20,22 @@ SCHEMA_DIR = CONTRACTS / "schemas"
 FIXTURES = CONTRACTS / "fixtures"
 
 REQUIRED_OPERATIONS: dict[tuple[str, str], dict[str, Any]] = {
+    ("/v1/enrollment-tokens", "post"): {"security": [{"AccountBearer": []}], "csrf": False},
     ("/v1/browser/enrollment-tokens", "post"): {"security": [{"BrowserSession": []}], "csrf": True},
+    ("/v1/stripe/webhook", "post"): {"security": [], "csrf": False},
     ("/v1/billing/checkout", "post"): {"security": [], "csrf": False},
-    ("/v1/onboarding/claim", "post"): {"security": [], "csrf": False},
+    ("/v1/onboarding/claim", "post"): {
+        "security": [],
+        "csrf": False,
+        "responses": {"200", "400", "401", "409", "413", "422", "500", "503"},
+    },
     ("/v1/session", "delete"): {"security": [{"BrowserSession": []}], "csrf": True},
     ("/v1/account", "get"): {"security": [{"BrowserSession": []}], "csrf": False},
     ("/v1/billing/portal", "post"): {"security": [{"BrowserSession": []}], "csrf": True},
+    ("/v1/fleet", "get"): {
+        "security": [{"AccountBearer": []}, {"BrowserSession": []}],
+        "csrf": False,
+    },
 }
 
 REQUIRED_FIXTURES = {
@@ -110,6 +120,10 @@ def check_required_operations(paths: dict[str, Any]) -> None:
         )
         if has_csrf != expected["csrf"]:
             raise ValueError(f"path {path} {method} has incorrect CSRF declaration")
+        required_responses = expected.get("responses", set())
+        responses = operation.get("responses", {})
+        if not isinstance(responses, dict) or not required_responses.issubset(responses):
+            raise ValueError(f"path {path} {method} is missing required responses")
 
 
 def check_security_components(document: dict[str, Any]) -> None:
