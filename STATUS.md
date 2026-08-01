@@ -106,11 +106,13 @@ revalidated on the merged tip and a controlled pilot path is approved. Staging t
 heartbeat→fleet is now proven with redacted receipts.
 
 - Phase 4A console (source): Account route with subscription status, one-time browser enrollment token mint (cookie+CSRF), Stripe portal launch with host allowlist, RequireSession on fleet routes; no browser bearer storage.
-- Phase 4B progress: mocked Playwright console E2E green in CI; staging console deployed to Pages project `agentpulse-staging-app` on production branch `main` and serving at `https://staging-app.agentpulse.ca` with `VITE_API_BASE_URL=https://staging-api.agentpulse.ca`. CORS preflight from staging-app origin accepted with credentials. Live browser E2E still needs a fresh private claim nonce.
+- Phase 4B progress: mocked Playwright console E2E green in CI; staging console deployed to Pages project `agentpulse-staging-app` on production branch `main` and serving at `https://staging-app.agentpulse.ca` with `VITE_API_BASE_URL=https://staging-api.agentpulse.ca`. CORS preflight from staging-app origin accepted with credentials.
+- Phase 4B live manual proof (2026-08-01, staging/test-mode): owner Stripe test checkout → claim → browser session → Account (`starter`/`active`/host_limit=1) → enrollment token → host enroll (`desktopdusty-HP-EliteDesk-800-G5-Desktop-Mini`) → heartbeat → Servers Online → Disconnect returned `/connect`. Unauthenticated API still returns 401 session-required. Automated Playwright `staging-live` was not rerun because the one-time claim nonce was consumed by the manual path; script now correctly targets `--project=staging-live` (`778187b`). Local redacted receipt: `~/.local/state/agentpulse/phase4b/phase4b-manual-lifecycle-receipt.txt`.
 
 Remaining gates:
 
-- Hermes 4B live: mint one-time staging claim nonce privately and run Playwright `--project=staging` / `test:e2e:staging` against `staging-app` + `staging-api` (do not paste nonce/Checkout URL into chat);
-- Tier 3 release gate after live E2E green: staging console + no bearer in JS storage + no command-dispatch;
+- Optional: mint a fresh private claim nonce and run automated Playwright `npm run test:e2e:staging` for CI-shaped coverage of the same path;
+- Tier 3 release gate: staging console + no bearer in JS storage + no command-dispatch;
 - production deployment and rollback evidence;
-- controlled pilot customers only until public multi-host checkout opens.
+- controlled pilot customers only until public multi-host checkout opens;
+- cancel/expire the synthetic Stripe test subscription used for this proof when finished.
