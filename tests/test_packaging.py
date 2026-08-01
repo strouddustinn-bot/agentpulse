@@ -214,6 +214,17 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("npm test", release_verify)
         self.assertIn("openapi-spec-validator", release_verify)
 
+    def test_dashboard_staging_script_targets_declared_playwright_project(self) -> None:
+        package = json.loads((ROOT / "dashboard" / "package.json").read_text(encoding="utf-8"))
+        config = (ROOT / "dashboard" / "playwright.config.ts").read_text(encoding="utf-8")
+        command = package["scripts"]["test:e2e:staging"]
+        match = re.search(r"--project=(\S+)", command)
+        self.assertIsNotNone(match, "staging E2E script must select a Playwright project")
+        if match is None:
+            return
+        project = match.group(1)
+        self.assertIn(f"name: '{project}'", config)
+
     def test_release_workflow_publishes_checksums(self) -> None:
         text = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
         self.assertIn("python -m build", text)

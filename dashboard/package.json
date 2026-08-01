@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test --project=mocked",
-    "test:e2e:staging": "playwright test --project=staging",
+    "test:e2e:staging": "playwright test --project=staging-live",
     "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
