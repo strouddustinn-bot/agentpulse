@@ -9,8 +9,9 @@ import { defineConfig, devices } from '@playwright/test'
  *
  * Project `staging-live` is opt-in and requires:
  *   AP_E2E_BASE_URL=https://staging-app.agentpulse.ca
- *   AP_E2E_CLAIM_NONCE=<one-time claim nonce>
  *   AP_E2E_API_BASE_URL=https://staging-api.agentpulse.ca
+ * Optional:
+ *   AP_E2E_CLAIM_NONCE=<one-time claim nonce>  # skips Checkout automation
  */
 const isCI = !!process.env.CI
 const stagingBase = process.env.AP_E2E_BASE_URL?.replace(/\/+$/, '')
@@ -43,9 +44,13 @@ export default defineConfig({
           {
             name: 'staging-live',
             testMatch: /.*\.staging\.spec\.ts/,
+            timeout: 180_000,
             use: {
               ...devices['Desktop Chrome'],
               baseURL: stagingBase,
+              // Hosted Stripe Checkout + webhook claim can exceed default timeouts.
+              actionTimeout: 30_000,
+              navigationTimeout: 120_000,
             },
           },
         ]

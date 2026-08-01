@@ -84,25 +84,34 @@ Coverage:
 
 ## Live staging E2E (after DNS + deploy)
 
-Mint a one-time claim via the existing staging commercial lifecycle harness
-(or a fresh test checkout), then:
+Preferred: let Playwright create a Stripe **test-mode** Checkout Session and
+pay with the Visa test card inside the browser. The success URL auto-claims;
+no nonce is pasted into chat or shell history.
 
 ```bash
 export AP_E2E_BASE_URL=https://staging-app.agentpulse.ca
 export AP_E2E_API_BASE_URL=https://staging-api.agentpulse.ca
-export AP_E2E_CLAIM_NONCE='ap_claim_…'   # single use; do not commit
 cd dashboard
-npx playwright test --project=staging-live
+npm run test:e2e:staging
 ```
+
+Optional override when a fresh unclaimed nonce is already available privately:
+
+```bash
+export AP_E2E_CLAIM_NONCE='ap_claim_…'   # single use; do not commit or paste into chat
+npm run test:e2e:staging
+```
+
+Do not log Checkout URLs, claim nonces, or enrollment tokens.
 
 ## Tier 3 release gate checklist
 
-- [ ] `staging-app.agentpulse.ca` resolves + TLS
-- [ ] Console built with `VITE_API_BASE_URL=https://staging-api.agentpulse.ca`
-- [ ] Mocked Playwright green in CI
-- [ ] Live Playwright claim/session/enroll/logout green
-- [ ] No production bearer in JS storage
-- [ ] No command-dispatch route in dashboard source
+- [x] `staging-app.agentpulse.ca` resolves + TLS
+- [x] Console built with `VITE_API_BASE_URL=https://staging-api.agentpulse.ca`
+- [x] Mocked Playwright green in CI
+- [x] Live Playwright claim/session/enroll/logout green
+- [x] No production bearer in JS storage
+- [x] No command-dispatch route in dashboard source
 
 ## Explicit non-goals here
 
