@@ -6,6 +6,7 @@ import os
 import plistlib
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
@@ -62,6 +63,9 @@ def install_launchd(
     run_fn: Optional[Callable[[List[str]], subprocess.CompletedProcess]] = None,
 ) -> LaunchdInstallResult:
     """Install and bootstrap a system LaunchDaemon, or return an exact dry-run plan."""
+    if not sys.platform.startswith("darwin"):
+        raise LaunchdInstallError("launchd installation is supported only on macOS")
+
     label = _validate_label(label)
     resolved_bin = agent_bin or shutil.which("agentpulse")
     if not resolved_bin:

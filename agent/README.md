@@ -7,6 +7,12 @@ macOS/launchd are intended service targets. The repository now builds a real
 `agentpulse` wheel with packaged service assets; public production installation
 remains gated on clean-host install/upgrade/rollback proof.
 
+The current Windows candidate covers wheel installation, package/module imports,
+platform-neutral CLI `--help`/config validation, and automatic hostname
+resolution without POSIX-only APIs. The durable spool and process-lock paths
+require POSIX `fcntl` and fail closed when it is unavailable; Windows monitoring,
+service control, remediation, and lifecycle installation are not yet supported.
+
 ---
 
 ## Try it locally (no root, no install)
@@ -43,10 +49,10 @@ python3 tools/run_tests.py
 Output:
 ```
 ============================================================
-PASSED: 170   FAILED: 0
+PASSED: 201   FAILED: 0
 ```
 
-170 tests including a 7,500-iteration fuzz harness asserting safety invariants.
+201 tests including a 7,500-iteration fuzz harness asserting safety invariants.
 No pytest required — the runner is self-contained.
 
 ### Build and exercise the wheel (from repo root)

@@ -51,7 +51,7 @@ def test_service_check_uses_launchctl_on_macos():
     assert out[0].breached is False
 
 
-def test_service_check_uses_systemctl_off_macos():
+def test_service_check_uses_systemctl_on_linux():
     cfg = ServiceCheckConfig(services=["nginx"])
     calls = []
     original_platform = checks.sys.platform
@@ -68,6 +68,26 @@ def test_service_check_uses_systemctl_off_macos():
 
     assert calls == [["systemctl", "is-active", "nginx"]]
     assert out[0].breached is False
+
+
+def test_service_check_fails_closed_on_windows_without_running_commands():
+    cfg = ServiceCheckConfig(services=["Spooler"])
+    calls = []
+    original_platform = checks.sys.platform
+
+    try:
+        checks.sys.platform = "win32"
+        out = checks.check_services(
+            cfg,
+            run_fn=lambda argv: calls.append(argv) or (0, "active"),
+        )
+    finally:
+        checks.sys.platform = original_platform
+
+    assert calls == []
+    assert out[0].breached is True
+    assert out[0].detail == "service monitoring is not supported on Windows"
+    assert out[0].metadata["state"] == "unsupported"
 
 
 def _make_fake_proc(tmp_path, mem_total_kb, procs):
@@ -125,3 +145,25 @@ def test_process_runaway_flagged_on_macos():
     assert out[0].metadata["pid"] == 101
     assert out[0].metadata["name"] == "/Applications/App.app/Contents/MacOS/App"
     assert out[0].value == 90.0
+
+
+def test_process_check_fails_closed_on_windows_without_probing_posix_state():
+    cfg = ProcessCheckConfig(mode="alert", mem_percent_threshold=85)
+    original_platform = checks.sys.platform
+    calls = []
+
+    try:
+        checks.sys.platform = "win32"
+        out = checks.check_processes(
+            cfg,
+            proc_root="Z:/definitely-not-proc",
+            run_fn=lambda argv: calls.append(argv) or (0, ""),
+        )
+    finally:
+        checks.sys.platform = original_platform
+
+    assert calls == []
+    assert len(out) == 1
+    assert out[0].breached is True
+    assert out[0].detail == "process monitoring is not supported on Windows"
+    assert out[0].metadata["state"] == "unsupported"

@@ -93,9 +93,10 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
-| Dependency-light Python agent | Runs on Python 3.10+ without runtime dependencies | Agent package and self-contained runner; fresh run: 193 passed | ✅ |
+| Dependency-light Python agent | Runs on Python 3.10+ without runtime dependencies | Agent package and self-contained runner; fresh run: 201 passed | ✅ |
 | Linux host monitoring | Reads disk, memory/process, and systemd service state | Implemented checks and tests | ✅ |
 | macOS host monitoring | Reads supported host state and launchd service state | Launchd-aware implementation and tests/assets exist | ✅ |
+| Windows package boundary | Wheel/package imports, platform-neutral help/config validation, and automatic hostname resolution run on Windows; unsupported host operations fail closed | Candidate adds a `windows-latest` smoke job plus explicit lock/spool, service/process-check, and remediation refusal tests; native Windows monitoring, service lifecycle, and clean-host acceptance remain absent | 🟡 |
 | Disk-pressure remediation | Deletes only old files under explicitly allowed paths; refuses dangerous paths and symlink escapes | Safety predicates, remediation implementation, fuzz/safety tests | ✅ |
 | Service restart remediation | Restarts only configured systemd/launchd services and verifies active state | Implemented and covered by agent suite | ✅ |
 | Runaway-process handling | Identifies offender; never automatically kills in v1; requires human approval | Process policy is clamped to ask-first | ✅ |

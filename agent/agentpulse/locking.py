@@ -2,14 +2,21 @@
 from __future__ import annotations
 
 import errno
-import fcntl
 import json
 import os
 import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
+
+from .platform_support import UnsupportedPlatformError
+
+fcntl: Any
+try:
+    import fcntl
+except ModuleNotFoundError:  # Windows has no POSIX flock module.
+    fcntl = None
 
 
 class LockBusy(TimeoutError):
@@ -75,6 +82,10 @@ class LockHandle:
 
 class LockManager:
     def __init__(self, directory: os.PathLike[str] | str, *, stale_after: float = 300.0, poll_interval: float = 0.05, sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic) -> None:
+        if fcntl is None:
+            raise UnsupportedPlatformError(
+                "POSIX file locking is unavailable on this platform"
+            )
         self.directory = Path(directory)
         self.stale_after = stale_after
         self.poll_interval = max(0.001, poll_interval)

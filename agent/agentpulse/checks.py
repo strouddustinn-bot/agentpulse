@@ -86,25 +86,37 @@ def check_services(
 ) -> List[Observation]:
     out: List[Observation] = []
     for svc in cfg.services:
-        if sys.platform.startswith("darwin"):
+        if sys.platform.startswith("win"):
+            # Windows service observation is not implemented yet. Do not fall
+            # through to systemctl or report a configured service as healthy.
+            active = False
+            stdout = "unsupported"
+            detail = "service monitoring is not supported on Windows"
+        elif sys.platform.startswith("darwin"):
             # launchctl list returns 0 when the service is loaded (running or not)
             rc, stdout = run_fn(["launchctl", "list", svc])
             # launchctl does not expose one simple "active" string here; for v1,
             # a loaded LaunchDaemon is considered healthy enough to avoid restart.
             active = rc == 0
+            detail = (
+                f"service {svc} is active"
+                if active
+                else f"service {svc} is {stdout or 'not active'}"
+            )
         else:
             rc, stdout = run_fn(["systemctl", "is-active", svc])
             active = rc == 0 and stdout.strip() == "active"
+            detail = (
+                f"service {svc} is active"
+                if active
+                else f"service {svc} is {stdout or 'not active'}"
+            )
         out.append(
             Observation(
                 check="service",
                 target=svc,
                 breached=not active,
-                detail=(
-                    f"service {svc} is active"
-                    if active
-                    else f"service {svc} is {stdout or 'not active'}"
-                ),
+                detail=detail,
                 metadata={"service": svc, "state": stdout},
             )
         )
@@ -208,6 +220,16 @@ def check_processes(
     v1 only reports memory-runaway; it never kills. Reporting the top offender
     (not every process) keeps alerts actionable.
     """
+    if sys.platform.startswith("win"):
+        return [
+            Observation(
+                check="process",
+                target="processes",
+                breached=True,
+                detail="process monitoring is not supported on Windows",
+                metadata={"state": "unsupported"},
+            )
+        ]
     if sys.platform.startswith("darwin") and proc_root == "/proc":
         mem_total = _read_macos_total_kb(run_fn)
         processes = _iter_macos_rss(run_fn)

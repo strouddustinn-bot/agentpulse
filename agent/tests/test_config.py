@@ -1,4 +1,5 @@
 import json
+import socket
 
 import pytest  # type: ignore
 from agentpulse import config as cfgmod
@@ -14,6 +15,18 @@ def test_minimal_valid(tmp_path):
     c = cfgmod.load(write(tmp_path, {}))
     assert c.disk.mode == "alert"
     assert c.interval_seconds == 60
+
+
+def test_resolved_hostname_uses_cross_platform_api():
+    original_uname = cfgmod.os.uname
+    original_gethostname = socket.gethostname
+    try:
+        del cfgmod.os.uname
+        socket.gethostname = lambda: "windows-host"
+        assert cfgmod.Config().resolved_hostname() == "windows-host"
+    finally:
+        cfgmod.os.uname = original_uname
+        socket.gethostname = original_gethostname
 
 
 def test_full_valid(tmp_path):

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import hashlib
-import fcntl
 import json
 import os
 import tempfile
@@ -13,7 +12,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from .platform_support import UnsupportedPlatformError
 from .redaction import redact
+
+fcntl: Any
+try:
+    import fcntl
+except ModuleNotFoundError:  # Windows has no POSIX flock module.
+    fcntl = None
 
 
 class SpoolFull(RuntimeError):
@@ -48,6 +54,10 @@ class Spool:
         max_auxiliary_files: int = 1000,
         max_auxiliary_bytes: int = 256 * 1024 * 1024,
     ) -> None:
+        if fcntl is None:
+            raise UnsupportedPlatformError(
+                "POSIX file locking is unavailable on this platform"
+            )
         if (
             max_events < 1
             or max_age_seconds <= 0

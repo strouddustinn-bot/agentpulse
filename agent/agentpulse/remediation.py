@@ -115,6 +115,12 @@ def disk_cleanup(
         action="disk_cleanup", target=decision.target, performed=False, dry_run=dry_run
     )
 
+    import sys  # local import keeps platform gating beside the action boundary
+
+    if sys.platform.startswith("win"):
+        result.error = "disk cleanup is not supported on Windows"
+        return result
+
     if not globs:
         result.error = "no cleanup_globs configured; refusing to guess what to delete"
         return result
@@ -182,11 +188,6 @@ def service_restart(
     dry_run: bool = False,
     run_fn: RunFnOrNone = None,
 ) -> RemediationResult:
-    if run_fn is None:
-        from .checks import _default_run  # local import to avoid cycle at import time
-
-        run_fn = _default_run
-
     obs = decision.observation
     svc = (obs.metadata.get("service") if obs else None) or decision.target
     result = RemediationResult(
@@ -198,6 +199,15 @@ def service_restart(
         return result
 
     import sys  # local import to avoid cycle
+
+    if sys.platform.startswith("win"):
+        result.error = "service restart is not supported on Windows"
+        return result
+
+    if run_fn is None:
+        from .checks import _default_run  # local import to avoid cycle at import time
+
+        run_fn = _default_run
 
     if sys.platform.startswith("darwin"):
         cmd = ["launchctl", "kickstart", "-k", f"system/{svc}"]

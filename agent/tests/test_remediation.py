@@ -104,6 +104,26 @@ def test_cleanup_dry_run_deletes_nothing(tmp_path):
     assert any("WOULD remove" in line for line in res.details)
 
 
+def test_disk_cleanup_fails_closed_on_windows_without_touching_files(tmp_path):
+    f = tmp_path / "old.log"
+    f.write_text("keep me")
+    old = time.time() - 10 * 86400
+    os.utime(f, (old, old))
+    original_platform = sys.platform
+
+    try:
+        sys.platform = "win32"
+        res = remediation.disk_cleanup(
+            _decision_cleanup([str(tmp_path / "*.log")], days=3)
+        )
+    finally:
+        sys.platform = original_platform
+
+    assert res.performed is False
+    assert res.error == "disk cleanup is not supported on Windows"
+    assert f.exists()
+
+
 def test_cleanup_never_touches_directories_or_symlinks(tmp_path):
     subdir = tmp_path / "olddir"
     subdir.mkdir()
@@ -203,7 +223,7 @@ def test_service_restart_uses_launchctl_on_macos():
     assert calls == [["launchctl", "kickstart", "-k", "system/com.example.agent"]]
 
 
-def test_service_restart_uses_systemctl_off_macos():
+def test_service_restart_uses_systemctl_on_linux():
     calls = []
     original_platform = sys.platform
 
@@ -220,3 +240,21 @@ def test_service_restart_uses_systemctl_off_macos():
     assert res.ok
     assert res.performed is True
     assert calls == [["systemctl", "restart", "nginx"]]
+
+
+def test_service_restart_fails_closed_on_windows_without_running_commands():
+    calls = []
+    original_platform = sys.platform
+
+    try:
+        sys.platform = "win32"
+        res = remediation.service_restart(
+            _decision_service("Spooler"),
+            run_fn=lambda argv: calls.append(argv) or (0, ""),
+        )
+    finally:
+        sys.platform = original_platform
+
+    assert res.performed is False
+    assert res.error == "service restart is not supported on Windows"
+    assert calls == []

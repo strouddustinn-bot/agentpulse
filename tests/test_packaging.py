@@ -214,6 +214,23 @@ class PackagingTests(unittest.TestCase):
         self.assertIn("npm test", release_verify)
         self.assertIn("openapi-spec-validator", release_verify)
 
+    def test_windows_smoke_commands_have_independent_steps(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "test.yml").read_text(encoding="utf-8")
+        windows_job = workflow.split("\n  agent-windows-smoke:", 1)[1].split("\n  contracts:", 1)[0]
+        self.assertIn(
+            "- name: Exercise CLI help\n        run: python -m agentpulse --help",
+            windows_job,
+        )
+        self.assertIn(
+            "- name: Validate example configuration\n        run: python -m agentpulse validate agent/agentpulse.config.local.json",
+            windows_job,
+        )
+        self.assertIn(
+            "- name: Resolve automatic hostname without POSIX APIs\n"
+            '        run: python -c "from agentpulse.config import Config; assert Config().resolved_hostname()"',
+            windows_job,
+        )
+
     def test_dashboard_staging_script_targets_declared_playwright_project(self) -> None:
         package = json.loads((ROOT / "dashboard" / "package.json").read_text(encoding="utf-8"))
         config = (ROOT / "dashboard" / "playwright.config.ts").read_text(encoding="utf-8")

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
@@ -100,7 +101,7 @@ class Config:
     def resolved_hostname(self) -> str:
         if self.hostname and self.hostname != "auto":
             return self.hostname
-        return os.uname().nodename
+        return socket.gethostname()
 
 
 def _check_mode(name: str, value: Any) -> str:
