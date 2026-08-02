@@ -4,31 +4,77 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Release version (e.g. 0.1.0 or 0.2.0-beta.1)'
-        required: true
-      deploy_control_plane:
-        description: 'Deploy control plane to production (true/false)'
-        required: false
-        default: 'false'
 
+permissions:
+  contents: read
+
+# Production deployment is intentionally not part of this workflow. Tier 4
+# requires the protected immutable-ref preflight, D1 backup/restore procedure,
+# Worker/console rollback targets, and Owner Gate 5 before any mutation job can
+# be added. This workflow only verifies and drafts agent release artifacts.
 jobs:
-  verify:
-    name: Verify release candidate
-    runs-on: ubuntu-latest
+  release-identity:
+    name: Resolve immutable release identity
+    if: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') }}
+    runs-on: ubuntu-24.04
+    outputs:
+      release-ref: ${{ steps.meta.outputs.release_ref }}
+      source-sha: ${{ steps.meta.outputs.source_sha }}
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Bind tag, source, and version
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          RELEASE_REF="$GITHUB_REF_NAME"
+          [[ "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          SOURCE_SHA="$(git rev-parse "${RELEASE_REF}^{commit}")"
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          VERSION="${RELEASE_REF#v}"
+          PACKAGE_VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          EXPECTED_PACKAGE_VERSION="$(printf '%s' "$VERSION" | sed -E 's/-alpha\.?/a/; s/-beta\.?/b/; s/-rc\.?/rc/')"
+          test "$PACKAGE_VERSION" = "$EXPECTED_PACKAGE_VERSION"
+          echo "release_ref=$RELEASE_REF" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *alpha* || "$VERSION" == *beta* || "$VERSION" == *rc* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  verify:
+    name: Verify release candidate
+    needs: release-identity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Confirm immutable source
+        env:
+          RELEASE_REF: ${{ needs.release-identity.outputs.release-ref }}
+          SOURCE_SHA: ${{ needs.release-identity.outputs.source-sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse "${RELEASE_REF}^{commit}")" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
       - name: Secret scanning
-        uses: trufflesecurity/trufflehog@a7bdcf95222c4369422764e168fad84fc912f0dc # main, reviewed 2026-07-17
+        uses: trufflesecurity/trufflehog@a7bdcf95222c4369422764e168fad84fc912f0dc # 3.95.9
         with:
           path: ./
           head: ${{ github.sha }}
           version: 3.95.9
           extra_args: --only-verified
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
       - run: python -m pip install PyYAML jsonschema openapi-spec-validator build
@@ -36,7 +82,16 @@ jobs:
       - run: python scripts/validate-contracts.py
       - name: Packaging tests
         run: python -m unittest tests.test_packaging -v
-      - uses: actions/setup-node@v4
+      - name: Production readiness verifier tests
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python -m unittest \
+            tests.test_production_preflight \
+            tests.test_prepare_production_dashboard \
+            tests.test_production_smoke \
+            -v
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
       - run: npm ci
@@ -50,102 +105,78 @@ jobs:
 
   build-agent-artifacts:
     name: Build agent wheel and checksums
-    needs: verify
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      prerelease: ${{ steps.meta.outputs.prerelease }}
+    needs: [release-identity, verify]
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
-      - name: Resolve version
-        id: meta
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-          else
-            VERSION="${GITHUB_REF_NAME#v}"
-          fi
-          VERSION="${VERSION#v}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if [[ "$VERSION" == *alpha* || "$VERSION" == *beta* || "$VERSION" == *rc* ]]; then
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Resolved release version: $VERSION"
       - name: Build wheel and sdist
         run: |
-          python -m pip install --upgrade pip build
+          set -euo pipefail
+          python -m pip install build
           python -m build
-          ls -la dist
-          python -m zipfile -l dist/agentpulse-*.whl | head -100
+          python -m zipfile -l dist/agentpulse-*.whl
       - name: Generate SHA256SUMS
         run: |
+          set -euo pipefail
           cd dist
           sha256sum agentpulse-*.whl agentpulse-*.tar.gz > SHA256SUMS
           cat SHA256SUMS
       - name: Upload release artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: agent-release-artifacts
+          name: agent-release-artifacts-${{ needs.release-identity.outputs.source-sha }}
           path: |
             dist/agentpulse-*.whl
             dist/agentpulse-*.tar.gz
             dist/SHA256SUMS
-
-  release-control-plane:
-    name: Deploy control plane to Cloudflare
-    needs: verify
-    if: >
-      github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.deploy_control_plane == 'true'
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          workingDirectory: control-plane
-          command: deploy --env production
+          if-no-files-found: error
 
   github-release:
-    name: Create GitHub release
-    needs: [verify, build-agent-artifacts]
+    name: Create draft GitHub release
+    needs: [release-identity, verify, build-agent-artifacts]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Download agent artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          name: agent-release-artifacts
+          fetch-depth: 0
+      - name: Download agent artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: agent-release-artifacts-${{ needs.release-identity.outputs.source-sha }}
           path: dist
       - name: Generate release notes
+        env:
+          RELEASE_REF: ${{ needs.release-identity.outputs.release-ref }}
+          SOURCE_SHA: ${{ needs.release-identity.outputs.source-sha }}
+          VERSION: ${{ needs.release-identity.outputs.version }}
         run: |
-          VERSION="${{ needs.build-agent-artifacts.outputs.version }}"
-          echo "## AgentPulse v$VERSION" > release-notes.md
-          echo "" >> release-notes.md
-          echo "### Agent package" >> release-notes.md
-          echo "" >> release-notes.md
-          echo "Install only from these immutable artifacts after verifying SHA-256:" >> release-notes.md
-          echo "" >> release-notes.md
-          echo '```text' >> release-notes.md
-          cat dist/SHA256SUMS >> release-notes.md
-          echo '```' >> release-notes.md
-          echo "" >> release-notes.md
-          git log --oneline "v${VERSION}"..HEAD >> release-notes.md || true
-      - uses: softprops/action-gh-release@v2
+          set -euo pipefail
+          {
+            echo "## AgentPulse $RELEASE_REF"
+            echo
+            echo "Source: \`$SOURCE_SHA\`"
+            echo
+            echo "### Agent package"
+            echo
+            echo "Install only from these immutable artifacts after verifying SHA-256:"
+            echo
+            echo '```text'
+            cat dist/SHA256SUMS
+            echo '```'
+            echo
+            git log -1 --oneline "$SOURCE_SHA"
+          } > release-notes.md
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          tag_name: v${{ needs.build-agent-artifacts.outputs.version }}
-          name: AgentPulse v${{ needs.build-agent-artifacts.outputs.version }}
+          tag_name: ${{ needs.release-identity.outputs.release-ref }}
+          name: AgentPulse ${{ needs.release-identity.outputs.release-ref }}
           draft: true
-          prerelease: ${{ needs.build-agent-artifacts.outputs.prerelease == 'true' }}
+          prerelease: ${{ needs.release-identity.outputs.prerelease == 'true' }}
           files: |
             dist/agentpulse-*.whl
             dist/agentpulse-*.tar.gz

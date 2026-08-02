@@ -1,6 +1,6 @@
 # AgentPulse Status
 
-**Status date:** 2026-07-30
+**Status date:** 2026-08-01
 **Canonical GitHub branch:** `master`
 
 ## Consolidated product
@@ -39,7 +39,7 @@ that the public production service is launched.
 
 ## Deployment reality
 
-Probe results on 2026-07-20:
+Probe results on 2026-08-01:
 
 | Surface | Result |
 |---|---|
@@ -62,7 +62,7 @@ staging health endpoint, not a deployed self-serve production service.
 - public `docs/install.sh` remains fail-closed
 - published `v0.2.0-beta.2` artifact passed exact clean-host acceptance
 
-Public self-serve installation remains closed until the Tier 2 commercial lifecycle is proven end to end on staging.
+Public self-serve installation remains closed through Tier 4 production proof and the controlled pilot gate.
 
 ## Tier 2 Phase 3 status
 
@@ -85,7 +85,7 @@ Staging lifecycle proof completed 2026-07-30 (redacted):
 - disposable callback receipt: `complete=true`, `passed=true` for claim/replay, account, CSRF denials, portal, enrollment, heartbeat, fleet, logout;
 - checkout_sessions gained one `claimed` row; browser session issued then revoked by logout path;
 - restored canonical staging `APP_BASE_URL=https://staging-app.agentpulse.ca`; recovery route not retained in source;
-- remaining before public multi-host checkout: merge Gate 3 branch after fresh CI, broader negative/isolation matrix if not already covered by unit tests, controlled pilot path, production deploy gates.
+- Gate 3 is merged and Tier 3 passed; remaining before public multi-host checkout: Tier 4 production infrastructure/deploy/rollback/operations proof, the controlled pilot path, and the later go-live gate.
 
 ## Supported boundary
 
@@ -113,7 +113,10 @@ heartbeat→fleet is now proven with redacted receipts.
 
 Remaining gates:
 
-- Owner cleanup: cancel/expire synthetic Stripe **test-mode** subscriptions created during staging proofs (no local `STRIPE_API_KEY`; use Stripe Dashboard test mode). Staging D1 currently has multiple active starter rows from repeated E2E runs.
-- production deployment and rollback evidence;
+- Synthetic Stripe **test-mode** subscription cleanup is reconciled: a read-only staging D1 aggregate on 2026-08-01 returned 7 `canceled` Starter subscriptions and no active rows; no D1 rows were edited.
+- The Phase 5A candidate includes a read-only production preflight, dashboard-artifact helper, post-deploy smoke verifier, runbooks, tests, and dedicated CI. Its dedicated suites pass 59/59, including immutable-release, no-production-mutation, and owner-neutral public-doc guards.
+- Live read-only preflight is correctly blocked on the production D1/Price IDs/custom-domain route, the missing protected GitHub `production` environment, and unresolved `app`/`api` production DNS. Production deployment is not authorized.
+- The unsafe `.github/workflows/release.yml` control-plane deploy stub has been removed. The release workflow is immutable-tag, pinned-action, and agent-artifact-only; tests fail if a production environment or deploy command is reintroduced before Owner Gate 5. No production mutation workflow is authorized or present.
+- production deploy/rollback, D1 backup/restore, operational alerting, and data-lifecycle evidence;
 - controlled pilot customers only until public multi-host checkout opens;
 - return OAuth/password login remains deferred.
