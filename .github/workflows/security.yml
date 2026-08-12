@@ -22,9 +22,11 @@ jobs:
           path: ./
           head: ${{ github.sha }}
           version: 3.95.9
-          # Redaction tests intentionally contain fake URI credentials. Keep
-          # verified credentials release-blocking without failing on fixtures.
-          extra_args: --only-verified
+          # Keep verified credentials release-blocking. Temporarily exclude
+          # only the Lob detector: v3.95.9 treats ordinary 40-character Python
+          # test_* identifiers as verified Lob keys (upstream issue #5184).
+          # Remove this exclusion after the detector fix is pinned and proven.
+          extra_args: --only-verified --exclude-detectors=Lob
 
   dependency-scan:
     name: Dependency audit
