@@ -48,6 +48,7 @@ class ProductionPreflightTests(unittest.TestCase):
                 "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
                 "APP_BASE_URL": "https://app.agentpulse.ca",
                 "AGENTPULSE_VERSION": "0.3.0",
+                "CHECKOUT_MODE": "closed",
                 "STRIPE_PRICE_STARTER": "price_1ProductionStarterABC",
                 "STRIPE_PRICE_PRO": "price_1ProductionProABCDE",
                 "STRIPE_PRICE_BUSINESS": "price_1ProductionBusinessA",
@@ -115,6 +116,12 @@ jobs:
     def test_complete_production_configuration_passes_static_checks(self) -> None:
         path = self.write_config(self.valid_production_config())
         self.assertEqual(self.preflight.check_production_config(path), [])
+
+    def test_public_production_checkout_fails_closed(self) -> None:
+        production = self.valid_production_config()
+        production["vars"]["CHECKOUT_MODE"] = "public"
+        findings = self.preflight.check_production_config(self.write_config(production))
+        self.assertIn("production_checkout_mode_invalid", {finding.code for finding in findings})
 
     def test_shaped_resource_placeholders_fail_closed(self) -> None:
         production = self.valid_production_config()

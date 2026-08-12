@@ -542,6 +542,12 @@ async function stripeRequest(
 }
 
 async function createBillingCheckout(request: Request, env: WorkerEnv): Promise<Response> {
+  if (env.CHECKOUT_MODE === "closed") {
+    throw new HttpError(404, "not_found", "Route not found");
+  }
+  if (env.CHECKOUT_MODE !== "public") {
+    throw new HttpError(500, "configuration_error", "Checkout mode is invalid");
+  }
   const body = objectValue(parseJson(await readBody(request)));
   if (!isPlan(body.plan)) throw new HttpError(422, "invalid_plan", "plan must be starter, pro, or business");
   const priceId = planPriceId(env, body.plan);
