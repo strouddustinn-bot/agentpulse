@@ -29,3 +29,40 @@ jobs:
             tests.test_prepare_production_dashboard \
             tests.test_production_smoke \
             -v
+
+  recovery-failure-path:
+    name: Preserve D1 recovery export after downstream failure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Simulate successful D1 export
+        id: simulated_export
+        run: printf '%s\n' 'CREATE TABLE recovery_probe (id INTEGER PRIMARY KEY);' > "$RUNNER_TEMP/recovery.sql"
+      - name: Simulate failure after export
+        id: simulated_failure
+        continue-on-error: true
+        run: exit 1
+      - name: Preserve recovery fixture
+        id: preserve_recovery
+        if: ${{ !cancelled() && steps.simulated_export.outcome == 'success' && steps.simulated_failure.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/recovery.sql"
+          printf '%s\n' preserved > "$RUNNER_TEMP/recovery-preserved"
+      - name: Assert failure-path preservation executed
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          test "${{ steps.simulated_export.outcome }}" = success
+          test "${{ steps.simulated_failure.outcome }}" = failure
+          test "${{ steps.preserve_recovery.outcome }}" = success
+          test -s "$RUNNER_TEMP/recovery.sql"
+          test -s "$RUNNER_TEMP/recovery-preserved"
+      - name: Upload simulated recovery artifact
+        if: ${{ !cancelled() && steps.simulated_export.outcome == 'success' && steps.simulated_failure.outcome == 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: recovery-failure-path-${{ github.sha }}
+          path: ${{ runner.temp }}/recovery.sql
+          if-no-files-found: error
+          retention-days: 1

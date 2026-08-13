@@ -35,6 +35,47 @@ PRICE_VARS = {
     "BUSINESS": "production_price_business_missing",
 }
 PHASE5A_ARTIFACTS = {
+    ".github/workflows/production-deploy.yml": (
+        "production_deploy_workflow_unreadable",
+        (
+            (
+                "production_deploy_workflow_missing_full_secret_gate",
+                "--only-verified --exclude-detectors=Lob",
+            ),
+            (
+                "production_deploy_workflow_missing_agent_gate",
+                "python agent/tools/run_tests.py",
+            ),
+            (
+                "production_deploy_workflow_missing_contract_gate",
+                "python scripts/validate-contracts.py",
+            ),
+            (
+                "production_deploy_workflow_missing_packaging_gate",
+                "python -m unittest tests.test_packaging -v",
+            ),
+            (
+                "production_deploy_workflow_missing_dependency_gate",
+                "npm audit --audit-level=high",
+            ),
+            (
+                "production_deploy_workflow_missing_export_identity",
+                "id: d1_export",
+            ),
+            (
+                "production_deploy_workflow_missing_failure_safe_recovery_upload",
+                "if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}",
+            ),
+            (
+                "production_deploy_workflow_missing_disposable_d1_restore",
+                "d1_disposable_restore=pass",
+            ),
+            (
+                "production_deploy_workflow_missing_saved_version_rehearsal",
+                "wrangler versions deploy",
+            ),
+        ),
+    ),
     ".github/workflows/release.yml": (
         "production_release_workflow_unreadable",
         (

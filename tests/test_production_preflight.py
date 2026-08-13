@@ -86,7 +86,42 @@ class ProductionPreflightTests(unittest.TestCase):
         self.assertIn("wrangler pages deploy ../dashboard/dist", text)
         self.assertIn("python scripts/production-smoke.py", text)
         self.assertIn("public_checkout=closed", text)
+        self.assertIn("--only-verified --exclude-detectors=Lob", text)
+        self.assertIn("python agent/tools/run_tests.py", text)
+        self.assertIn("python scripts/validate-contracts.py", text)
+        self.assertIn("python -m unittest tests.test_packaging -v", text)
+        self.assertIn("npm audit --audit-level=high", text)
+        self.assertIn("id: d1_export", text)
+        self.assertIn(
+            "if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}",
+            text,
+        )
+        self.assertIn("d1_disposable_restore=pass", text)
+        self.assertIn("wrangler versions deploy", text)
         self.assertNotIn("echo \"$STRIPE", text)
+
+    def test_missing_failure_safe_recovery_upload_is_release_blocking(self) -> None:
+        repository = self.root / "unsafe-recovery-workflow"
+        for relative_path in self.preflight.PHASE5A_ARTIFACTS:
+            source = ROOT / relative_path
+            target = repository / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+
+        deploy = repository / ".github/workflows/production-deploy.yml"
+        deploy.write_text(
+            deploy.read_text(encoding="utf-8").replace(
+                "if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}",
+                "if: ${{ success() }}",
+            ),
+            encoding="utf-8",
+        )
+
+        findings = self.preflight.check_phase5a_artifacts(repository)
+        self.assertIn(
+            "production_deploy_workflow_missing_failure_safe_recovery_upload",
+            {finding.code for finding in findings},
+        )
 
     def test_phase5a_artifact_marker_missing_or_unsafe_deploy_stub_fails_closed(self) -> None:
         repository = self.root / "phase5a-fixture"

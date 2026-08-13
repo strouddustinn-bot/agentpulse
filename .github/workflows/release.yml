@@ -73,7 +73,10 @@ jobs:
           path: ./
           head: ${{ github.sha }}
           version: 3.95.9
-          extra_args: --only-verified
+          # Match the canonical Security and production-deploy policies. The
+          # pinned scanner version misclassifies ordinary test identifiers as
+          # verified Lob keys (upstream issue #5184).
+          extra_args: --only-verified --exclude-detectors=Lob
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
