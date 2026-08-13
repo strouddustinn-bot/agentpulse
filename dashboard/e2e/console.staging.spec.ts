@@ -125,8 +125,8 @@ async function completeStripeTestCheckout(page: Page): Promise<void> {
   // Success returns to staging-app /claim?claim_nonce=… which auto-claims.
   await page.waitForURL(
     (url) => {
-      const href = url.toString()
-      return href.startsWith(appBase) && !href.includes('checkout.stripe.com')
+      const expected = new URL(appBase)
+      return url.origin === expected.origin && !url.hostname.endsWith('stripe.com')
     },
     { timeout: 120_000 },
   )

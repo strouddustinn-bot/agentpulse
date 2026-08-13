@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "production-preflight.py"
+DEPLOY_WORKFLOW = ROOT / ".github" / "workflows" / "production-deploy.yml"
 
 
 def load_module():
@@ -48,6 +49,8 @@ class ProductionPreflightTests(unittest.TestCase):
                 "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
                 "APP_BASE_URL": "https://app.agentpulse.ca",
                 "AGENTPULSE_VERSION": "0.3.0",
+                "CHECKOUT_MODE": "closed",
+                "STRIPE_PORTAL_URL": "https://billing.stripe.com/p/login/6oU28rbSBgPS8Qa5CB7N600",
                 "STRIPE_PRICE_STARTER": "price_1ProductionStarterABC",
                 "STRIPE_PRICE_PRO": "price_1ProductionProABCDE",
                 "STRIPE_PRICE_BUSINESS": "price_1ProductionBusinessA",
@@ -62,17 +65,28 @@ class ProductionPreflightTests(unittest.TestCase):
             ],
         }
 
-    def test_current_placeholder_configuration_fails_closed_with_all_blockers(self) -> None:
+    def test_current_production_configuration_passes_static_checks(self) -> None:
         findings = self.preflight.check_production_config(ROOT / "control-plane" / "wrangler.jsonc")
-        codes = {finding.code for finding in findings}
-        self.assertIn("production_d1_placeholder", codes)
-        self.assertIn("production_price_starter_missing", codes)
-        self.assertIn("production_price_pro_missing", codes)
-        self.assertIn("production_price_business_missing", codes)
-        self.assertIn("production_api_route_missing", codes)
+        self.assertEqual(findings, [])
 
     def test_phase5a_artifacts_pass_static_checks(self) -> None:
         self.assertEqual(self.preflight.check_phase5a_artifacts(ROOT), [])
+
+    def test_controlled_pilot_workflow_is_exact_tag_protected_and_fail_closed(self) -> None:
+        text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("- 'v0.2.0-beta.3'", text)
+        self.assertNotIn("workflow_dispatch:", text)
+        self.assertIn("environment: production", text)
+        self.assertIn("permissions:\n  contents: read", text)
+        self.assertIn("python scripts/production-preflight.py --release-ref \"$RELEASE_REF\"", text)
+        self.assertIn("wrangler d1 export DB --env production --remote", text)
+        self.assertIn("wrangler d1 migrations apply DB --env production --remote", text)
+        self.assertIn("wrangler deploy --env production --strict", text)
+        self.assertIn("--secrets-file \"$SECRETS_FILE\"", text)
+        self.assertIn("wrangler pages deploy ../dashboard/dist", text)
+        self.assertIn("python scripts/production-smoke.py", text)
+        self.assertIn("public_checkout=closed", text)
+        self.assertNotIn("echo \"$STRIPE", text)
 
     def test_phase5a_artifact_marker_missing_or_unsafe_deploy_stub_fails_closed(self) -> None:
         repository = self.root / "phase5a-fixture"
@@ -115,6 +129,12 @@ jobs:
     def test_complete_production_configuration_passes_static_checks(self) -> None:
         path = self.write_config(self.valid_production_config())
         self.assertEqual(self.preflight.check_production_config(path), [])
+
+    def test_public_production_checkout_fails_closed(self) -> None:
+        production = self.valid_production_config()
+        production["vars"]["CHECKOUT_MODE"] = "public"
+        findings = self.preflight.check_production_config(self.write_config(production))
+        self.assertIn("production_checkout_mode_invalid", {finding.code for finding in findings})
 
     def test_shaped_resource_placeholders_fail_closed(self) -> None:
         production = self.valid_production_config()

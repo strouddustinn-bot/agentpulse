@@ -132,6 +132,7 @@ async function workerFetch(input: string, init?: RequestInit): Promise<Response>
 
 beforeEach(async () => {
   globalThis.fetch = originalFetch;
+  env.STRIPE_PORTAL_URL = "";
   const tables = [
     "heartbeat_events",
     "incidents",
@@ -154,6 +155,28 @@ describe("AgentPulse control-plane contract", () => {
     const response = await SELF.fetch("https://agentpulse.test/health");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, service: "agentpulse-control-plane", version: "0.1.0", environment: "development" });
+  });
+
+  it("returns the configured Stripe-hosted portal after session, origin, and CSRF checks without calling Stripe", async () => {
+    const { sessionToken, csrfToken } = await seedBrowserSession();
+    env.STRIPE_PORTAL_URL = "https://billing.stripe.com/p/login/test_portal";
+    installStripeMock((method, path) => {
+      throw new Error(`unexpected Stripe API call: ${method} ${path}`);
+    });
+
+    const response = await workerFetch("https://agentpulse.test/v1/billing/portal", {
+      method: "POST",
+      headers: {
+        Cookie: `ap_session=${sessionToken}`,
+        "X-CSRF-Token": csrfToken,
+        Origin: "https://app.agentpulse.test",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      portal_url: "https://billing.stripe.com/p/login/test_portal",
+    });
   });
 
   it("isolates fleet reads by the authenticated tenant", async () => {

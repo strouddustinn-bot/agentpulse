@@ -87,6 +87,7 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
         run: |
           python -m unittest \
+            tests.test_ensure_pages_project \
             tests.test_production_preflight \
             tests.test_prepare_production_dashboard \
             tests.test_production_smoke \

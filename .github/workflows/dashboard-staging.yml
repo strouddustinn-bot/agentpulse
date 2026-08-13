@@ -23,6 +23,9 @@ on:
           - 'false'
           - 'true'
 
+permissions:
+  contents: read
+
 concurrency:
   group: dashboard-staging-${{ github.ref }}
   cancel-in-progress: true

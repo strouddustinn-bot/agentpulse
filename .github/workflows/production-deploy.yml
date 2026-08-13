@@ -1,0 +1,276 @@
+name: Controlled Pilot Production Deploy
+
+on:
+  push:
+    tags:
+      - 'v0.2.0-beta.3'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agentpulse-production
+  cancel-in-progress: false
+
+jobs:
+  verify-release:
+    name: Verify immutable release candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      release-ref: ${{ steps.identity.outputs.release_ref }}
+      source-sha: ${{ steps.identity.outputs.source_sha }}
+      package-version: ${{ steps.identity.outputs.package_version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Bind tag, source, and package version
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_TYPE" = tag
+          test "$GITHUB_REF_NAME" = v0.2.0-beta.3
+          test "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          PACKAGE_VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          test "$PACKAGE_VERSION" = 0.2.0b3
+          echo "release_ref=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Static production preflight
+        run: python scripts/production-preflight.py --release-ref "$GITHUB_REF_NAME" --static-only
+      - name: Verify control plane
+        working-directory: control-plane
+        run: |
+          npm ci
+          npm test
+          npm run typecheck
+          npm run types:check
+          npm exec --no -- wrangler deploy --env production --strict --dry-run --outdir "$RUNNER_TEMP/worker-dry-run"
+      - name: Verify and build production dashboard
+        env:
+          VITE_API_BASE_URL: https://api.agentpulse.ca
+        run: |
+          npm --prefix dashboard ci
+          npm --prefix dashboard test
+          npm --prefix dashboard run build
+          python scripts/prepare-production-dashboard.py \
+            --dist dashboard/dist \
+            --version 0.2.0b3 \
+            --source-sha "$GITHUB_SHA"
+      - name: Preserve verified dashboard artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-dashboard-${{ github.sha }}
+          path: dashboard/dist
+          if-no-files-found: error
+          retention-days: 30
+
+  deploy-production:
+    name: Deploy controlled pilot
+    needs: verify-release
+    if: ${{ github.ref == 'refs/tags/v0.2.0-beta.3' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_REF: ${{ needs.verify-release.outputs.release-ref }}
+      SOURCE_SHA: ${{ needs.verify-release.outputs.source-sha }}
+      PACKAGE_VERSION: ${{ needs.verify-release.outputs.package-version }}
+      PRODUCTION_D1_NAME: agentpulse-production
+      PRODUCTION_PAGES_PROJECT: agentpulse-production-app
+      PRODUCTION_PAGES_BRANCH: production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Reconfirm protected identity and external secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_TYPE" = tag
+          test "$RELEASE_REF" = v0.2.0-beta.3
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          test "$(git rev-parse "${RELEASE_REF}^{commit}")" = "$SOURCE_SHA"
+          test "$PACKAGE_VERSION" = 0.2.0b3
+          test -z "$(git status --porcelain)"
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          test -n "${STRIPE_API_KEY:-}"
+          test -n "${STRIPE_WEBHOOK_SECRET:-}"
+          echo "cloudflare_credentials=present"
+          echo "stripe_credentials=present"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: control-plane/package-lock.json
+      - name: Install pinned Wrangler
+        working-directory: control-plane
+        run: npm ci
+      - name: Download exact verified dashboard artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: production-dashboard-${{ github.sha }}
+          path: dashboard/dist
+      - name: Live fail-closed production preflight
+        run: python scripts/production-preflight.py --release-ref "$RELEASE_REF"
+      - name: Capture pre-mutation deployment state
+        working-directory: control-plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm exec --no -- wrangler d1 migrations list DB --env production --remote > "$RUNNER_TEMP/migrations-before.txt"
+          if ! npm exec --no -- wrangler deployments status --env production --json > "$RUNNER_TEMP/worker-before.json"; then
+            printf '%s\n' '{"state":"not_deployed"}' > "$RUNNER_TEMP/worker-before.json"
+          fi
+          if ! npm exec --no -- wrangler pages deployment list --project-name "$PRODUCTION_PAGES_PROJECT" --environment production --json > "$RUNNER_TEMP/pages-before.json"; then
+            printf '%s\n' '{"state":"no_production_deployment"}' > "$RUNNER_TEMP/pages-before.json"
+          fi
+      - name: Export and restore-test pre-migration D1
+        working-directory: control-plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKUP="$RUNNER_TEMP/agentpulse-production-before-${SOURCE_SHA}.sql"
+          npm exec --no -- wrangler d1 export DB --env production --remote --output "$BACKUP" -y
+          python3 - "$BACKUP" <<'PY'
+          import sqlite3, sys
+          script = open(sys.argv[1], encoding="utf-8").read()
+          connection = sqlite3.connect(":memory:")
+          connection.executescript(script)
+          connection.close()
+          print("d1_restore_parse=pass")
+          PY
+          sha256sum "$BACKUP" > "$RUNNER_TEMP/d1-backup.sha256"
+      - name: Apply production D1 migrations
+        working-directory: control-plane
+        run: |
+          set -euo pipefail
+          npm exec --no -- wrangler d1 migrations apply DB --env production --remote
+          npm exec --no -- wrangler d1 migrations list DB --env production --remote > "$RUNNER_TEMP/migrations-after.txt"
+      - name: Deploy production Worker with external Stripe secrets
+        working-directory: control-plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          SECRETS_FILE="$RUNNER_TEMP/production-secrets.json"
+          trap 'rm -f "$SECRETS_FILE"' EXIT
+          python3 - "$SECRETS_FILE" <<'PY'
+          import json, os, sys
+          with open(sys.argv[1], "w", encoding="utf-8") as handle:
+              json.dump({
+                  "STRIPE_API_KEY": os.environ["STRIPE_API_KEY"],
+                  "STRIPE_WEBHOOK_SECRET": os.environ["STRIPE_WEBHOOK_SECRET"],
+              }, handle)
+          os.chmod(sys.argv[1], 0o600)
+          PY
+          npm exec --no -- wrangler deploy --env production --strict \
+            --secrets-file "$SECRETS_FILE" \
+            --tag "$RELEASE_REF" \
+            --message "git=$SOURCE_SHA release=$RELEASE_REF"
+          npm exec --no -- wrangler deployments status --env production --json > "$RUNNER_TEMP/worker-after.json"
+      - name: Deploy exact production dashboard artifact
+        working-directory: control-plane
+        run: |
+          set -euo pipefail
+          npm exec --no -- wrangler pages deploy ../dashboard/dist \
+            --project-name "$PRODUCTION_PAGES_PROJECT" \
+            --branch "$PRODUCTION_PAGES_BRANCH" \
+            --commit-hash "$SOURCE_SHA" \
+            --commit-message "AgentPulse $RELEASE_REF"
+          npm exec --no -- wrangler pages deployment list \
+            --project-name "$PRODUCTION_PAGES_PROJECT" \
+            --environment production \
+            --json > "$RUNNER_TEMP/pages-after.json"
+      - name: Verify production identity and access boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/production-smoke.py \
+            --expected-version "$PACKAGE_VERSION" \
+            --expected-source-sha "$SOURCE_SHA"
+          STATUS="$(curl --silent --show-error --output "$RUNNER_TEMP/checkout-closed.json" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header 'Accept: application/json' \
+            --header 'Content-Type: application/json' \
+            --header 'Origin: https://app.agentpulse.ca' \
+            --data '{"plan":"starter"}' \
+            https://api.agentpulse.ca/v1/billing/checkout)"
+          test "$STATUS" = 404
+          python3 - "$RUNNER_TEMP/checkout-closed.json" <<'PY'
+          import json, sys
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert payload == {"error": {"code": "not_found", "message": "Route not found"}}
+          print("public_checkout=closed")
+          PY
+      - name: Write redacted deployment receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$RUNNER_TEMP/migrations-before.txt" production-migrations-before.txt
+          cp "$RUNNER_TEMP/migrations-after.txt" production-migrations-after.txt
+          cp "$RUNNER_TEMP/worker-before.json" production-worker-before.json
+          cp "$RUNNER_TEMP/worker-after.json" production-worker-after.json
+          cp "$RUNNER_TEMP/pages-before.json" production-pages-before.json
+          cp "$RUNNER_TEMP/pages-after.json" production-pages-after.json
+          cp "$RUNNER_TEMP/d1-backup.sha256" production-d1-backup.sha256
+          python3 - <<'PY'
+          import json, os
+          receipt = {
+              "release_ref": os.environ["RELEASE_REF"],
+              "source_sha": os.environ["SOURCE_SHA"],
+              "package_version": os.environ["PACKAGE_VERSION"],
+              "d1_name": os.environ["PRODUCTION_D1_NAME"],
+              "pages_project": os.environ["PRODUCTION_PAGES_PROJECT"],
+              "pages_branch": os.environ["PRODUCTION_PAGES_BRANCH"],
+              "app_domain": "app.agentpulse.ca",
+              "api_domain": "api.agentpulse.ca",
+              "checkout_mode": "closed",
+              "stripe_secrets": "external_and_present",
+              "smoke": "pass",
+          }
+          with open("production-deployment-receipt.json", "w", encoding="utf-8") as handle:
+              json.dump(receipt, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
+      - name: Upload redacted deployment evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-deployment-evidence-${{ github.sha }}
+          path: |
+            production-deployment-receipt.json
+            production-migrations-before.txt
+            production-migrations-after.txt
+            production-worker-before.json
+            production-worker-after.json
+            production-pages-before.json
+            production-pages-after.json
+            production-d1-backup.sha256
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Upload initial D1 recovery export
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-d1-recovery-${{ github.sha }}
+          path: ${{ runner.temp }}/agentpulse-production-before-${{ github.sha }}.sql
+          if-no-files-found: error
+          retention-days: 7

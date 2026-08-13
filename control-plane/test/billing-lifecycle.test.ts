@@ -86,6 +86,26 @@ afterEach(async () => {
 });
 
 describe("billing lifecycle", () => {
+  it("keeps checkout unavailable when the production gate is closed", async () => {
+    env.CHECKOUT_MODE = "closed";
+    let stripeCalled = false;
+    installStripeMock(() => {
+      stripeCalled = true;
+      return jsonResponse({});
+    });
+
+    const response = await workerFetch("https://agentpulse.test/v1/billing/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: "starter" }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(stripeCalled).toBe(false);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM checkout_sessions").first()).toMatchObject({ count: 0 });
+    env.CHECKOUT_MODE = "public";
+  });
+
   it("creates an allowlisted checkout session and stores only the claim hash", async () => {
     installStripeMock((method, path, body) => {
       expect(method).toBe("POST");

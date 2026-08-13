@@ -32,6 +32,29 @@ All must be true before the protected environment may admit a mutation job:
 
 A missing prerequisite is a blocker, never a warning or an invitation to substitute staging resources.
 
+## One-time Owner Gate 5 bootstrap
+
+The first production D1 UUID must exist before it can be committed into the
+immutable release configuration. The reviewer-protected
+`production-bootstrap.yml` workflow resolves that dependency without deploying
+application code. The corrected bootstrap runs only from the exact
+`gate5-infra-20260813` tag, creates
+or reuses `agentpulse-production` and `agentpulse-production-app`, associates
+`app.agentpulse.ca`, and emits a redacted receipt containing the D1 UUID.
+
+The superseded `gate5-infra-20260812` tag remains immutable. Its run created or
+reused D1 successfully but stopped before domain association because Wrangler's
+Pages list JSON uses display-oriented keys and does not include the production
+branch. The corrected workflow verifies the project through Cloudflare's direct
+project endpoint instead.
+
+The bootstrap tag must be explicitly allowlisted by the `production`
+environment and approved by its named reviewer. After the receipt is committed
+to the production configuration, the final environment policy must also
+allowlist the exact application release tag. Bootstrap never applies a
+migration, deploys a Worker or console, places Stripe secrets, or opens public
+checkout.
+
 ## Pre-mutation receipt
 
 Capture redacted evidence in the protected job before approval:
