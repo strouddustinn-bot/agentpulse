@@ -118,6 +118,9 @@ jobs:
           if ($service.Status -ne 'Running') { throw "unexpected service state: $($service.Status)" }
           if (-not (Test-Path $env:AGENTPULSE_CI_STATE)) { throw 'service did not persist state' }
           python -c "from agentpulse.checks import check_services; from agentpulse.config import ServiceCheckConfig; o=check_services(ServiceCheckConfig(services=['AgentPulseCI'])); assert len(o) == 1 and not o[0].breached, o[0]"
+          python -c "from agentpulse.models import Decision, Observation; from agentpulse.remediation import service_restart; o=Observation(check='service', target='AgentPulseCI', breached=True, metadata={'service':'AgentPulseCI'}); d=Decision(action='service_restart', target='AgentPulseCI', mode_effective='auto', execute=True, requires_approval=False, reason='CI lifecycle proof', observation=o); r=service_restart(d); assert r.ok and r.performed, r.error"
+          $service.Refresh()
+          if ($service.Status -ne 'Running') { throw "service restart left state: $($service.Status)" }
       - name: Uninstall Windows service fixture
         if: always()
         shell: pwsh
