@@ -334,6 +334,7 @@ class PrepareProductionDashboardTests(unittest.TestCase):
         self.assertIn("tests.test_production_preflight", text)
         self.assertIn("tests.test_prepare_production_dashboard", text)
         self.assertIn("tests.test_production_smoke", text)
+        self.assertIn("--only-verified --exclude-detectors=Lob", text)
         self.assertNotIn("deploy_control_plane", text)
         self.assertNotIn("release-control-plane", text)
         self.assertNotIn("wrangler-action", text)

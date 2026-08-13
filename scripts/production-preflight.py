@@ -34,7 +34,57 @@ PRICE_VARS = {
     "PRO": "production_price_pro_missing",
     "BUSINESS": "production_price_business_missing",
 }
+EXPECTED_STRIPE_PRICES = {
+    "STARTER": 2900,
+    "PRO": 9900,
+    "BUSINESS": 29900,
+}
 PHASE5A_ARTIFACTS = {
+    ".github/workflows/production-deploy.yml": (
+        "production_deploy_workflow_unreadable",
+        (
+            (
+                "production_deploy_workflow_missing_full_secret_gate",
+                "--only-verified --exclude-detectors=Lob",
+            ),
+            (
+                "production_deploy_workflow_missing_agent_gate",
+                "python agent/tools/run_tests.py",
+            ),
+            (
+                "production_deploy_workflow_missing_contract_gate",
+                "python scripts/validate-contracts.py",
+            ),
+            (
+                "production_deploy_workflow_missing_packaging_gate",
+                "python -m unittest tests.test_packaging -v",
+            ),
+            (
+                "production_deploy_workflow_missing_dependency_gate",
+                "npm audit --audit-level=high",
+            ),
+            (
+                "production_deploy_workflow_missing_export_identity",
+                "id: d1_export",
+            ),
+            (
+                "production_deploy_workflow_missing_failure_safe_recovery_upload",
+                "if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}",
+            ),
+            (
+                "production_deploy_workflow_missing_disposable_d1_restore",
+                "d1_disposable_restore=pass",
+            ),
+            (
+                "production_deploy_workflow_missing_saved_version_rehearsal",
+                "wrangler versions deploy",
+            ),
+            (
+                "production_deploy_workflow_missing_live_stripe_gate",
+                "stripe_live_prices=verified",
+            ),
+        ),
+    ),
     ".github/workflows/release.yml": (
         "production_release_workflow_unreadable",
         (
@@ -306,6 +356,116 @@ def check_production_config(path: Path) -> list[Finding]:
                 "production must declare api.agentpulse.ca as a custom domain",
             )
         )
+
+    return findings
+
+
+def _fetch_stripe_price(price_id: str, api_key: str) -> object:
+    query = urllib.parse.urlencode({"expand[]": "product"})
+    request = urllib.request.Request(
+        f"https://api.stripe.com/v1/prices/{urllib.parse.quote(price_id, safe='')}?{query}",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "AgentPulse-production-preflight/1",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return strict_json_loads(response.read().decode("utf-8"))
+
+
+def check_stripe_prices(
+    path: Path,
+    api_key: str,
+    *,
+    fetcher: Callable[[str, str], object] = _fetch_stripe_price,
+) -> list[Finding]:
+    """Read and verify the exact live recurring Prices configured for production."""
+    if not api_key:
+        return [
+            Finding(
+                "stripe_api_key_missing",
+                "STRIPE_API_KEY is required for live production Price verification",
+            )
+        ]
+
+    try:
+        config = load_jsonc(path)
+        production = config["env"]["production"]
+        variables = production["vars"]
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return [
+            Finding(
+                "stripe_price_config_unreadable",
+                f"production Stripe Price configuration could not be read: {exc}",
+            )
+        ]
+
+    findings: list[Finding] = []
+    seen_ids: set[str] = set()
+    for tier, expected_amount in EXPECTED_STRIPE_PRICES.items():
+        price_id = variables.get(f"STRIPE_PRICE_{tier}")
+        if not isinstance(price_id, str) or not price_id:
+            findings.append(
+                Finding(
+                    f"stripe_{tier.lower()}_price_unverified",
+                    f"production {tier.title()} Price ID is missing",
+                )
+            )
+            continue
+        if price_id in seen_ids:
+            findings.append(
+                Finding(
+                    "stripe_price_ids_not_unique",
+                    "production tiers must use distinct Stripe Price IDs",
+                )
+            )
+            continue
+        seen_ids.add(price_id)
+
+        try:
+            payload = fetcher(price_id, api_key)
+        except (
+            OSError,
+            TimeoutError,
+            ValueError,
+            json.JSONDecodeError,
+            urllib.error.HTTPError,
+            urllib.error.URLError,
+        ):
+            findings.append(
+                Finding(
+                    f"stripe_{tier.lower()}_price_unverified",
+                    f"Stripe did not return usable evidence for the production {tier.title()} Price",
+                )
+            )
+            continue
+
+        recurring = payload.get("recurring") if isinstance(payload, dict) else None
+        product = payload.get("product") if isinstance(payload, dict) else None
+        valid = (
+            isinstance(payload, dict)
+            and payload.get("id") == price_id
+            and payload.get("object") == "price"
+            and payload.get("active") is True
+            and payload.get("livemode") is True
+            and payload.get("currency") == "cad"
+            and payload.get("type") == "recurring"
+            and payload.get("unit_amount") == expected_amount
+            and isinstance(recurring, dict)
+            and recurring.get("interval") == "month"
+            and recurring.get("interval_count") == 1
+            and isinstance(product, dict)
+            and product.get("object") == "product"
+            and product.get("active") is True
+            and product.get("livemode") is True
+        )
+        if not valid:
+            findings.append(
+                Finding(
+                    f"stripe_{tier.lower()}_price_mismatch",
+                    f"production {tier.title()} must be an active live CAD monthly Price for {expected_amount} cents on an active live Product",
+                )
+            )
 
     return findings
 
@@ -841,6 +1001,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             check_github_environment(args.repository, release_ref=args.release_ref)
         )
         findings.extend(check_dns())
+        findings.extend(
+            check_stripe_prices(
+                args.config,
+                os.environ.get("STRIPE_API_KEY", ""),
+            )
+        )
         live_status = "CHECKED"
 
     if findings:
@@ -852,6 +1018,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     print("PRODUCTION_PREFLIGHT=PASS")
     print(f"LIVE_CHECKS={live_status}")
+    if not args.static_only:
+        print("stripe_live_prices=verified")
     print("No deployment, migration, DNS, billing, or secret mutation was performed.")
     if args.static_only:
         print("Static-only PASS is not production readiness or deployment authorization.")

@@ -87,6 +87,12 @@ The following commands mutate production and must run only after the GitHub `pro
 4. deploy the exact console artifact;
 5. run read-only smoke verification.
 
+The raw recovery export upload must use an explicit failure-safe condition tied
+to the successful export step. It must still run when a later migration,
+deployment, restore drill, recovery rehearsal, or smoke step fails. A default
+`success()` condition is forbidden because it discards the backup at the point
+it is most valuable.
+
 Do not combine preflight and mutation into a shell sequence where an earlier failure can be masked. Every semantic step must have its own exit status and receipt.
 
 ## Migration and Worker deployment
@@ -159,6 +165,21 @@ set -euo pipefail
 ```
 
 Require direct HTTPS, strict JSON/media types, the exact Worker/console identity, main-JavaScript digest, production API base, trusted production CORS, rejected staging/local/untrusted CORS, and unauthenticated account `401`. Keep checkout and all billing mutations out of smoke verification.
+
+## First-deploy recovery rehearsal
+
+After the first smoke succeeds, import the pre-migration SQL export into a
+uniquely named disposable D1 database, issue a read-only schema query, delete
+that disposable database, and verify its name is absent from `wrangler d1
+list --json`. Never rehearse by restoring over the production database.
+
+Because the first deployment has no previous healthy production artifact, its
+rollback rehearsal redeploys the newly verified saved Worker version at 100%
+and redeploys the same frozen console artifact. This proves that the saved-
+version and immutable-artifact recovery controls work without pretending that
+cross-version compatibility has been tested. Run the full production smoke
+again after both recovery actions. A later release must rehearse an actual
+previous-version rollback before replacing this bounded first-deploy proof.
 
 ## Rollback triggers
 

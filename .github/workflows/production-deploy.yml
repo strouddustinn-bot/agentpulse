@@ -25,6 +25,13 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+      - name: Scan immutable candidate for verified secrets
+        uses: trufflesecurity/trufflehog@a7bdcf95222c4369422764e168fad84fc912f0dc # 3.95.9
+        with:
+          path: ./
+          head: ${{ github.sha }}
+          version: 3.95.9
+          extra_args: --only-verified --exclude-detectors=Lob
       - name: Bind tag, source, and package version
         id: identity
         shell: bash
@@ -42,15 +49,33 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12'
+      - name: Install pinned verification dependencies
+        run: python -m pip install PyYAML jsonschema openapi-spec-validator build ruff==0.4.10
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
       - name: Static production preflight
         run: python scripts/production-preflight.py --release-ref "$GITHUB_REF_NAME" --static-only
+      - name: Verify agent, contracts, packaging, and production controls
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          set -euo pipefail
+          python agent/tools/run_tests.py
+          ruff check agent/
+          python scripts/validate-contracts.py
+          python -m unittest tests.test_packaging -v
+          python -m unittest \
+            tests.test_ensure_pages_project \
+            tests.test_production_preflight \
+            tests.test_prepare_production_dashboard \
+            tests.test_production_smoke \
+            -v
       - name: Verify control plane
         working-directory: control-plane
         run: |
           npm ci
+          npm audit --audit-level=high
           npm test
           npm run typecheck
           npm run types:check
@@ -60,12 +85,21 @@ jobs:
           VITE_API_BASE_URL: https://api.agentpulse.ca
         run: |
           npm --prefix dashboard ci
+          npm --prefix dashboard audit --audit-level=high
           npm --prefix dashboard test
           npm --prefix dashboard run build
           python scripts/prepare-production-dashboard.py \
             --dist dashboard/dist \
             --version 0.2.0b3 \
             --source-sha "$GITHUB_SHA"
+      - name: Verify repository hardening invariants
+        run: |
+          set -euo pipefail
+          find scripts -type f -name '*.sh' -print0 | xargs -0 -r -n1 bash -n
+          test -z "$(git ls-files '*/node_modules/*')"
+          ! grep -RInE '(sk_live_|whsec_[A-Za-z0-9]|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH) PRIVATE KEY)' \
+            agent/agentpulse control-plane/src dashboard/src packages/contracts configs scripts docs \
+            --exclude='*.md' --exclude-dir='node_modules'
       - name: Preserve verified dashboard artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -130,7 +164,12 @@ jobs:
           name: production-dashboard-${{ github.sha }}
           path: dashboard/dist
       - name: Live fail-closed production preflight
-        run: python scripts/production-preflight.py --release-ref "$RELEASE_REF"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/production-preflight.py --release-ref "$RELEASE_REF" \
+            | tee "$RUNNER_TEMP/production-preflight.txt"
+          grep -Fx 'stripe_live_prices=verified' "$RUNNER_TEMP/production-preflight.txt"
       - name: Capture pre-mutation deployment state
         working-directory: control-plane
         shell: bash
@@ -143,7 +182,8 @@ jobs:
           if ! npm exec --no -- wrangler pages deployment list --project-name "$PRODUCTION_PAGES_PROJECT" --environment production --json > "$RUNNER_TEMP/pages-before.json"; then
             printf '%s\n' '{"state":"no_production_deployment"}' > "$RUNNER_TEMP/pages-before.json"
           fi
-      - name: Export and restore-test pre-migration D1
+      - name: Export and parse-test pre-migration D1
+        id: d1_export
         working-directory: control-plane
         shell: bash
         run: |
@@ -221,6 +261,83 @@ jobs:
           assert payload == {"error": {"code": "not_found", "message": "Route not found"}}
           print("public_checkout=closed")
           PY
+      - name: Restore pre-migration export into disposable D1
+        id: d1_restore_drill
+        working-directory: control-plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          BACKUP="$RUNNER_TEMP/agentpulse-production-before-${SOURCE_SHA}.sql"
+          RESTORE_DB="agentpulse-restore-drill-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          [[ "$RESTORE_DB" == agentpulse-restore-drill-* ]]
+          cleanup() {
+            npm exec --no -- wrangler d1 delete "$RESTORE_DB" --skip-confirmation >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          npm exec --no -- wrangler d1 create "$RESTORE_DB"
+          npm exec --no -- wrangler d1 execute "$RESTORE_DB" --remote --file "$BACKUP" --yes
+          npm exec --no -- wrangler d1 execute "$RESTORE_DB" --remote \
+            --command "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type = 'table';" \
+            --json > "$RUNNER_TEMP/d1-restore-check.json"
+          python3 - "$RUNNER_TEMP/d1-restore-check.json" <<'PY'
+          import json, sys
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert isinstance(payload, list) and payload, "missing D1 restore verification result"
+          print("d1_disposable_restore=pass")
+          PY
+          npm exec --no -- wrangler d1 delete "$RESTORE_DB" --skip-confirmation
+          trap - EXIT
+          npm exec --no -- wrangler d1 list --json > "$RUNNER_TEMP/d1-after-restore-drill.json"
+          python3 - "$RUNNER_TEMP/d1-after-restore-drill.json" "$RESTORE_DB" <<'PY'
+          import json, sys
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert all(item.get("name") != sys.argv[2] for item in payload if isinstance(item, dict))
+          print("d1_disposable_cleanup=pass")
+          PY
+          test -z "$(git status --porcelain)"
+          printf '%s\n' '{"disposable_d1_restore":"pass","disposable_d1_deleted":true}' \
+            > "$RUNNER_TEMP/d1-restore-drill.json"
+      - name: Exercise saved-version Worker and immutable console rollback paths
+        id: rollback_rehearsal
+        working-directory: control-plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANDIDATE_VERSION="$(python3 - "$RUNNER_TEMP/worker-after.json" <<'PY'
+          import json, sys
+          payload = json.load(open(sys.argv[1], encoding="utf-8"))
+          versions = payload.get("versions") if isinstance(payload, dict) else None
+          assert isinstance(versions, list) and len(versions) == 1
+          version = versions[0]
+          assert version.get("percentage") == 100
+          value = version.get("version_id")
+          assert isinstance(value, str) and len(value) == 36
+          print(value)
+          PY
+          )"
+          npm exec --no -- wrangler versions view "$CANDIDATE_VERSION" --env production --json \
+            > "$RUNNER_TEMP/worker-rollback-target.json"
+          npm exec --no -- wrangler versions deploy "$CANDIDATE_VERSION@100%" \
+            --env production \
+            --message "saved-version recovery rehearsal git=$SOURCE_SHA" \
+            --yes
+          npm exec --no -- wrangler deployments status --env production --json \
+            > "$RUNNER_TEMP/worker-after-rehearsal.json"
+          npm exec --no -- wrangler pages deploy ../dashboard/dist \
+            --project-name "$PRODUCTION_PAGES_PROJECT" \
+            --branch "$PRODUCTION_PAGES_BRANCH" \
+            --commit-hash "$SOURCE_SHA" \
+            --commit-message "immutable console recovery rehearsal $RELEASE_REF"
+          npm exec --no -- wrangler pages deployment list \
+            --project-name "$PRODUCTION_PAGES_PROJECT" \
+            --environment production \
+            --json > "$RUNNER_TEMP/pages-after-rehearsal.json"
+          cd ..
+          python scripts/production-smoke.py \
+            --expected-version "$PACKAGE_VERSION" \
+            --expected-source-sha "$SOURCE_SHA"
+          printf '%s\n' '{"worker_saved_version":"pass","console_immutable_artifact":"pass","production_smoke":"pass"}' \
+            > "$RUNNER_TEMP/rollback-rehearsal.json"
       - name: Write redacted deployment receipt
         shell: bash
         run: |
@@ -231,7 +348,11 @@ jobs:
           cp "$RUNNER_TEMP/worker-after.json" production-worker-after.json
           cp "$RUNNER_TEMP/pages-before.json" production-pages-before.json
           cp "$RUNNER_TEMP/pages-after.json" production-pages-after.json
+          cp "$RUNNER_TEMP/worker-after-rehearsal.json" production-worker-after-rehearsal.json
+          cp "$RUNNER_TEMP/pages-after-rehearsal.json" production-pages-after-rehearsal.json
           cp "$RUNNER_TEMP/d1-backup.sha256" production-d1-backup.sha256
+          cp "$RUNNER_TEMP/d1-restore-drill.json" production-d1-restore-drill.json
+          cp "$RUNNER_TEMP/rollback-rehearsal.json" production-rollback-rehearsal.json
           python3 - <<'PY'
           import json, os
           receipt = {
@@ -245,7 +366,10 @@ jobs:
               "api_domain": "api.agentpulse.ca",
               "checkout_mode": "closed",
               "stripe_secrets": "external_and_present",
+              "stripe_live_prices": "verified",
               "smoke": "pass",
+              "d1_disposable_restore": "pass",
+              "rollback_rehearsal": "same_version_saved_artifacts_pass",
           }
           with open("production-deployment-receipt.json", "w", encoding="utf-8") as handle:
               json.dump(receipt, handle, indent=2, sort_keys=True)
@@ -264,10 +388,15 @@ jobs:
             production-worker-after.json
             production-pages-before.json
             production-pages-after.json
+            production-worker-after-rehearsal.json
+            production-pages-after-rehearsal.json
             production-d1-backup.sha256
+            production-d1-restore-drill.json
+            production-rollback-rehearsal.json
           if-no-files-found: warn
           retention-days: 30
       - name: Upload initial D1 recovery export
+        if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-d1-recovery-${{ github.sha }}

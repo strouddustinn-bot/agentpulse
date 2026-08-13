@@ -1,6 +1,6 @@
 # AgentPulse Finished-Product Matrix and Repository Reconciliation
 
-**Assessment date:** 2026-07-24
+**Assessment date:** 2026-08-13
 **Canonical repository:** the GitHub repository containing this document
 **Recommended source of truth:** GitHub `master`; implementation branches from that canonical revision
 **Canonical domain:** `agentpulse.ca`
@@ -93,10 +93,10 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
-| Dependency-light Python agent | Runs on Python 3.10+ without runtime dependencies | Agent package and self-contained runner; fresh run: 201 passed | ✅ |
+| Dependency-light Python agent | Runs on Python 3.10+ without runtime dependencies | Agent package and self-contained runner; fresh run: 213 passed | ✅ |
 | Linux host monitoring | Reads disk, memory/process, and systemd service state | Implemented checks and tests | ✅ |
 | macOS host monitoring | Reads supported host state and launchd service state | Launchd-aware implementation and tests/assets exist | ✅ |
-| Windows package boundary | Wheel/package imports, platform-neutral help/config validation, and automatic hostname resolution run on Windows; unsupported host operations fail closed | Candidate adds a `windows-latest` smoke job plus explicit lock/spool, service/process-check, and remediation refusal tests; native Windows monitoring, service lifecycle, and clean-host acceptance remain absent | 🟡 |
+| Windows package boundary | Wheel/package imports, platform-neutral help/config validation, automatic hostname resolution, and native service lifecycle run on Windows; unsupported host operations fail closed | Exact-commit Windows Server 2025 CI installed the beta3 wheel and checksum-pinned WinSW service, proved Running state, exercised verified service-restart remediation, and uninstalled cleanly | ✅ |
 | Disk-pressure remediation | Deletes only old files under explicitly allowed paths; refuses dangerous paths and symlink escapes | Safety predicates, remediation implementation, fuzz/safety tests | ✅ |
 | Service restart remediation | Restarts only configured systemd/launchd services and verifies active state | Implemented and covered by agent suite | ✅ |
 | Runaway-process handling | Identifies offender; never automatically kills in v1; requires human approval | Process policy is clamped to ask-first | ✅ |
@@ -127,7 +127,7 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Plan server limits | Enrollment refuses agents above subscription limit | D1/Worker path implemented and tested | ✅ |
 | Bounded heartbeat ingestion | 64 KiB body cap, bounded incidents/strings, stable validation errors | Implemented and tested | ✅ |
 | Heartbeat idempotency | Duplicate idempotency key is acknowledged without duplicate effects | Implemented and tested | ✅ |
-| Incident materialization | Heartbeat incidents upsert by tenant/agent/fingerprint | Implemented; 14 Worker tests pass | ✅ |
+| Incident materialization | Heartbeat incidents upsert by tenant/agent/fingerprint | Implemented within the 81-test Worker suite | ✅ |
 | Tenant-scoped fleet read | Account can read only its own hosts/incidents | Implemented and tested | ✅ |
 | Monotonic policy narrowing | Hosted policy cannot exceed agent local ceiling | Implemented and tested | ✅ |
 | Stripe signature/replay protection | Raw-body HMAC, timestamp window, event ID idempotency | Signature and event-recording code exists | ✅ |
@@ -138,9 +138,9 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Credential rotation/revocation | Account and agent credentials can be revoked/rotated without DB surgery | Schema has revocation fields; complete API/UX and proof are absent | 🟡 |
 | Session authentication | Browser uses short-lived secure HttpOnly/SameSite session rather than a bearer key in JavaScript storage | Implemented and tested: HttpOnly `ap_session`, CSRF synchronizer token, logout revocation | ✅ |
 | Retention/deletion lifecycle | Documented and tested tenant deletion, evidence retention, and privacy-request procedure | Not implemented/documented as an executable runbook | ⬜ |
-| Production D1 | Real ID, migrations, backups/recovery, and rollback are verified | Production ID is `REPLACE_PRODUCTION_D1_ID` | ⬜ |
+| Production D1 | Real ID, migrations, backups/recovery, and rollback are verified | Gate 5 provisioned the real bound D1; migrations, failure-safe export, disposable-D1 restore, and recovery receipt are enforced by the exact-tag workflow but remain unexecuted until the first deploy | 🟡 |
 | Staging control plane | Candidate D1 migrations are deployed and Worker custom-domain health passes | Staging health is live and migrations `0001` through hard-fail `0003` are applied; the exact Phase 3D Worker candidate and lifecycle proof remain pending | 🟡 |
-| Production control plane | `api.agentpulse.ca` resolves, health passes, and rollback evidence exists | Domain did not resolve during probe | ⬜ |
+| Production control plane | `api.agentpulse.ca` resolves, health passes, and rollback evidence exists | Custom-domain route and exact-tag deployment workflow are configured; live DNS/TLS, deployment, smoke, and recovery receipts remain pending | 🟡 |
 
 ### C. Customer console
 
@@ -156,7 +156,7 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Subscription/account UX | Plan, status, billing portal, cancellation, and failed-payment state are visible | Not implemented | ⬜ |
 | Accessible responsive UX | Keyboard, screen-reader, mobile, loading/error/empty states pass acceptance tests | Build passes; no browser/accessibility test suite exists | 🟡 |
 | Staging deployment | `staging-app.agentpulse.ca` resolves and browser E2E passes against staging API | Domain did not resolve during probe | ⬜ |
-| Production deployment | `app.agentpulse.ca` resolves and E2E passes | Domain did not resolve during probe | ⬜ |
+| Production deployment | `app.agentpulse.ca` resolves and E2E passes | Pages project, production branch, and custom-domain association exist; first immutable artifact deployment and live smoke remain pending | 🟡 |
 
 ### D. Website, commercial lifecycle, and support
 
@@ -178,8 +178,8 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Finished capability | Completion criterion | What exists now | Status |
 |---|---|---|---|
 | Canonical API contract | Every active endpoint is in OpenAPI and Worker tests; planned contract-only routes are labeled by implementation state | OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 14 paths, 55 local refs, 9 schemas, and 7 typed fixtures pass validation; billing/session routes are implemented in source pending Phase 3D staging proof | ✅ |
-| Agent test suite | Safety/behavior suite passes on supported Python versions | Fresh local result: 193 passed; GitHub Tests at the pre-change master head succeeded | ✅ |
-| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 77 tests including migrations, fleet/agent routes, billing lifecycle, concurrency fencing, and staging harnesses; typecheck and generated bindings pass | ✅ |
+| Agent test suite | Safety/behavior suite passes on supported Python versions | Fresh local result: 213 passed; exact-commit GitHub matrix passed on Python 3.10–3.13 | ✅ |
+| Worker tests/type safety | Workerd/D1 tests, TypeScript, generated bindings all pass | Fresh: 81 tests including migrations, fleet/agent routes, billing lifecycle, concurrency fencing, and staging harnesses; typecheck and generated bindings pass | ✅ |
 | Dashboard build | TypeScript and Vite production build pass | Fresh build succeeded | ✅ |
 | Dashboard behavioral E2E | Browser tests cover auth, fleet, incidents, failure/empty states | No browser test suite | ⬜ |
 | Security dependency audits | Python invariant and npm high-severity audits pass | PostCSS fixed at 8.5.23 in both workspaces; dashboard moved to patched React Router 8.3.0; both fresh npm audits report zero vulnerabilities | ✅ |
@@ -187,8 +187,8 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Secret scanning | GitHub Security workflow is green with an approved scanning policy and directly gates releases | Pre-change remote-master Security was green; this candidate requires its own post-push run | 🟡 |
 | CI branch authority | Required checks target only canonical branch and PRs into it | Master workflows exist, but stale main PRs/branches remain | 🟡 |
 | Versioned agent release | Wheel/sdist contain the runnable agent; checksums and release notes are published | `v0.2.0-beta.2` is published, checksummed, and exact-artifact accepted | ✅ |
-| Reproducible deployment | Staging/production migrations and deploys run through protected environments | Worker deploy job exists; production bindings and proof missing | 🟡 |
-| Rollback and disaster recovery | D1 backup/restore, Worker rollback, agent rollback, and incident runbooks are exercised | Not proven | ⬜ |
+| Reproducible deployment | Staging/production migrations and deploys run through protected environments | Production bindings and exact-tag reviewer-protected workflow exist; first production receipt remains pending | 🟡 |
+| Rollback and disaster recovery | D1 backup/restore, Worker rollback, agent rollback, and incident runbooks are exercised | Failure-safe export, disposable-D1 restore, and saved-version Worker/immutable-console rehearsal are encoded and tested statically; live production execution remains pending | 🟡 |
 | Observability without credential leakage | Structured Worker/agent health, deploy markers, and alerts exist | Worker observability enabled; complete operational alerting absent | 🟡 |
 | Two-tenant isolation proof | Automated E2E attempts cross-tenant access and fails | Unit/Worker isolation paths exist; staging E2E release gate remains | 🟡 |
 | Full commercial lifecycle proof | Checkout → claim/session → enrollment → heartbeat → console → failed-payment denial → recovery passes | Not yet possible end to end | ⬜ |
@@ -198,18 +198,18 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 
 | Check | Fresh result |
 |---|---|
-| Agent suite | `193 passed, 0 failed` |
+| Agent suite | `213 passed, 0 failed` |
 | Agent lint | PASS: project Ruff 0.4.10 reports all checks passed |
 | Agent config validation | PASS: example and local configurations validate against Draft 7 schema with format checks |
 | Shared contracts | PASS: OpenAPI 3.1 meta-schema, cookie-session/CSRF shape, operation-bound response fixtures with URI checks, 14 paths, 55 local refs, 9 schemas, 7 typed fixtures, 7 negative mutation tests |
-| Worker tests | PASS: fresh local 77 tests including migrations, fleet/agent routes, billing lifecycle, concurrency fencing, and staging harnesses |
+| Worker tests | PASS: fresh local 81 tests including migrations, fleet/agent routes, billing lifecycle, concurrency fencing, and staging harnesses |
 | Worker TypeScript/bindings | PASS |
 | Dashboard production build | PASS: 1,576 modules transformed |
 | Master GitHub Tests | Pre-change master was green; candidate post-push run pending |
 | Master GitHub Pages | Pre-change deployment was green; candidate post-push deployment and live-content receipt pending |
 | Master GitHub Security | Pre-change master was green; candidate post-push run pending |
 | Staging API | `https://staging-api.agentpulse.ca/health` returned HTTP 200 with expected AgentPulse health JSON on 2026-07-20 |
-| Public/production domains | `agentpulse.ca` resolves and serves HTTP 200; `app.agentpulse.ca` and `api.agentpulse.ca` remain unresolved |
+| Production infrastructure | Gate 5 bootstrap passed; production D1, Pages project/branch, custom-domain association, protected environment, and exact beta3 tag policy exist. Public DNS/TLS, required external secrets, and exact active live CAD monthly Stripe Prices are fail-closed preflight gates; deployed identity remains pending |
 
 
 ## Authoritative retain/migrate/archive decisions

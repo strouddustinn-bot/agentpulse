@@ -86,7 +86,132 @@ class ProductionPreflightTests(unittest.TestCase):
         self.assertIn("wrangler pages deploy ../dashboard/dist", text)
         self.assertIn("python scripts/production-smoke.py", text)
         self.assertIn("public_checkout=closed", text)
+        self.assertIn("--only-verified --exclude-detectors=Lob", text)
+        self.assertIn("python agent/tools/run_tests.py", text)
+        self.assertIn("python scripts/validate-contracts.py", text)
+        self.assertIn("python -m unittest tests.test_packaging -v", text)
+        self.assertIn("npm audit --audit-level=high", text)
+        self.assertIn("id: d1_export", text)
+        self.assertIn(
+            "if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}",
+            text,
+        )
+        self.assertIn("d1_disposable_restore=pass", text)
+        self.assertIn("wrangler versions deploy", text)
+        self.assertIn("stripe_live_prices=verified", text)
         self.assertNotIn("echo \"$STRIPE", text)
+
+    def test_live_stripe_prices_require_exact_active_live_monthly_products(self) -> None:
+        production = self.valid_production_config()
+        config = self.write_config(production)
+        expected_amounts = {"STARTER": 2900, "PRO": 9900, "BUSINESS": 29900}
+        price_to_amount = {
+            production["vars"][f"STRIPE_PRICE_{tier}"]: amount
+            for tier, amount in expected_amounts.items()
+        }
+
+        def valid_fetcher(price_id: str, api_key: str):
+            self.assertEqual(api_key, "sk_live_fixture")
+            return {
+                "id": price_id,
+                "object": "price",
+                "active": True,
+                "livemode": True,
+                "currency": "cad",
+                "type": "recurring",
+                "unit_amount": price_to_amount[price_id],
+                "recurring": {"interval": "month", "interval_count": 1},
+                "product": {"object": "product", "active": True, "livemode": True},
+            }
+
+        self.assertEqual(
+            self.preflight.check_stripe_prices(
+                config, "sk_live_fixture", fetcher=valid_fetcher
+            ),
+            [],
+        )
+
+        def test_mode_fetcher(price_id: str, api_key: str):
+            payload = valid_fetcher(price_id, api_key)
+            payload["livemode"] = False
+            return payload
+
+        findings = self.preflight.check_stripe_prices(
+            config, "sk_live_fixture", fetcher=test_mode_fetcher
+        )
+        self.assertEqual(
+            {finding.code for finding in findings},
+            {
+                "stripe_starter_price_mismatch",
+                "stripe_pro_price_mismatch",
+                "stripe_business_price_mismatch",
+            },
+        )
+
+    def test_live_stripe_verification_fails_closed_for_missing_key_and_api_error(self) -> None:
+        config = self.write_config(self.valid_production_config())
+        self.assertEqual(
+            [finding.code for finding in self.preflight.check_stripe_prices(config, "")],
+            ["stripe_api_key_missing"],
+        )
+
+        findings = self.preflight.check_stripe_prices(
+            config,
+            "sk_live_fixture",
+            fetcher=lambda *_: (_ for _ in ()).throw(TimeoutError()),
+        )
+        self.assertEqual(
+            {finding.code for finding in findings},
+            {
+                "stripe_starter_price_unverified",
+                "stripe_pro_price_unverified",
+                "stripe_business_price_unverified",
+            },
+        )
+
+    def test_live_stripe_price_ids_must_be_unique(self) -> None:
+        production = self.valid_production_config()
+        production["vars"]["STRIPE_PRICE_PRO"] = production["vars"]["STRIPE_PRICE_STARTER"]
+        config = self.write_config(production)
+        findings = self.preflight.check_stripe_prices(
+            config,
+            "sk_live_fixture",
+            fetcher=lambda price_id, _api_key: {
+                "id": price_id,
+                "object": "price",
+                "active": True,
+                "livemode": True,
+                "currency": "cad",
+                "type": "recurring",
+                "unit_amount": 2900,
+                "recurring": {"interval": "month", "interval_count": 1},
+                "product": {"object": "product", "active": True, "livemode": True},
+            },
+        )
+        self.assertIn("stripe_price_ids_not_unique", {finding.code for finding in findings})
+
+    def test_missing_failure_safe_recovery_upload_is_release_blocking(self) -> None:
+        repository = self.root / "unsafe-recovery-workflow"
+        for relative_path in self.preflight.PHASE5A_ARTIFACTS:
+            source = ROOT / relative_path
+            target = repository / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+
+        deploy = repository / ".github/workflows/production-deploy.yml"
+        deploy.write_text(
+            deploy.read_text(encoding="utf-8").replace(
+                "if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}",
+                "if: ${{ success() }}",
+            ),
+            encoding="utf-8",
+        )
+
+        findings = self.preflight.check_phase5a_artifacts(repository)
+        self.assertIn(
+            "production_deploy_workflow_missing_failure_safe_recovery_upload",
+            {finding.code for finding in findings},
+        )
 
     def test_phase5a_artifact_marker_missing_or_unsafe_deploy_stub_fails_closed(self) -> None:
         repository = self.root / "phase5a-fixture"
