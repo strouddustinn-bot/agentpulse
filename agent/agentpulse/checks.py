@@ -34,7 +34,7 @@ def _default_run(argv: List[str]) -> Tuple[int, str]:
         proc = subprocess.run(
             argv, capture_output=True, text=True, timeout=15, check=False
         )
-        return proc.returncode, (proc.stdout or "").strip()
+        return proc.returncode, (proc.stdout or proc.stderr or "").strip()
     except (
         OSError,
         subprocess.TimeoutExpired,
@@ -87,11 +87,14 @@ def check_services(
     out: List[Observation] = []
     for svc in cfg.services:
         if sys.platform.startswith("win"):
-            # Windows service observation is not implemented yet. Do not fall
-            # through to systemctl or report a configured service as healthy.
-            active = False
-            stdout = "unsupported"
-            detail = "service monitoring is not supported on Windows"
+            from .windows_service import query_windows_service
+
+            active, stdout = query_windows_service(svc, run_fn)
+            detail = (
+                f"service {svc} is active"
+                if active
+                else f"service {svc} is {stdout or 'not active'}"
+            )
         elif sys.platform.startswith("darwin"):
             # launchctl list returns 0 when the service is loaded (running or not)
             rc, stdout = run_fn(["launchctl", "list", svc])

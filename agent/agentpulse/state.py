@@ -62,7 +62,11 @@ class State:
             prefix=f".{os.path.basename(self.path)}.", dir=directory
         )
         try:
-            os.fchmod(fd, 0o600)
+            # Windows has no POSIX mode bits or os.fchmod. The containing
+            # ProgramData ACL is the security boundary there; POSIX keeps the
+            # existing owner-only file mode.
+            if hasattr(os, "fchmod"):
+                os.fchmod(fd, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(self.data, fh, indent=2)
                 fh.flush()

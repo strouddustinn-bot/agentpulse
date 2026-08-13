@@ -200,14 +200,24 @@ def service_restart(
 
     import sys  # local import to avoid cycle
 
-    if sys.platform.startswith("win"):
-        result.error = "service restart is not supported on Windows"
-        return result
-
     if run_fn is None:
         from .checks import _default_run  # local import to avoid cycle at import time
 
         run_fn = _default_run
+
+    if sys.platform.startswith("win"):
+        if dry_run:
+            result.details.append(f"WOULD restart Windows service {svc}")
+            return result
+        from .windows_service import restart_windows_service
+
+        running, state = restart_windows_service(svc, run_fn)
+        if running:
+            result.performed = True
+            result.details.append(f"restarted {svc}; state is Running")
+        else:
+            result.error = f"Windows service restart failed for {svc}: {state}"
+        return result
 
     if sys.platform.startswith("darwin"):
         cmd = ["launchctl", "kickstart", "-k", f"system/{svc}"]
