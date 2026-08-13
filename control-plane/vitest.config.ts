@@ -13,6 +13,7 @@ export default defineConfig(async () => {
             TEST_MIGRATIONS: migrations,
             STRIPE_WEBHOOK_SECRET: "whsec_test_agentpulse",
             STRIPE_API_KEY: "sk_test_agentpulse",
+            STRIPE_PORTAL_URL: "",
             CHECKOUT_MODE: "public",
             STRIPE_PRICE_STARTER: "price_test_starter",
             STRIPE_PRICE_PRO: "price_test_pro",

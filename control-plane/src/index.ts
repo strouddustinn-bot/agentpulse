@@ -1,6 +1,7 @@
 type WorkerEnv = Env & {
   STRIPE_WEBHOOK_SECRET: string;
   STRIPE_API_KEY: string;
+  STRIPE_PORTAL_URL?: string;
 };
 
 type Mode = "off" | "alert" | "ask" | "auto";
@@ -983,6 +984,19 @@ async function deleteSession(request: Request, env: WorkerEnv): Promise<Response
 
 async function createBillingPortal(request: Request, env: WorkerEnv): Promise<Response> {
   const session = await requireBrowserMutation(request, env);
+  if (env.STRIPE_PORTAL_URL) {
+    let portalUrl: URL;
+    try {
+      portalUrl = new URL(env.STRIPE_PORTAL_URL);
+    } catch {
+      throw new HttpError(500, "configuration_error", "STRIPE_PORTAL_URL must be a Stripe-hosted HTTPS URL");
+    }
+    const trustedHost = portalUrl.hostname === "billing.stripe.com" || portalUrl.hostname.endsWith(".stripe.com");
+    if (portalUrl.protocol !== "https:" || !trustedHost || portalUrl.username || portalUrl.password) {
+      throw new HttpError(500, "configuration_error", "STRIPE_PORTAL_URL must be a Stripe-hosted HTTPS URL");
+    }
+    return responseJson({ portal_url: portalUrl.toString() });
+  }
   const sub = await env.DB.prepare(
     "SELECT stripe_customer_id FROM subscriptions WHERE tenant_id=? ORDER BY updated_at DESC LIMIT 1",
   ).bind(session.tenantId).first<{ stripe_customer_id: string }>();

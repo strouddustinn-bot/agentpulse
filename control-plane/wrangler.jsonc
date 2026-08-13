@@ -56,21 +56,28 @@
     },
     "production": {
       "name": "agentpulse-control-plane-production",
+      "routes": [
+        {
+          "pattern": "api.agentpulse.ca",
+          "custom_domain": true
+        }
+      ],
       "vars": {
         "ENVIRONMENT": "production",
         "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
         "APP_BASE_URL": "https://app.agentpulse.ca",
-        "AGENTPULSE_VERSION": "0.1.0",
+        "AGENTPULSE_VERSION": "0.2.0b3",
         "CHECKOUT_MODE": "closed",
-        "STRIPE_PRICE_STARTER": "",
-        "STRIPE_PRICE_PRO": "",
-        "STRIPE_PRICE_BUSINESS": ""
+        "STRIPE_PRICE_STARTER": "price_1U0ybfDVV9guBKy9ielFcEy0",
+        "STRIPE_PRICE_PRO": "price_1U0ybsDVV9guBKy9R1U5LLw4",
+        "STRIPE_PRICE_BUSINESS": "price_1U0ybzDVV9guBKy9Au3LxIro",
+        "STRIPE_PORTAL_URL": "https://billing.stripe.com/p/login/6oU28rbSBgPS8Qa5CB7N600"
       },
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "agentpulse-production",
-          "database_id": "REPLACE_PRODUCTION_D1_ID",
+          "database_id": "013ade4f-f971-4917-9e0f-0bc8eccdaf92",
           "migrations_dir": "migrations"
         }
       ]
