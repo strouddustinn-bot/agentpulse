@@ -249,6 +249,8 @@ def check_production_config(path: Path) -> list[Finding]:
         "ENVIRONMENT": "production",
         "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
         "APP_BASE_URL": "https://app.agentpulse.ca",
+        "CHECKOUT_MODE": "closed",
+        "STRIPE_PORTAL_URL": "https://billing.stripe.com/p/login/6oU28rbSBgPS8Qa5CB7N600",
     }
     for name, expected in expected_variables.items():
         if variables.get(name) != expected:

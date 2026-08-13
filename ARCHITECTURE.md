@@ -59,4 +59,4 @@ The generic FastAPI backend, Python dashboard service, duplicate React dashboard
 
 ## Future expansion
 
-Windows-specific features including monitoring, service control, remediation, and lifecycle installation are currently under development and will be integrated in future updates. Secure browser sessions, complete checkout/account claim, billing portal, richer audit/event routes, and staging lifecycle automation are separate release gates. They must extend this boundary rather than reintroduce a second backend or remote-shell capability.
+Secure browser sessions, complete checkout/account claim, billing portal, richer audit/event routes, and staging lifecycle automation are separate release gates. They must extend this boundary rather than reintroduce a second backend or remote-shell capability.

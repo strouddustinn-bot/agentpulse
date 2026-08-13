@@ -32,7 +32,7 @@ def test_service_failed():
     assert out[0].breached is True
 
 
-def test_service_check_uses_sc_on_windows():
+def test_service_check_uses_launchctl_on_macos():
     cfg = ServiceCheckConfig(services=["com.example.agent"])
     calls = []
     original_platform = checks.sys.platform

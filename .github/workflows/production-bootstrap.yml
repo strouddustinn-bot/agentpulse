@@ -1,0 +1,150 @@
+name: Owner Gate 5 Production Bootstrap
+
+on:
+  push:
+    tags:
+      - 'gate5-infra-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owner-gate-5-production-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  cloudflare-bootstrap:
+    name: Provision production D1 and Pages
+    if: ${{ github.ref == 'refs/tags/gate5-infra-20260813' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PRODUCTION_D1_NAME: agentpulse-production
+      PRODUCTION_PAGES_PROJECT: agentpulse-production-app
+      PRODUCTION_PAGES_BRANCH: production
+      PRODUCTION_APP_DOMAIN: app.agentpulse.ca
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Verify immutable bootstrap identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_TYPE" = tag
+          test "$GITHUB_REF_NAME" = gate5-infra-20260813
+          test "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          test "$(python3 -c 'import json; print(json.load(open("control-plane/wrangler.jsonc"))["env"]["production"]["vars"]["CHECKOUT_MODE"])')" = closed
+      - name: Verify external Cloudflare credentials are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
+          echo "cloudflare_credentials=present"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: control-plane/package-lock.json
+      - name: Install pinned Wrangler
+        working-directory: control-plane
+        run: npm ci
+      - name: Create or reuse production D1
+        id: d1
+        working-directory: control-plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm exec --no -- wrangler d1 list --json > "$RUNNER_TEMP/d1-before.json"
+          D1_COUNT="$(python3 - "$RUNNER_TEMP/d1-before.json" "$PRODUCTION_D1_NAME" <<'PY'
+          import json, sys
+          rows = json.load(open(sys.argv[1], encoding="utf-8"))
+          print(sum(1 for row in rows if row.get("name") == sys.argv[2]))
+          PY
+          )"
+          test "$D1_COUNT" -le 1
+          if test "$D1_COUNT" = 0; then
+            npm exec --no -- wrangler d1 create "$PRODUCTION_D1_NAME" --location=enam
+          fi
+          npm exec --no -- wrangler d1 list --json > "$RUNNER_TEMP/d1-after.json"
+          D1_ID="$(python3 - "$RUNNER_TEMP/d1-after.json" "$PRODUCTION_D1_NAME" <<'PY'
+          import json, sys, uuid
+          matches = [row for row in json.load(open(sys.argv[1], encoding="utf-8")) if row.get("name") == sys.argv[2]]
+          if len(matches) != 1:
+              raise SystemExit("expected exactly one production D1 database")
+          value = matches[0].get("uuid") or matches[0].get("id")
+          uuid.UUID(value)
+          print(value)
+          PY
+          )"
+          echo "database_id=$D1_ID" >> "$GITHUB_OUTPUT"
+          echo "production_d1=ready"
+      - name: Create or reuse production Pages project
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ensure-pages-project.py
+      - name: Attach or verify production app domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+
+          account = os.environ["CLOUDFLARE_ACCOUNT_ID"]
+          token = os.environ["CLOUDFLARE_API_TOKEN"]
+          project = os.environ["PRODUCTION_PAGES_PROJECT"]
+          domain = os.environ["PRODUCTION_APP_DOMAIN"]
+          base = f"https://api.cloudflare.com/client/v4/accounts/{account}/pages/projects/{project}/domains"
+          headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+          def request(url, *, method="GET", body=None):
+              data = None if body is None else json.dumps(body).encode()
+              req = urllib.request.Request(url, data=data, method=method, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  payload = json.load(response)
+              if payload.get("success") is not True:
+                  raise SystemExit("Cloudflare Pages domain API did not return success")
+              return payload.get("result")
+
+          existing = request(base) or []
+          matches = [item for item in existing if item.get("name") == domain]
+          if len(matches) > 1:
+              raise SystemExit("duplicate production Pages domain")
+          if not matches:
+              request(base, method="POST", body={"name": domain})
+          print("production_app_domain=attached")
+          PY
+      - name: Write redacted bootstrap receipt
+        env:
+          PRODUCTION_D1_ID: ${{ steps.d1.outputs.database_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          receipt = {
+              "release_ref": os.environ["GITHUB_REF_NAME"],
+              "source_sha": os.environ["GITHUB_SHA"],
+              "d1_name": os.environ["PRODUCTION_D1_NAME"],
+              "d1_id": os.environ["PRODUCTION_D1_ID"],
+              "pages_project": os.environ["PRODUCTION_PAGES_PROJECT"],
+              "pages_branch": os.environ["PRODUCTION_PAGES_BRANCH"],
+              "app_domain": os.environ["PRODUCTION_APP_DOMAIN"],
+              "checkout_mode": "closed",
+          }
+          with open("production-bootstrap-receipt.json", "w", encoding="utf-8") as handle:
+              json.dump(receipt, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-bootstrap-${{ github.sha }}
+          path: production-bootstrap-receipt.json
+          if-no-files-found: error
+          retention-days: 30

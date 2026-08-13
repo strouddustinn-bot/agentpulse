@@ -9,6 +9,7 @@
     "PUBLIC_BASE_URL": "http://localhost:8787",
     "APP_BASE_URL": "http://localhost:5174",
     "AGENTPULSE_VERSION": "0.1.0",
+    "CHECKOUT_MODE": "public",
     "STRIPE_PRICE_STARTER": "",
     "STRIPE_PRICE_PRO": "",
     "STRIPE_PRICE_BUSINESS": ""
@@ -39,6 +40,7 @@
         "PUBLIC_BASE_URL": "https://staging-api.agentpulse.ca",
         "APP_BASE_URL": "https://staging-app.agentpulse.ca",
         "AGENTPULSE_VERSION": "0.1.0",
+        "CHECKOUT_MODE": "public",
         "STRIPE_PRICE_STARTER": "price_1TxBlVDVV9guBKy9NrWd1x0Q",
         "STRIPE_PRICE_PRO": "price_1TxBo9DVV9guBKy9CkKp0mYf",
         "STRIPE_PRICE_BUSINESS": "price_1TxBpaDVV9guBKy95mWou8FS"
@@ -64,10 +66,12 @@
         "ENVIRONMENT": "production",
         "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
         "APP_BASE_URL": "https://app.agentpulse.ca",
-        "AGENTPULSE_VERSION": "0.1.0",
+        "AGENTPULSE_VERSION": "0.2.0b3",
+        "CHECKOUT_MODE": "closed",
         "STRIPE_PRICE_STARTER": "price_1U0ybfDVV9guBKy9ielFcEy0",
         "STRIPE_PRICE_PRO": "price_1U0ybsDVV9guBKy9R1U5LLw4",
-        "STRIPE_PRICE_BUSINESS": "price_1U0ybzDVV9guBKy9Au3LxIro"
+        "STRIPE_PRICE_BUSINESS": "price_1U0ybzDVV9guBKy9Au3LxIro",
+        "STRIPE_PORTAL_URL": "https://billing.stripe.com/p/login/6oU28rbSBgPS8Qa5CB7N600"
       },
       "d1_databases": [
         {
