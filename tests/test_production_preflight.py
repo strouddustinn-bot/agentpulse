@@ -98,7 +98,97 @@ class ProductionPreflightTests(unittest.TestCase):
         )
         self.assertIn("d1_disposable_restore=pass", text)
         self.assertIn("wrangler versions deploy", text)
+        self.assertIn("stripe_live_prices=verified", text)
         self.assertNotIn("echo \"$STRIPE", text)
+
+    def test_live_stripe_prices_require_exact_active_live_monthly_products(self) -> None:
+        production = self.valid_production_config()
+        config = self.write_config(production)
+        expected_amounts = {"STARTER": 2900, "PRO": 9900, "BUSINESS": 29900}
+        price_to_amount = {
+            production["vars"][f"STRIPE_PRICE_{tier}"]: amount
+            for tier, amount in expected_amounts.items()
+        }
+
+        def valid_fetcher(price_id: str, api_key: str):
+            self.assertEqual(api_key, "sk_live_fixture")
+            return {
+                "id": price_id,
+                "object": "price",
+                "active": True,
+                "livemode": True,
+                "currency": "cad",
+                "type": "recurring",
+                "unit_amount": price_to_amount[price_id],
+                "recurring": {"interval": "month", "interval_count": 1},
+                "product": {"object": "product", "active": True, "livemode": True},
+            }
+
+        self.assertEqual(
+            self.preflight.check_stripe_prices(
+                config, "sk_live_fixture", fetcher=valid_fetcher
+            ),
+            [],
+        )
+
+        def test_mode_fetcher(price_id: str, api_key: str):
+            payload = valid_fetcher(price_id, api_key)
+            payload["livemode"] = False
+            return payload
+
+        findings = self.preflight.check_stripe_prices(
+            config, "sk_live_fixture", fetcher=test_mode_fetcher
+        )
+        self.assertEqual(
+            {finding.code for finding in findings},
+            {
+                "stripe_starter_price_mismatch",
+                "stripe_pro_price_mismatch",
+                "stripe_business_price_mismatch",
+            },
+        )
+
+    def test_live_stripe_verification_fails_closed_for_missing_key_and_api_error(self) -> None:
+        config = self.write_config(self.valid_production_config())
+        self.assertEqual(
+            [finding.code for finding in self.preflight.check_stripe_prices(config, "")],
+            ["stripe_api_key_missing"],
+        )
+
+        findings = self.preflight.check_stripe_prices(
+            config,
+            "sk_live_fixture",
+            fetcher=lambda *_: (_ for _ in ()).throw(TimeoutError()),
+        )
+        self.assertEqual(
+            {finding.code for finding in findings},
+            {
+                "stripe_starter_price_unverified",
+                "stripe_pro_price_unverified",
+                "stripe_business_price_unverified",
+            },
+        )
+
+    def test_live_stripe_price_ids_must_be_unique(self) -> None:
+        production = self.valid_production_config()
+        production["vars"]["STRIPE_PRICE_PRO"] = production["vars"]["STRIPE_PRICE_STARTER"]
+        config = self.write_config(production)
+        findings = self.preflight.check_stripe_prices(
+            config,
+            "sk_live_fixture",
+            fetcher=lambda price_id, _api_key: {
+                "id": price_id,
+                "object": "price",
+                "active": True,
+                "livemode": True,
+                "currency": "cad",
+                "type": "recurring",
+                "unit_amount": 2900,
+                "recurring": {"interval": "month", "interval_count": 1},
+                "product": {"object": "product", "active": True, "livemode": True},
+            },
+        )
+        self.assertIn("stripe_price_ids_not_unique", {finding.code for finding in findings})
 
     def test_missing_failure_safe_recovery_upload_is_release_blocking(self) -> None:
         repository = self.root / "unsafe-recovery-workflow"

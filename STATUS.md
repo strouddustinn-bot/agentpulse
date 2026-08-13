@@ -47,7 +47,7 @@ Verified state on 2026-08-13 before the first controlled production deploy:
 | `https://staging-api.agentpulse.ca/health` | HTTP 200 |
 | `https://staging-app.agentpulse.ca/` | HTTP 200 real console shell (`AgentPulse Dashboard`, SPA root + assets); Owner Gate 4 DNS/TLS live |
 | `https://agentpulse.ca` | HTTP 200 from the canonical Pages deployment |
-| Production infrastructure | Gate 5 bootstrap passed: D1 `agentpulse-production`, Pages project `agentpulse-production-app`, production branch `production`, and protected `production` environment exist |
+| Production infrastructure | Gate 5 bootstrap passed: D1 `agentpulse-production`, Pages project `agentpulse-production-app`, production branch `production`, and protected `production` environment exist; the exact-tag deploy now fails closed unless DNS, secrets, and the three active live CAD monthly Stripe Prices match approved amounts |
 | `https://app.agentpulse.ca` | Pages custom-domain association is configured; public DNS/TLS must pass the live tag preflight before mutation |
 | `https://api.agentpulse.ca/health` | Worker custom-domain route is configured; no production Worker has been deployed yet |
 | Public multi-host checkout | Closed; Pro and Business are founding reservations until host-limit revalidation and controlled pilot path |

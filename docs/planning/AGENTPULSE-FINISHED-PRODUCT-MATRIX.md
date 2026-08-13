@@ -209,7 +209,7 @@ No inbound remote shell. No arbitrary command channel. No second API authority.
 | Master GitHub Pages | Pre-change deployment was green; candidate post-push deployment and live-content receipt pending |
 | Master GitHub Security | Pre-change master was green; candidate post-push run pending |
 | Staging API | `https://staging-api.agentpulse.ca/health` returned HTTP 200 with expected AgentPulse health JSON on 2026-07-20 |
-| Production infrastructure | Gate 5 bootstrap passed; production D1, Pages project/branch, custom-domain association, protected environment, and exact beta3 tag policy exist. Public DNS/TLS and deployed identity remain live-preflight gates |
+| Production infrastructure | Gate 5 bootstrap passed; production D1, Pages project/branch, custom-domain association, protected environment, and exact beta3 tag policy exist. Public DNS/TLS, required external secrets, and exact active live CAD monthly Stripe Prices are fail-closed preflight gates; deployed identity remains pending |
 
 
 ## Authoritative retain/migrate/archive decisions

@@ -164,7 +164,12 @@ jobs:
           name: production-dashboard-${{ github.sha }}
           path: dashboard/dist
       - name: Live fail-closed production preflight
-        run: python scripts/production-preflight.py --release-ref "$RELEASE_REF"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/production-preflight.py --release-ref "$RELEASE_REF" \
+            | tee "$RUNNER_TEMP/production-preflight.txt"
+          grep -Fx 'stripe_live_prices=verified' "$RUNNER_TEMP/production-preflight.txt"
       - name: Capture pre-mutation deployment state
         working-directory: control-plane
         shell: bash
@@ -361,6 +366,7 @@ jobs:
               "api_domain": "api.agentpulse.ca",
               "checkout_mode": "closed",
               "stripe_secrets": "external_and_present",
+              "stripe_live_prices": "verified",
               "smoke": "pass",
               "d1_disposable_restore": "pass",
               "rollback_rehearsal": "same_version_saved_artifacts_pass",
