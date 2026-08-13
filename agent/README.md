@@ -2,16 +2,18 @@
 
 The thin, dependency-free Python monitoring + remediation daemon.
 
-**Requirements:** Python 3.10+ for local verification. Linux/systemd and
-macOS/launchd are intended service targets. The repository now builds a real
+**Requirements:** Python 3.10+ for local verification. Linux/systemd,
+macOS/launchd, and the controlled Windows/WinSW candidate are service targets.
+The repository now builds a real
 `agentpulse` wheel with packaged service assets; public production installation
 remains gated on clean-host install/upgrade/rollback proof.
 
-The current Windows candidate covers wheel installation, package/module imports,
-platform-neutral CLI `--help`/config validation, and automatic hostname
-resolution without POSIX-only APIs. The durable spool and process-lock paths
-require POSIX `fcntl` and fail closed when it is unavailable; Windows monitoring,
-service control, remediation, and lifecycle installation are not yet supported.
+The current Windows candidate covers wheel installation, a checksum-pinned WinSW
+service host, install/start/stop/uninstall lifecycle, Windows service monitoring
+and restart, package/module imports, CLI/config validation, automatic hostname
+resolution, and portable state persistence. Windows disk cleanup, process
+monitoring, and the durable cloud spool remain disabled or fail closed; do not
+represent this candidate as full Windows feature parity.
 
 ---
 
@@ -77,6 +79,26 @@ includes:
 - the `agentpulse` Python package and console script
 - systemd unit and launchd plist assets
 - example config and license metadata
+
+### Controlled Windows service candidate
+
+Use the stable WinSW `v2.12.0` x64 binary from its official GitHub release. The
+installer rejects any wrapper whose SHA-256 is not
+`05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da`.
+Run these commands from an elevated PowerShell after installing the AgentPulse
+wheel and preparing a Windows-specific config:
+
+```powershell
+python -m agentpulse install-windows-service `
+  --winsw-bin C:\Downloads\WinSW-x64.exe `
+  --config C:\ProgramData\AgentPulse\config.json
+
+python -m agentpulse uninstall-windows-service --remove-files
+```
+
+The installer copies the verified wrapper beside a generated XML configuration,
+runs WinSW without a command shell, configures automatic delayed startup and
+bounded rolling logs, and rolls back its generated files if startup fails.
 
 Installers require an explicit release version and SHA-256 verification, and no
 longer fetch raw files from a branch. Clean-host install, upgrade, and rollback

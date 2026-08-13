@@ -56,6 +56,17 @@ def test_bad_mode(tmp_path):
         cfgmod.load(write(tmp_path, {"checks": {"disk": {"mode": "nuke"}}}))
 
 
+def test_service_names_reject_command_or_wildcard_syntax(tmp_path):
+    for service_name in ("Spooler; Stop-Computer", "*", "name with spaces"):
+        with pytest.raises(cfgmod.ConfigError):
+            cfgmod.load(
+                write(
+                    tmp_path,
+                    {"checks": {"service": {"services": [service_name]}}},
+                )
+            )
+
+
 def test_threshold_over_100(tmp_path):
     with pytest.raises(cfgmod.ConfigError):
         cfgmod.load(write(tmp_path, {"checks": {"disk": {"threshold_percent": 150}}}))

@@ -1,4 +1,4 @@
-from agentpulse import checks
+from agentpulse import checks, windows_service
 from agentpulse.config import DiskCheckConfig, ProcessCheckConfig, ServiceCheckConfig
 
 
@@ -70,7 +70,7 @@ def test_service_check_uses_systemctl_on_linux():
     assert out[0].breached is False
 
 
-def test_service_check_fails_closed_on_windows_without_running_commands():
+def test_service_check_uses_shell_free_powershell_on_windows():
     cfg = ServiceCheckConfig(services=["Spooler"])
     calls = []
     original_platform = checks.sys.platform
@@ -79,15 +79,29 @@ def test_service_check_fails_closed_on_windows_without_running_commands():
         checks.sys.platform = "win32"
         out = checks.check_services(
             cfg,
-            run_fn=lambda argv: calls.append(argv) or (0, "active"),
+            run_fn=lambda argv: calls.append(argv) or (0, "Running"),
         )
     finally:
         checks.sys.platform = original_platform
 
-    assert calls == []
+    assert calls == [windows_service.windows_service_command("Spooler", "query")]
+    assert out[0].breached is False
+    assert out[0].detail == "service Spooler is active"
+    assert out[0].metadata["state"] == "Running"
+
+
+def test_service_check_fails_closed_when_windows_query_fails():
+    cfg = ServiceCheckConfig(services=["MissingService"])
+    original_platform = checks.sys.platform
+
+    try:
+        checks.sys.platform = "win32"
+        out = checks.check_services(cfg, run_fn=lambda _argv: (1, "not found"))
+    finally:
+        checks.sys.platform = original_platform
+
     assert out[0].breached is True
-    assert out[0].detail == "service monitoring is not supported on Windows"
-    assert out[0].metadata["state"] == "unsupported"
+    assert out[0].metadata["state"] == "not found"
 
 
 def _make_fake_proc(tmp_path, mem_total_kb, procs):

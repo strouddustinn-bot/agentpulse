@@ -133,7 +133,7 @@ Each check has a `mode` field that controls how AgentPulse responds when a condi
 
 | Field | Type | Description |
 |---|---|---|
-| `services` | string[] | Service names to monitor. On Linux, use systemd unit names such as `nginx`; on macOS, use launchd labels such as `com.example.agent`. Only services explicitly listed here can be restarted. |
+| `services` | string[] | Service names to monitor. On Linux, use systemd unit names such as `nginx`; on macOS, use launchd labels such as `com.example.agent`; on Windows, use Service Control Manager names such as `Spooler`. Only services explicitly listed here can be restarted. |
 
 **Example: auto-restart nginx + redis on Linux**
 ```json

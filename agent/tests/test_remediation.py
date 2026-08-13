@@ -242,7 +242,7 @@ def test_service_restart_uses_systemctl_on_linux():
     assert calls == [["systemctl", "restart", "nginx"]]
 
 
-def test_service_restart_fails_closed_on_windows_without_running_commands():
+def test_service_restart_uses_shell_free_powershell_on_windows():
     calls = []
     original_platform = sys.platform
 
@@ -250,11 +250,29 @@ def test_service_restart_fails_closed_on_windows_without_running_commands():
         sys.platform = "win32"
         res = remediation.service_restart(
             _decision_service("Spooler"),
-            run_fn=lambda argv: calls.append(argv) or (0, ""),
+            run_fn=lambda argv: calls.append(argv) or (0, "Running"),
+        )
+    finally:
+        sys.platform = original_platform
+
+    assert res.performed is True
+    assert res.error is None
+    assert len(calls) == 1
+    assert calls[0][0] == "powershell.exe"
+    assert "Spooler" not in " ".join(calls[0])
+
+
+def test_service_restart_fails_closed_when_windows_restart_does_not_run():
+    original_platform = sys.platform
+
+    try:
+        sys.platform = "win32"
+        res = remediation.service_restart(
+            _decision_service("Spooler"),
+            run_fn=lambda _argv: (1, "Access denied"),
         )
     finally:
         sys.platform = original_platform
 
     assert res.performed is False
-    assert res.error == "service restart is not supported on Windows"
-    assert calls == []
+    assert res.error == "Windows service restart failed for Spooler: Access denied"

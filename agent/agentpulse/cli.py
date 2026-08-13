@@ -13,6 +13,7 @@ from . import __version__
 from . import config as config_mod
 from . import control_plane
 from . import launchd as launchd_installer
+from . import windows_service
 from .checkin import (
     CheckinDeliveryError,
     build_checkin_payload,
@@ -133,6 +134,65 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="show what would be installed without writing files or calling launchctl",
     )
+
+    pwin = sub.add_parser(
+        "install-windows-service",
+        help="install AgentPulse as a checksum-verified WinSW service",
+    )
+    pwin.add_argument("--winsw-bin", required=True, help="path to WinSW-x64.exe")
+    pwin.add_argument(
+        "--winsw-sha256",
+        default=windows_service.WINSW_X64_SHA256,
+        help=f"expected WinSW SHA-256 (defaults to pinned v{windows_service.WINSW_VERSION})",
+    )
+    pwin.add_argument(
+        "--service-id",
+        default=windows_service.DEFAULT_SERVICE_ID,
+        help="alphanumeric Windows service ID",
+    )
+    pwin.add_argument(
+        "--display-name",
+        default=windows_service.DEFAULT_DISPLAY_NAME,
+        help="Windows Services display name",
+    )
+    pwin.add_argument(
+        "--agent-bin",
+        default=None,
+        help="path to agentpulse.exe (defaults to PATH lookup)",
+    )
+    pwin.add_argument("--config", required=True, help="absolute AgentPulse config path")
+    pwin.add_argument(
+        "--install-dir",
+        default=None,
+        help=r"service wrapper directory (defaults to %ProgramData%\AgentPulse\service)",
+    )
+    pwin.add_argument(
+        "--log-dir",
+        default=None,
+        help=r"service log directory (defaults to %ProgramData%\AgentPulse\logs)",
+    )
+    pwin.add_argument("--dry-run", action="store_true")
+
+    puwin = sub.add_parser(
+        "uninstall-windows-service",
+        help="stop and uninstall the AgentPulse WinSW service",
+    )
+    puwin.add_argument(
+        "--service-id",
+        default=windows_service.DEFAULT_SERVICE_ID,
+        help="alphanumeric Windows service ID",
+    )
+    puwin.add_argument(
+        "--install-dir",
+        default=None,
+        help=r"service wrapper directory (defaults to %ProgramData%\AgentPulse\service)",
+    )
+    puwin.add_argument(
+        "--remove-files",
+        action="store_true",
+        help="remove only the generated wrapper executable and XML after uninstall",
+    )
+    puwin.add_argument("--dry-run", action="store_true")
 
     return p
 
@@ -299,6 +359,51 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(f"  plist:  {result.plist_path}")
         if result.dry_run:
             for step in result.steps:
+                print(f"  - {step}")
+        return 0
+
+    if args.command == "install-windows-service":
+        try:
+            result = windows_service.install_windows_service(
+                winsw_bin=args.winsw_bin,
+                winsw_sha256=args.winsw_sha256,
+                service_id=args.service_id,
+                display_name=args.display_name,
+                agent_bin=args.agent_bin,
+                config_path=args.config,
+                install_dir=args.install_dir,
+                log_dir=args.log_dir,
+                dry_run=args.dry_run,
+            )
+        except windows_service.WindowsServiceError as exc:
+            print(f"INSTALL-WINDOWS-SERVICE FAILED: {exc}", file=sys.stderr)
+            return 2
+        prefix = "would install" if result.dry_run else "installed"
+        print(f"AgentPulse Windows service {prefix}: {result.service_id}")
+        print(f"  binary: {result.agent_bin}")
+        print(f"  config: {result.config_path}")
+        print(f"  wrapper: {result.wrapper_path}")
+        print(f"  logs:    {result.log_dir}")
+        if result.dry_run:
+            for step in result.steps:
+                print(f"  - {step}")
+        return 0
+
+    if args.command == "uninstall-windows-service":
+        try:
+            steps = windows_service.uninstall_windows_service(
+                service_id=args.service_id,
+                install_dir=args.install_dir,
+                remove_files=args.remove_files,
+                dry_run=args.dry_run,
+            )
+        except windows_service.WindowsServiceError as exc:
+            print(f"UNINSTALL-WINDOWS-SERVICE FAILED: {exc}", file=sys.stderr)
+            return 2
+        prefix = "would uninstall" if args.dry_run else "uninstalled"
+        print(f"AgentPulse Windows service {prefix}: {args.service_id}")
+        if args.dry_run:
+            for step in steps:
                 print(f"  - {step}")
         return 0
 

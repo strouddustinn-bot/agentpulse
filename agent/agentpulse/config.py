@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 VALID_MODES = ("off", "alert", "ask", "auto")
+_SERVICE_NAME_RE = re.compile(r"^[A-Za-z0-9_.@-]+$")
 
 
 class ConfigError(ValueError):
@@ -265,9 +267,16 @@ def from_dict(data: Dict[str, Any]) -> Config:
 
     if "service" in checks:
         s = checks["service"]
+        services = _str_list("checks.service.services", s.get("services", []))
+        invalid_services = [name for name in services if not _SERVICE_NAME_RE.fullmatch(name)]
+        if invalid_services:
+            raise ConfigError(
+                "checks.service.services contains an invalid service name: "
+                f"{invalid_services[0]!r}"
+            )
         cfg.service = ServiceCheckConfig(
             mode=_check_mode("checks.service", s.get("mode", "ask")),
-            services=_str_list("checks.service.services", s.get("services", [])),
+            services=services,
         )
 
     if "process" in checks:

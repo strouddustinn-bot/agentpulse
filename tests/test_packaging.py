@@ -86,6 +86,7 @@ class PackagingTests(unittest.TestCase):
         package_files = [n for n in self.names if n.startswith("agentpulse/") and n.endswith(".py")]
         self.assertIn("agentpulse/__init__.py", self.names)
         self.assertIn("agentpulse/cli.py", self.names)
+        self.assertIn("agentpulse/windows_service.py", self.names)
         self.assertGreaterEqual(len(package_files), 10)
 
     def test_wheel_contains_systemd_unit(self) -> None:
@@ -159,6 +160,7 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(help_proc.returncode, 0, help_proc.stderr)
         self.assertIn("validate", help_proc.stdout)
         self.assertIn("run-once", help_proc.stdout)
+        self.assertIn("install-windows-service", help_proc.stdout)
 
         version_proc = _run([str(agentpulse), "--version"])
         self.assertEqual(version_proc.returncode, 0, version_proc.stderr)
@@ -193,6 +195,10 @@ class PackagingTests(unittest.TestCase):
         mod_ver = _run([str(python), "-c", "import agentpulse; print(agentpulse.__version__)"])
         self.assertEqual(mod_ver.returncode, 0, mod_ver.stderr)
         self.assertRegex(mod_ver.stdout.strip(), r"^\d+\.\d+\.\d+(?:[a-zA-Z]+\d+(?:\.\d+)*)?$")
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        declared = re.search(r'(?m)^version = "([^"]+)"$', pyproject)
+        self.assertIsNotNone(declared)
+        self.assertEqual(mod_ver.stdout.strip(), declared.group(1))
 
     def test_dev_bootstrap_uses_ci_linter_version(self) -> None:
         expected = "ruff==0.4.10"
@@ -230,6 +236,17 @@ class PackagingTests(unittest.TestCase):
             '        run: python -c "from agentpulse.config import Config; assert Config().resolved_hostname()"',
             windows_job,
         )
+        self.assertIn(
+            "https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW-x64.exe",
+            windows_job,
+        )
+        self.assertIn(
+            "05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da",
+            windows_job,
+        )
+        self.assertIn("Install and exercise real Windows service lifecycle", windows_job)
+        self.assertIn("if: always()", windows_job)
+        self.assertIn("uninstall-windows-service", windows_job)
 
     def test_dashboard_staging_script_targets_declared_playwright_project(self) -> None:
         package = json.loads((ROOT / "dashboard" / "package.json").read_text(encoding="utf-8"))

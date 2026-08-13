@@ -12,9 +12,15 @@ title: Install AgentPulse
 > remains closed while checkout, account claim, secure sessions, billing, and
 > enforced plan capacity are completed and proven.
 
-AgentPulse is intended to run as a systemd service on Linux or a launchd daemon
-on macOS. Its safe default is **alert-only** mode: it watches and changes
-nothing until an operator promotes a bounded action.
+AgentPulse is intended to run as a systemd service on Linux, a launchd daemon
+on macOS, or—during the controlled Windows candidate—a checksum-pinned WinSW
+service. Its safe default is **alert-only** mode: it watches and changes nothing
+until an operator promotes a bounded action.
+
+The Windows candidate is not feature-equivalent to Linux/macOS yet. Service
+installation, service observation/restart, and local state persistence are in
+scope. Windows disk cleanup, process monitoring, and durable cloud spooling stay
+disabled or fail closed until their own safety and recovery gates pass.
 
 ## Current developer verification
 
