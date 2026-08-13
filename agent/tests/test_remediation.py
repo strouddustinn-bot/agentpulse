@@ -242,7 +242,7 @@ def test_service_restart_uses_systemctl_on_linux():
     assert calls == [["systemctl", "restart", "nginx"]]
 
 
-def test_service_restart_fails_closed_on_windows_without_running_commands():
+def test_service_cleanup_fails_closed_on_windows_without_touching_files():
     calls = []
     original_platform = sys.platform
 

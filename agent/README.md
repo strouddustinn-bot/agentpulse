@@ -11,7 +11,7 @@ The current Windows candidate covers wheel installation, package/module imports,
 platform-neutral CLI `--help`/config validation, and automatic hostname
 resolution without POSIX-only APIs. The durable spool and process-lock paths
 require POSIX `fcntl` and fail closed when it is unavailable; Windows monitoring,
-service control, remediation, and lifecycle installation are not yet supported.
+Windows monitoring, service control, remediation, and lifecycle installation are currently in development, with plans to support these features in the near future.
 
 ---
 
