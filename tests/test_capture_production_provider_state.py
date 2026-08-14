@@ -66,25 +66,34 @@ class ProviderStateTests(unittest.TestCase):
             },
         )
 
-    def test_either_existing_provider_deployment_disables_bootstrap(self) -> None:
-        cases = (
-            (
+    def test_partial_worker_upload_keeps_bootstrap_recovery_open(self) -> None:
+        state = self.capture.capture_state(
+            "account",
+            "token",
+            "agentpulse-control-plane-production",
+            "agentpulse-production-app",
+            requester=self.requester(
                 [{"id": "agentpulse-control-plane-production"}],
                 [],
             ),
-            (
-                [],
-                [
-                    {
-                        "id": "deployment-id",
-                        "project_name": "agentpulse-production-app",
-                        "environment": "production",
-                    }
-                ],
-            ),
         )
-        for workers, deployments in cases:
-            with self.subTest(workers=workers, deployments=deployments):
+        self.assertTrue(state["worker_present"])
+        self.assertFalse(state["production_pages_deployment_present"])
+        self.assertTrue(state["bootstrap_allowed"])
+
+    def test_existing_production_pages_deployment_disables_bootstrap(self) -> None:
+        deployments = [
+            {
+                "id": "deployment-id",
+                "project_name": "agentpulse-production-app",
+                "environment": "production",
+            }
+        ]
+        for workers in (
+            [],
+            [{"id": "agentpulse-control-plane-production"}],
+        ):
+            with self.subTest(workers=workers):
                 state = self.capture.capture_state(
                     "account",
                     "token",

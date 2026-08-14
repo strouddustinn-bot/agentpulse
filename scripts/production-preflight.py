@@ -1046,7 +1046,7 @@ def check_dns(
 
 
 def check_bootstrap_provider_state(path: Path | None) -> tuple[bool, list[Finding]]:
-    """Validate provider evidence and return whether first-deploy DNS may defer."""
+    """Validate evidence and return whether incomplete-bootstrap DNS may defer."""
     if path is None:
         return False, []
     try:
@@ -1075,10 +1075,10 @@ def check_bootstrap_provider_state(path: Path | None) -> tuple[bool, list[Findin
                 "bootstrap provider evidence has an unexpected schema or resource identity",
             )
         ]
-    computed_allowed = (
-        payload["worker_present"] is False
-        and payload["production_pages_deployment_present"] is False
-    )
+    # The Worker is deployed before Pages. A failed route attachment may leave
+    # the script present without completing the first production deployment.
+    # A production Pages deployment is the durable bootstrap-complete marker.
+    computed_allowed = payload["production_pages_deployment_present"] is False
     if payload["bootstrap_allowed"] is not computed_allowed:
         return False, [
             Finding(
@@ -1094,7 +1094,7 @@ def apply_bootstrap_dns_policy(
     *,
     bootstrap_allowed: bool,
 ) -> tuple[list[Finding], bool]:
-    """Defer only unresolved DNS backed by empty first-deploy provider state."""
+    """Defer only unresolved DNS while production bootstrap is incomplete."""
     findings = list(dns_findings)
     if (
         bootstrap_allowed

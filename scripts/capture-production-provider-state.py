@@ -149,7 +149,13 @@ def capture_state(
         ):
             raise CaptureError("Pages list contained an unrelated or malformed deployment")
     pages_production_deployment_present = bool(deployments)
-    bootstrap_allowed = not worker_present and not pages_production_deployment_present
+    # The production workflow deploys the Worker before Pages. A failed route
+    # attachment can therefore leave the Worker script present even though the
+    # first production deployment never reached the console or smoke gates.
+    # The first successful production Pages deployment is the durable marker
+    # that the bootstrap sequence completed and DNS must be enforced on every
+    # later deployment.
+    bootstrap_allowed = not pages_production_deployment_present
     return {
         "schema_version": 1,
         "worker_name": worker_name,

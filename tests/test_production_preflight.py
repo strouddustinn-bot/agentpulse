@@ -88,7 +88,7 @@ class ProductionPreflightTests(unittest.TestCase):
 
     def test_controlled_pilot_workflow_is_exact_tag_protected_and_fail_closed(self) -> None:
         text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("- 'v0.2.0-beta.4'", text)
+        self.assertIn("- 'v0.2.0-beta.5'", text)
         self.assertNotIn("workflow_dispatch:", text)
         self.assertIn("environment: production", text)
         self.assertIn("permissions:\n  contents: read", text)
@@ -891,6 +891,15 @@ jobs:
         allowed, findings = self.preflight.check_bootstrap_provider_state(
             self.write_provider_state(
                 worker_present=True,
+                bootstrap_allowed=True,
+            )
+        )
+        self.assertTrue(allowed)
+        self.assertEqual(findings, [])
+
+        allowed, findings = self.preflight.check_bootstrap_provider_state(
+            self.write_provider_state(
+                production_pages_deployment_present=True,
                 bootstrap_allowed=False,
             )
         )
@@ -923,7 +932,7 @@ jobs:
                     ["production_provider_state_invalid"],
                 )
 
-    def test_dns_cannot_be_deferred_after_any_prior_deployment(self) -> None:
+    def test_dns_cannot_be_deferred_after_completed_production_bootstrap(self) -> None:
         unresolved = [
             self.preflight.Finding(
                 "dns_api_agentpulse_ca_unresolved",

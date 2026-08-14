@@ -14,7 +14,7 @@ The preflight aggregates blockers instead of stopping at the first one:
 2. The requested release reference is immutable and resolves to the exact checked-out commit: a version tag such as `v0.3.0` or a full 40-character commit SHA. Branch names, short SHAs, nonexistent refs, and refs to another local commit fail.
 3. GitHub has a `production` environment with at least one named required reviewer and a custom deployment policy allowlisting the exact immutable release tag. Empty/mutable policies fail; protected-branch mode alone does not prove that a full-SHA deployment event is admitted and therefore fails closed.
 4. All configured Stripe Prices are retrieved read-only from the authenticated live account and match active live Products, CAD monthly recurrence, and exact approved amounts. Authentication, permission, missing object, rate-limit, and availability failures remain distinct blockers without logging Stripe response bodies.
-5. `app.agentpulse.ca` and `api.agentpulse.ca` resolve through a public DNS-over-HTTPS resolver to globally routable IP addresses. The protected first deployment may defer unresolved DNS only when `capture-production-provider-state.py` proves both the exact Worker and all production Pages deployments are absent. Any previous deployment makes DNS mandatory.
+5. `app.agentpulse.ca` and `api.agentpulse.ca` resolve through a public DNS-over-HTTPS resolver to globally routable IP addresses. The protected bootstrap may defer unresolved DNS only while `capture-production-provider-state.py` proves that the production Pages project has no production deployment. The workflow uploads the Worker before Pages, so a Worker left by a failed route attachment remains an incomplete-bootstrap recovery state. After the first production Pages deployment, every later deployment requires DNS to resolve.
 6. The release workflow remains immutable-tag and artifact-only, contains the Phase 5A verifier suite, and rejects production mutation markers before Owner Gate 5. The Phase 5A runbooks retain the migration, rollback, and smoke sequence for the separately reviewed production workflow that may be added only after the gate.
 
 This first checkpoint does not yet prove that structurally valid resource IDs exist in Cloudflare/Stripe, migrations have executed, secret-name compatibility is complete, TLS/application health is proven, immutable Worker/Pages identity is live, smoke tests/rollback/D1 export are executed, or observability is operational. Those remain later Phase 5A/5B checks.
@@ -69,7 +69,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest \
   -v
 ```
 
-The suites cover provider/API/schema failures, first-deploy-only authorization, later-deploy DNS enforcement, malformed configuration, immutable-reference binding, GitHub environment controls, Stripe failure categories, unresolved/non-public DNS, and bounded full-gate smoke retries.
+The suites cover provider/API/schema failures, incomplete-bootstrap recovery after a partial Worker upload, post-Pages DNS enforcement, malformed configuration, immutable-reference binding, GitHub environment controls, Stripe failure categories, unresolved/non-public DNS, and bounded full-gate smoke retries.
 
 ## Resume sequence
 
