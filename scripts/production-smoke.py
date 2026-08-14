@@ -13,6 +13,7 @@ import json
 import re
 import ssl
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -590,7 +591,47 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--app-url", default=DEFAULT_APP_URL, help="production console HTTPS origin")
     parser.add_argument("--api-url", default=DEFAULT_API_URL, help="production API HTTPS origin")
     parser.add_argument("--timeout", type=float, default=20.0, help="per-request timeout in seconds (default: 20)")
+    parser.add_argument(
+        "--attempts",
+        type=int,
+        default=1,
+        help="bounded complete smoke attempts (default: 1, maximum: 30)",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=10.0,
+        help="seconds between attempts (default: 10, maximum: 60)",
+    )
     return parser.parse_args(argv)
+
+
+def run_smoke_with_retries(
+    *,
+    app_base_url: str,
+    api_base_url: str,
+    expected_version: str,
+    expected_source_sha: str,
+    requester: Requester,
+    attempts: int,
+    retry_delay: float,
+    sleeper: Callable[[float], None] = time.sleep,
+) -> tuple[list[Check], int]:
+    """Retry the complete gate; never convert a partial pass into success."""
+    final_checks: list[Check] = []
+    for attempt in range(1, attempts + 1):
+        final_checks = run_smoke(
+            app_base_url=app_base_url,
+            api_base_url=api_base_url,
+            expected_version=expected_version,
+            expected_source_sha=expected_source_sha,
+            requester=requester,
+        )
+        if final_checks and all(check.passed for check in final_checks):
+            return final_checks, attempt
+        if attempt < attempts:
+            sleeper(retry_delay)
+    return final_checks, attempts
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -599,15 +640,26 @@ def main(argv: list[str] | None = None) -> int:
         print("PRODUCTION_SMOKE=BLOCKED")
         print("[BLOCK] input_invalid: timeout must be greater than 0 and at most 60 seconds")
         return 1
-    checks = run_smoke(
+    if not (1 <= args.attempts <= 30):
+        print("PRODUCTION_SMOKE=BLOCKED")
+        print("[BLOCK] input_invalid: attempts must be between 1 and 30")
+        return 1
+    if not (0 <= args.retry_delay <= 60):
+        print("PRODUCTION_SMOKE=BLOCKED")
+        print("[BLOCK] input_invalid: retry delay must be between 0 and 60 seconds")
+        return 1
+    checks, attempts_used = run_smoke_with_retries(
         app_base_url=args.app_url,
         api_base_url=args.api_url,
         expected_version=args.expected_version,
         expected_source_sha=args.expected_source_sha,
         requester=_request_with_urllib(args.timeout),
+        attempts=args.attempts,
+        retry_delay=args.retry_delay,
     )
     passed = bool(checks) and all(check.passed for check in checks)
     print(f"PRODUCTION_SMOKE={'PASS' if passed else 'BLOCKED'}")
+    print(f"ATTEMPTS_USED={attempts_used}")
     for check in checks:
         label = "PASS" if check.passed else "BLOCK"
         print(f"[{label}] {check.code}: {check.detail}")

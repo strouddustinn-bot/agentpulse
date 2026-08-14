@@ -66,7 +66,7 @@
         "ENVIRONMENT": "production",
         "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
         "APP_BASE_URL": "https://app.agentpulse.ca",
-        "AGENTPULSE_VERSION": "0.2.0b3",
+        "AGENTPULSE_VERSION": "0.2.0b4",
         "CHECKOUT_MODE": "closed",
         "STRIPE_PRICE_STARTER": "price_1U0ybfDVV9guBKy9ielFcEy0",
         "STRIPE_PRICE_PRO": "price_1U0ybsDVV9guBKy9R1U5LLw4",

@@ -13,8 +13,9 @@ The preflight aggregates blockers instead of stopping at the first one:
 1. `control-plane/wrangler.jsonc` has a production Worker name, a structurally valid non-placeholder D1 UUID, canonical HTTPS API/app URLs, explicit version, all three plausible non-placeholder external Price IDs, and the `api.agentpulse.ca` custom domain.
 2. The requested release reference is immutable and resolves to the exact checked-out commit: a version tag such as `v0.3.0` or a full 40-character commit SHA. Branch names, short SHAs, nonexistent refs, and refs to another local commit fail.
 3. GitHub has a `production` environment with at least one named required reviewer and a custom deployment policy allowlisting the exact immutable release tag. Empty/mutable policies fail; protected-branch mode alone does not prove that a full-SHA deployment event is admitted and therefore fails closed.
-4. `app.agentpulse.ca` and `api.agentpulse.ca` resolve through a public DNS-over-HTTPS resolver to globally routable IP addresses.
-5. The release workflow remains immutable-tag and artifact-only, contains the Phase 5A verifier suite, and rejects production mutation markers before Owner Gate 5. The Phase 5A runbooks retain the migration, rollback, and smoke sequence for the separately reviewed production workflow that may be added only after the gate.
+4. All configured Stripe Prices are retrieved read-only from the authenticated live account and match active live Products, CAD monthly recurrence, and exact approved amounts. Authentication, permission, missing object, rate-limit, and availability failures remain distinct blockers without logging Stripe response bodies.
+5. `app.agentpulse.ca` and `api.agentpulse.ca` resolve through a public DNS-over-HTTPS resolver to globally routable IP addresses. The protected first deployment may defer unresolved DNS only when `capture-production-provider-state.py` proves both the exact Worker and all production Pages deployments are absent. Any previous deployment makes DNS mandatory.
+6. The release workflow remains immutable-tag and artifact-only, contains the Phase 5A verifier suite, and rejects production mutation markers before Owner Gate 5. The Phase 5A runbooks retain the migration, rollback, and smoke sequence for the separately reviewed production workflow that may be added only after the gate.
 
 This first checkpoint does not yet prove that structurally valid resource IDs exist in Cloudflare/Stripe, migrations have executed, secret-name compatibility is complete, TLS/application health is proven, immutable Worker/Pages identity is live, smoke tests/rollback/D1 export are executed, or observability is operational. Those remain later Phase 5A/5B checks.
 
@@ -51,6 +52,8 @@ Passing example:
 ```text
 PRODUCTION_PREFLIGHT=PASS
 LIVE_CHECKS=CHECKED
+stripe_live_prices=verified
+dns_predeploy=verified
 No deployment, migration, DNS, billing, or secret mutation was performed.
 ```
 
@@ -59,10 +62,14 @@ Do not suppress, downgrade, or convert blocker findings to warnings in a deploym
 ## Tests
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest tests.test_production_preflight -v
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest \
+  tests.test_capture_production_provider_state \
+  tests.test_production_preflight \
+  tests.test_production_smoke \
+  -v
 ```
 
-The suite covers the current placeholder production configuration, a complete synthetic configuration, shaped fake resource IDs, malformed JSONC structures, immutable-reference shape/existence/current-checkout binding, missing/malformed GitHub environments, timed-out provider checks, named reviewers, exact-tag custom policies, unresolved DNS, and non-public addresses.
+The suites cover provider/API/schema failures, first-deploy-only authorization, later-deploy DNS enforcement, malformed configuration, immutable-reference binding, GitHub environment controls, Stripe failure categories, unresolved/non-public DNS, and bounded full-gate smoke retries.
 
 ## Resume sequence
 

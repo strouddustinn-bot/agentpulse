@@ -1,6 +1,6 @@
 # AgentPulse Status
 
-**Status date:** 2026-08-13
+**Status date:** 2026-08-14
 **Canonical GitHub branch:** `master`
 
 ## Consolidated product
@@ -27,12 +27,12 @@ Historical source retention is governed by `ARCHIVES.md`. Confidential operation
 | Agent packaging | PASS | Exact-commit GitHub packaging matrix passed on Python 3.10–3.13; Windows package/CLI/service lifecycle passed on Windows Server 2025 |
 | Worker control plane | PASS | `npm --prefix control-plane test`: 81 tests passed across fleet/agent routes, checkout, claim, browser session/CSRF, portal, full Stripe event set, grace entitlement, webhook fencing, staging harness, Stripe-mode fail-closed behavior, and unknown-price denial |
 | Cloudflare staging control plane | PASS (staging lifecycle) | Health live; migrations `0001`–`0003` applied; Worker `f319e12d-e776-4b90-94b2-1e0c57ce5649` from `7aee6b5` (Basil period/invoice fix) with canonical `APP_BASE_URL`; disposable callback torn down after proof |
-| Worker dependency audit | PASS | PostCSS fixed at 8.5.23 through a narrow override; fresh audit reports zero vulnerabilities |
+| Worker dependency audit | PASS | PostCSS fixed at 8.5.23 and Nano ID forced to patched 3.3.18 through narrow overrides; fresh audit reports zero vulnerabilities |
 | Shared contracts | PASS | OpenAPI 3.1 meta-schema, enforced cookie-session/CSRF shape, operation-bound response fixtures with URI checks; billing/session routes labeled `implemented` after Phase 3B |
 | React dashboard | PASS | 19 browser-auth/account/API tests plus TypeScript and Vite production build; Account page (enrollment token + billing portal), RequireSession gate, cookie+CSRF mutations; Phase 4B mocked Playwright E2E scaffolded (`npm run test:e2e`) |
 | Dashboard dependency audit | PASS | React Router 8.3.0 and PostCSS 8.5.23; fresh audit reports zero vulnerabilities |
 | Repository hardening | PASS | shell syntax, workflow YAML, credential patterns, tracked dependencies, and retired paths |
-| Production readiness controls | PASS (source) | 65 production verifier tests; failure-path CI proves a recovery export remains preservable after a downstream failure |
+| Production readiness controls | PASS (beta 4 source) | 78 production/readiness tests cover provider-state capture, first-deploy-only DNS deferral, later-deploy enforcement, Stripe diagnostics, bounded smoke retries, recovery export preservation, packaging, and rollback controls |
 | Secret scanning | PASS on release path design | Release, Security, and production-deploy workflows use the same pinned TruffleHog 3.95.9 verified-finding policy and documented Lob-detector exclusion |
 
 These are verification receipts for the referenced source state, not a claim
@@ -40,16 +40,16 @@ that the public production service is launched.
 
 ## Deployment reality
 
-Verified state on 2026-08-13 before the first controlled production deploy:
+Verified state on 2026-08-14 after the failed-closed beta 3 attempts and before beta 4 deployment:
 
 | Surface | Result |
 |---|---|
 | `https://staging-api.agentpulse.ca/health` | HTTP 200 |
 | `https://staging-app.agentpulse.ca/` | HTTP 200 real console shell (`AgentPulse Dashboard`, SPA root + assets); Owner Gate 4 DNS/TLS live |
 | `https://agentpulse.ca` | HTTP 200 from the canonical Pages deployment |
-| Production infrastructure | Gate 5 bootstrap passed: D1 `agentpulse-production`, Pages project `agentpulse-production-app`, production branch `production`, and protected `production` environment exist; the exact-tag deploy now fails closed unless DNS, secrets, and the three active live CAD monthly Stripe Prices match approved amounts |
-| `https://app.agentpulse.ca` | Pages custom-domain association is configured; public DNS/TLS must pass the live tag preflight before mutation |
-| `https://api.agentpulse.ca/health` | Worker custom-domain route is configured; no production Worker has been deployed yet |
+| Production infrastructure | Gate 5 bootstrap passed: D1 `agentpulse-production`, Pages project `agentpulse-production-app`, production branch `production`, and protected `production` environment exist. Beta 3 stopped before mutation: the first attempt exposed a missing protected secret; the second exposed unresolved first-deploy domains and Stripe Price lookup failures. |
+| `https://app.agentpulse.ca` | Pages custom-domain association is configured but public DNS was unresolved at the beta 3 preflight |
+| `https://api.agentpulse.ca/health` | Worker custom-domain route is declared; no production Worker has been deployed yet, so the first-deploy domain cannot be required before the deploy that creates it |
 | Public multi-host checkout | Closed; Pro and Business are founding reservations until host-limit revalidation and controlled pilot path |
 
 The repository is a verified controlled-pilot candidate with provisioned
@@ -118,10 +118,10 @@ heartbeat→fleet is now proven with redacted receipts.
 Remaining gates:
 
 - Synthetic Stripe **test-mode** subscription cleanup is reconciled: a read-only staging D1 aggregate on 2026-08-01 returned 7 `canceled` Starter subscriptions and no active rows; no D1 rows were edited.
-- Gate 5 bootstrap completed successfully from immutable tag `gate5-infra-20260813`; the production D1 UUID, Pages project/branch, custom-domain association, protected environment, and exact `v0.2.0-beta.3` tag policy are configured.
-- The Phase 5A candidate includes a read-only preflight, exact dashboard artifact, post-deploy smoke verifier, failure-safe recovery upload, disposable-D1 restore drill, saved-version Worker/console recovery rehearsal, runbooks, tests, and dedicated CI. Its dedicated suites pass 65/65, and CI separately simulates a downstream failure after export.
+- Gate 5 bootstrap completed successfully from immutable tag `gate5-infra-20260813`; the production D1 UUID, Pages project/branch, custom-domain association, protected environment, and beta 3 tag policy are configured. The environment must allowlist beta 4 before that immutable tag can deploy.
+- The beta 4 Phase 5A candidate includes read-only Cloudflare provider-state capture, a first-deploy-only unresolved-DNS exception, exact dashboard artifact, bounded post-deploy smoke, failure-safe recovery upload, disposable-D1 restore drill, saved-version Worker/console recovery rehearsal, safe Stripe diagnostics, runbooks, tests, and dedicated CI. The combined production/readiness suites pass 78/78 locally; exact-commit CI remains required.
 - `.github/workflows/production-deploy.yml` is the only authorized production mutation path. It is exact-tag-only, reviewer-protected, binds tag/package/source identity, runs the complete agent/contracts/package/Worker/dashboard/security verification set, preserves the D1 export even after a downstream failure, and keeps checkout closed.
-- The remote `v0.2.0-beta.3` tag and its first production deployment do not yet exist. Live DNS/TLS, external-secret presence, Stripe Price identity, D1 restore, deploy, recovery rehearsal, and smoke receipts remain tag-run gates rather than completed evidence.
+- Remote `v0.2.0-beta.3` exists at `cd9fb9af9a170bced7ba212a6e8a045504eca545`; two protected attempts stopped before any Cloudflare, D1, or Stripe mutation. Beta 4 still requires merge-SHA CI, exact environment allowlisting, immutable tagging, live Stripe Price verification, deployment, DNS/TLS identity smoke, D1 restore, and recovery-rehearsal receipts.
 - operational alerting and executable data-retention/deletion evidence remain after the controlled deployment proof;
 - controlled pilot customers only until public multi-host checkout opens;
 - return OAuth/password login remains deferred.

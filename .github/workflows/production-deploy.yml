@@ -3,7 +3,7 @@ name: Controlled Pilot Production Deploy
 on:
   push:
     tags:
-      - 'v0.2.0-beta.3'
+      - 'v0.2.0-beta.4'
 
 permissions:
   contents: read
@@ -38,11 +38,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$GITHUB_REF_NAME" = v0.2.0-beta.3
+          test "$GITHUB_REF_NAME" = v0.2.0-beta.4
           test "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
           PACKAGE_VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
-          test "$PACKAGE_VERSION" = 0.2.0b3
+          test "$PACKAGE_VERSION" = 0.2.0b4
           echo "release_ref=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           echo "source_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
@@ -67,6 +67,7 @@ jobs:
           python -m unittest tests.test_packaging -v
           python -m unittest \
             tests.test_ensure_pages_project \
+            tests.test_capture_production_provider_state \
             tests.test_production_preflight \
             tests.test_prepare_production_dashboard \
             tests.test_production_smoke \
@@ -90,7 +91,7 @@ jobs:
           npm --prefix dashboard run build
           python scripts/prepare-production-dashboard.py \
             --dist dashboard/dist \
-            --version 0.2.0b3 \
+            --version 0.2.0b4 \
             --source-sha "$GITHUB_SHA"
       - name: Verify repository hardening invariants
         run: |
@@ -111,7 +112,7 @@ jobs:
   deploy-production:
     name: Deploy controlled pilot
     needs: verify-release
-    if: ${{ github.ref == 'refs/tags/v0.2.0-beta.3' }}
+    if: ${{ github.ref == 'refs/tags/v0.2.0-beta.4' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: production
@@ -136,10 +137,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$RELEASE_REF" = v0.2.0-beta.3
+          test "$RELEASE_REF" = v0.2.0-beta.4
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse "${RELEASE_REF}^{commit}")" = "$SOURCE_SHA"
-          test "$PACKAGE_VERSION" = 0.2.0b3
+          test "$PACKAGE_VERSION" = 0.2.0b4
           test -z "$(git status --porcelain)"
           test -n "${CLOUDFLARE_API_TOKEN:-}"
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
@@ -163,25 +164,57 @@ jobs:
         with:
           name: production-dashboard-${{ github.sha }}
           path: dashboard/dist
-      - name: Live fail-closed production preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/production-preflight.py --release-ref "$RELEASE_REF" \
-            | tee "$RUNNER_TEMP/production-preflight.txt"
-          grep -Fx 'stripe_live_prices=verified' "$RUNNER_TEMP/production-preflight.txt"
       - name: Capture pre-mutation deployment state
+        id: provider_state
         working-directory: control-plane
         shell: bash
         run: |
           set -euo pipefail
           npm exec --no -- wrangler d1 migrations list DB --env production --remote > "$RUNNER_TEMP/migrations-before.txt"
-          if ! npm exec --no -- wrangler deployments status --env production --json > "$RUNNER_TEMP/worker-before.json"; then
+          cd ..
+          python scripts/capture-production-provider-state.py \
+            --worker-name agentpulse-control-plane-production \
+            --pages-project "$PRODUCTION_PAGES_PROJECT" \
+            --output "$RUNNER_TEMP/provider-state.json"
+          readarray -t PROVIDER_FLAGS < <(python3 - "$RUNNER_TEMP/provider-state.json" <<'PY'
+          import json, sys
+          state = json.load(open(sys.argv[1], encoding="utf-8"))
+          for key in (
+              "bootstrap_allowed",
+              "worker_present",
+              "production_pages_deployment_present",
+          ):
+              print("true" if state[key] else "false")
+          PY
+          )
+          BOOTSTRAP_ALLOWED="${PROVIDER_FLAGS[0]}"
+          WORKER_PRESENT="${PROVIDER_FLAGS[1]}"
+          PAGES_PRESENT="${PROVIDER_FLAGS[2]}"
+          echo "bootstrap_allowed=$BOOTSTRAP_ALLOWED" >> "$GITHUB_OUTPUT"
+          cd control-plane
+          if [ "$WORKER_PRESENT" = true ]; then
+            npm exec --no -- wrangler deployments status --env production --json > "$RUNNER_TEMP/worker-before.json"
+          else
             printf '%s\n' '{"state":"not_deployed"}' > "$RUNNER_TEMP/worker-before.json"
           fi
-          if ! npm exec --no -- wrangler pages deployment list --project-name "$PRODUCTION_PAGES_PROJECT" --environment production --json > "$RUNNER_TEMP/pages-before.json"; then
+          if [ "$PAGES_PRESENT" = true ]; then
+            npm exec --no -- wrangler pages deployment list \
+              --project-name "$PRODUCTION_PAGES_PROJECT" \
+              --environment production \
+              --json > "$RUNNER_TEMP/pages-before.json"
+          else
             printf '%s\n' '{"state":"no_production_deployment"}' > "$RUNNER_TEMP/pages-before.json"
           fi
+      - name: Live fail-closed production preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/production-preflight.py \
+            --release-ref "$RELEASE_REF" \
+            --bootstrap-provider-state "$RUNNER_TEMP/provider-state.json" \
+            | tee "$RUNNER_TEMP/production-preflight.txt"
+          grep -Fx 'stripe_live_prices=verified' "$RUNNER_TEMP/production-preflight.txt"
+          grep -Eq '^dns_predeploy=(verified|deferred_first_deploy)$' "$RUNNER_TEMP/production-preflight.txt"
       - name: Export and parse-test pre-migration D1
         id: d1_export
         working-directory: control-plane
@@ -245,7 +278,10 @@ jobs:
           set -euo pipefail
           python scripts/production-smoke.py \
             --expected-version "$PACKAGE_VERSION" \
-            --expected-source-sha "$SOURCE_SHA"
+            --expected-source-sha "$SOURCE_SHA" \
+            --attempts 12 \
+            --retry-delay 20 \
+            --timeout 5
           STATUS="$(curl --silent --show-error --output "$RUNNER_TEMP/checkout-closed.json" \
             --write-out '%{http_code}' \
             --request POST \
@@ -335,7 +371,10 @@ jobs:
           cd ..
           python scripts/production-smoke.py \
             --expected-version "$PACKAGE_VERSION" \
-            --expected-source-sha "$SOURCE_SHA"
+            --expected-source-sha "$SOURCE_SHA" \
+            --attempts 5 \
+            --retry-delay 10 \
+            --timeout 5
           printf '%s\n' '{"worker_saved_version":"pass","console_immutable_artifact":"pass","production_smoke":"pass"}' \
             > "$RUNNER_TEMP/rollback-rehearsal.json"
       - name: Write redacted deployment receipt
@@ -353,6 +392,7 @@ jobs:
           cp "$RUNNER_TEMP/d1-backup.sha256" production-d1-backup.sha256
           cp "$RUNNER_TEMP/d1-restore-drill.json" production-d1-restore-drill.json
           cp "$RUNNER_TEMP/rollback-rehearsal.json" production-rollback-rehearsal.json
+          cp "$RUNNER_TEMP/provider-state.json" production-provider-state.json
           python3 - <<'PY'
           import json, os
           receipt = {
@@ -393,6 +433,7 @@ jobs:
             production-d1-backup.sha256
             production-d1-restore-drill.json
             production-rollback-rehearsal.json
+            production-provider-state.json
           if-no-files-found: warn
           retention-days: 30
       - name: Upload initial D1 recovery export

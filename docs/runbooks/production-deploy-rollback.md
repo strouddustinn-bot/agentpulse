@@ -22,11 +22,11 @@ Do not deploy from `master`, a short SHA, a mutable branch, a dirty checkout, or
 
 All must be true before the protected environment may admit a mutation job:
 
-1. `scripts/production-preflight.py --release-ref "$RELEASE_REF"` exits zero with live checks enabled.
+1. `scripts/production-preflight.py --release-ref "$RELEASE_REF" --bootstrap-provider-state "$PROVIDER_STATE"` exits zero with live checks enabled.
 2. `control-plane/wrangler.jsonc` contains the approved production D1 UUID, all three approved live Price IDs, canonical production origins, an explicit matching version, and the `api.agentpulse.ca` custom domain.
 3. The GitHub `production` environment has at least one named required reviewer and an exact-tag deployment policy.
 4. Cloudflare/Stripe credentials exist only in approved external secret stores. Validate names and bindings without reading or printing values.
-5. `app.agentpulse.ca` and `api.agentpulse.ca` resolve publicly; the production Pages project and its production branch are verified.
+5. `app.agentpulse.ca` and `api.agentpulse.ca` resolve publicly. On the first deployment only, unresolved DNS may defer until after deployment when read-only Cloudflare evidence proves that both the exact production Worker and any production Pages deployment are absent. Malformed, unauthorized, unavailable, or inconsistent provider evidence blocks.
 6. The migration plan, D1 export/restore procedure, and previous Worker/console rollback targets are recorded before mutation.
 7. Canonical tests, contracts, type checks, dashboard build, audit, and secret scan pass at `SOURCE_SHA`.
 
@@ -64,16 +64,19 @@ set -euo pipefail
 git rev-parse HEAD
 git rev-parse "${RELEASE_REF}^{commit}"
 test -z "$(git status --porcelain -- dashboard)"
-./scripts/production-preflight.py --release-ref "$RELEASE_REF"
+./scripts/capture-production-provider-state.py \
+  --worker-name agentpulse-control-plane-production \
+  --pages-project "$PRODUCTION_PAGES_PROJECT" \
+  --output "$RUNNER_TEMP/provider-state.json"
+./scripts/production-preflight.py \
+  --release-ref "$RELEASE_REF" \
+  --bootstrap-provider-state "$RUNNER_TEMP/provider-state.json"
 
 cd control-plane
 npm exec --no -- wrangler d1 migrations list DB --env production --remote
-npm exec --no -- wrangler deployments status --env production --json
-npm exec --no -- wrangler pages deployment list \
-  --project-name "$PRODUCTION_PAGES_PROJECT" \
-  --environment production \
-  --json
 ```
+
+If the provider receipt records an existing Worker or Pages production deployment, both DNS names remain mandatory before mutation. The first-deploy exception never applies to later releases. Provider-state capture uses list/read endpoints and records only resource presence; credentials and provider response bodies are not written to the receipt.
 
 The receipt may contain release identity, migration filenames/status, Worker/Pages version IDs, HTTP verdicts, and timestamps. Redact provider account identifiers if they are not already intentionally public. Do not record secret contents or customer rows.
 
@@ -161,10 +164,13 @@ Run the read-only smoke checker against the exact deployed identity:
 set -euo pipefail
 ./scripts/production-smoke.py \
   --expected-version "$VERSION" \
-  --expected-source-sha "$SOURCE_SHA"
+  --expected-source-sha "$SOURCE_SHA" \
+  --attempts 12 \
+  --retry-delay 20 \
+  --timeout 5
 ```
 
-Require direct HTTPS, strict JSON/media types, the exact Worker/console identity, main-JavaScript digest, production API base, trusted production CORS, rejected staging/local/untrusted CORS, and unauthenticated account `401`. Keep checkout and all billing mutations out of smoke verification.
+Retries exist only for bounded Cloudflare DNS and certificate propagation. Every attempt reruns the complete gate; partial results are never accumulated into a pass. Require direct HTTPS, strict JSON/media types, the exact Worker/console identity, main-JavaScript digest, production API base, trusted production CORS, rejected staging/local/untrusted CORS, and unauthenticated account `401`. Keep checkout and all billing mutations out of smoke verification.
 
 ## First-deploy recovery rehearsal
 

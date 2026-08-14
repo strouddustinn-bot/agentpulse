@@ -110,6 +110,53 @@ class ProductionSmokeTests(unittest.TestCase):
         self.assertIn("api_disallowed_origins_absent", checks)
         self.assertIn("api_session_required", checks)
 
+    def test_retry_requires_one_complete_attempt_to_pass(self) -> None:
+        good = self.good_requester()
+        attempt = 0
+        sleeps: list[float] = []
+
+        def flaky(url: str, headers: dict[str, str]):
+            nonlocal attempt
+            if url == self.app + "/":
+                attempt += 1
+            if attempt == 1:
+                raise self.smoke.ProbeError("certificate pending")
+            return good(url, headers)
+
+        checks, attempts_used = self.smoke.run_smoke_with_retries(
+            app_base_url=self.app,
+            api_base_url=self.api,
+            expected_version=self.version,
+            expected_source_sha=self.source_sha,
+            requester=flaky,
+            attempts=2,
+            retry_delay=3,
+            sleeper=sleeps.append,
+        )
+        self.assertEqual(attempts_used, 2)
+        self.assertEqual(sleeps, [3])
+        self.assertTrue(all(check.passed for check in checks), checks)
+
+    def test_retry_exhaustion_remains_blocked(self) -> None:
+        sleeps: list[float] = []
+
+        def unavailable(_url: str, _headers: dict[str, str]):
+            raise self.smoke.ProbeError("dns pending")
+
+        checks, attempts_used = self.smoke.run_smoke_with_retries(
+            app_base_url=self.app,
+            api_base_url=self.api,
+            expected_version=self.version,
+            expected_source_sha=self.source_sha,
+            requester=unavailable,
+            attempts=3,
+            retry_delay=2,
+            sleeper=sleeps.append,
+        )
+        self.assertEqual(attempts_used, 3)
+        self.assertEqual(sleeps, [2, 2])
+        self.assertFalse(all(check.passed for check in checks))
+
     def test_non_https_or_non_origin_inputs_fail_before_network(self) -> None:
         called = False
 
