@@ -39,6 +39,20 @@ class ProductionPreflightTests(unittest.TestCase):
         )
         return path
 
+    def write_provider_state(self, **overrides) -> Path:
+        payload = {
+            "schema_version": 1,
+            "worker_name": "agentpulse-control-plane-production",
+            "worker_present": False,
+            "pages_project": "agentpulse-production-app",
+            "production_pages_deployment_present": False,
+            "bootstrap_allowed": True,
+        }
+        payload.update(overrides)
+        path = self.root / "provider-state.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return path
+
     @staticmethod
     def valid_production_config() -> dict:
         return {
@@ -74,11 +88,12 @@ class ProductionPreflightTests(unittest.TestCase):
 
     def test_controlled_pilot_workflow_is_exact_tag_protected_and_fail_closed(self) -> None:
         text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("- 'v0.2.0-beta.3'", text)
+        self.assertIn("- 'v0.2.0-beta.4'", text)
         self.assertNotIn("workflow_dispatch:", text)
         self.assertIn("environment: production", text)
         self.assertIn("permissions:\n  contents: read", text)
-        self.assertIn("python scripts/production-preflight.py --release-ref \"$RELEASE_REF\"", text)
+        self.assertIn("python scripts/production-preflight.py \\", text)
+        self.assertIn('--release-ref "$RELEASE_REF"', text)
         self.assertIn("wrangler d1 export DB --env production --remote", text)
         self.assertIn("wrangler d1 migrations apply DB --env production --remote", text)
         self.assertIn("wrangler deploy --env production --strict", text)
@@ -99,6 +114,9 @@ class ProductionPreflightTests(unittest.TestCase):
         self.assertIn("d1_disposable_restore=pass", text)
         self.assertIn("wrangler versions deploy", text)
         self.assertIn("stripe_live_prices=verified", text)
+        self.assertIn("python scripts/capture-production-provider-state.py", text)
+        self.assertIn('--bootstrap-provider-state "$RUNNER_TEMP/provider-state.json"', text)
+        self.assertIn("--attempts 12", text)
         self.assertNotIn("echo \"$STRIPE", text)
 
     def test_live_stripe_prices_require_exact_active_live_monthly_products(self) -> None:
@@ -153,6 +171,51 @@ class ProductionPreflightTests(unittest.TestCase):
         self.assertEqual(
             [finding.code for finding in self.preflight.check_stripe_prices(config, "")],
             ["stripe_api_key_missing"],
+        )
+
+    def test_live_stripe_failures_are_safely_classified(self) -> None:
+        config = self.write_config(self.valid_production_config())
+        categories = {
+            "authentication": "stripe_api_authentication_failed",
+            "permission": "stripe_api_permission_denied",
+            "rate_limited": "stripe_api_rate_limited",
+            "unavailable": "stripe_api_unavailable",
+        }
+        for category, expected_code in categories.items():
+            with self.subTest(category=category):
+                def fail(*_args):
+                    raise self.preflight.StripeAPIError(category)
+
+                findings = self.preflight.check_stripe_prices(
+                    config,
+                    "sk_live_fixture",
+                    fetcher=fail,
+                )
+                self.assertEqual([finding.code for finding in findings], [expected_code])
+
+        findings = self.preflight.check_stripe_prices(
+            config,
+            "sk_live_fixture",
+            fetcher=lambda *_: (_ for _ in ()).throw(
+                self.preflight.StripeAPIError("unexpected")
+            ),
+        )
+        self.assertEqual([finding.code for finding in findings], ["stripe_api_unavailable"])
+
+        findings = self.preflight.check_stripe_prices(
+            config,
+            "sk_live_fixture",
+            fetcher=lambda *_: (_ for _ in ()).throw(
+                self.preflight.StripeAPIError("missing")
+            ),
+        )
+        self.assertEqual(
+            {finding.code for finding in findings},
+            {
+                "stripe_starter_price_missing",
+                "stripe_pro_price_missing",
+                "stripe_business_price_missing",
+            },
         )
 
         findings = self.preflight.check_stripe_prices(
@@ -817,6 +880,82 @@ jobs:
                 "dns_api_agentpulse_ca_unresolved",
             },
         )
+
+    def test_bootstrap_provider_state_allows_only_unresolved_dns_to_defer(self) -> None:
+        allowed, findings = self.preflight.check_bootstrap_provider_state(
+            self.write_provider_state()
+        )
+        self.assertTrue(allowed)
+        self.assertEqual(findings, [])
+
+        allowed, findings = self.preflight.check_bootstrap_provider_state(
+            self.write_provider_state(
+                worker_present=True,
+                bootstrap_allowed=False,
+            )
+        )
+        self.assertFalse(allowed)
+        self.assertEqual(findings, [])
+
+        allowed, findings = self.preflight.check_bootstrap_provider_state(
+            self.write_provider_state(bootstrap_allowed=False)
+        )
+        self.assertFalse(allowed)
+        self.assertEqual(
+            [finding.code for finding in findings],
+            ["production_provider_state_inconsistent"],
+        )
+
+    def test_bootstrap_provider_state_rejects_wrong_resource_and_extra_fields(self) -> None:
+        cases = (
+            {"worker_name": "wrong-worker"},
+            {"pages_project": "wrong-project"},
+            {"unexpected": True},
+        )
+        for overrides in cases:
+            with self.subTest(overrides=overrides):
+                allowed, findings = self.preflight.check_bootstrap_provider_state(
+                    self.write_provider_state(**overrides)
+                )
+                self.assertFalse(allowed)
+                self.assertEqual(
+                    [finding.code for finding in findings],
+                    ["production_provider_state_invalid"],
+                )
+
+    def test_dns_cannot_be_deferred_after_any_prior_deployment(self) -> None:
+        unresolved = [
+            self.preflight.Finding(
+                "dns_api_agentpulse_ca_unresolved",
+                "api.agentpulse.ca unresolved",
+            )
+        ]
+        findings, deferred = self.preflight.apply_bootstrap_dns_policy(
+            unresolved,
+            bootstrap_allowed=False,
+        )
+        self.assertEqual(findings, unresolved)
+        self.assertFalse(deferred)
+
+        findings, deferred = self.preflight.apply_bootstrap_dns_policy(
+            unresolved,
+            bootstrap_allowed=True,
+        )
+        self.assertEqual(findings, [])
+        self.assertTrue(deferred)
+
+        nonpublic = [
+            self.preflight.Finding(
+                "dns_api_agentpulse_ca_nonpublic",
+                "api.agentpulse.ca nonpublic",
+            )
+        ]
+        findings, deferred = self.preflight.apply_bootstrap_dns_policy(
+            nonpublic,
+            bootstrap_allowed=True,
+        )
+        self.assertEqual(findings, nonpublic)
+        self.assertFalse(deferred)
 
 
 if __name__ == "__main__":

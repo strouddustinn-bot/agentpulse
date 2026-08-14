@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Beta 4 recovery
+- The controlled production workflow now targets immutable `v0.2.0-beta.4` / package `0.2.0b4` after beta 3 exposed a first-deployment DNS deadlock.
+- Pre-deploy Cloudflare state is captured through read-only Workers and Pages APIs; unresolved DNS may defer only when both the production Worker and production Pages deployment are proven absent.
+- Post-deploy production smoke uses bounded full-gate retries while keeping TLS, source identity, CORS, session denial, asset integrity, and closed checkout mandatory.
+- Stripe preflight now distinguishes authentication, permission, missing Price, rate-limit, and provider-availability failures without exposing response bodies or credentials.
+- Forced `nanoid` resolution is advanced to patched `3.3.18` in both Node workspaces.
+
 ### Added
 - Staging commercial lifecycle harness now has fail-closed `prepare`/`prove` phases, private checkout handoff semantics, exact receipt markers, and a disposable callback Worker artifact for absent staging-app DNS.
 

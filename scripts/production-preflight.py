@@ -39,6 +39,14 @@ EXPECTED_STRIPE_PRICES = {
     "PRO": 9900,
     "BUSINESS": 29900,
 }
+EXPECTED_PROVIDER_STATE_KEYS = {
+    "schema_version",
+    "worker_name",
+    "worker_present",
+    "pages_project",
+    "production_pages_deployment_present",
+    "bootstrap_allowed",
+}
 PHASE5A_ARTIFACTS = {
     ".github/workflows/production-deploy.yml": (
         "production_deploy_workflow_unreadable",
@@ -82,6 +90,18 @@ PHASE5A_ARTIFACTS = {
             (
                 "production_deploy_workflow_missing_live_stripe_gate",
                 "stripe_live_prices=verified",
+            ),
+            (
+                "production_deploy_workflow_missing_provider_state_capture",
+                "python scripts/capture-production-provider-state.py",
+            ),
+            (
+                "production_deploy_workflow_missing_bootstrap_state_binding",
+                '--bootstrap-provider-state "$RUNNER_TEMP/provider-state.json"',
+            ),
+            (
+                "production_deploy_workflow_missing_bounded_smoke_retry",
+                "--attempts 12",
             ),
         ),
     ),
@@ -136,6 +156,14 @@ PHASE5A_FORBIDDEN_MARKERS = {
 class Finding(NamedTuple):
     code: str
     message: str
+
+
+class StripeAPIError(RuntimeError):
+    """A sanitized Stripe API failure category."""
+
+    def __init__(self, category: str):
+        super().__init__(category)
+        self.category = category
 
 
 def strip_jsonc_comments(text: str) -> str:
@@ -369,7 +397,19 @@ def _fetch_stripe_price(price_id: str, api_key: str) -> object:
             "User-Agent": "AgentPulse-production-preflight/1",
         },
     )
-    with urllib.request.urlopen(request, timeout=15) as response:
+    try:
+        response = urllib.request.urlopen(request, timeout=15)
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        exc.close()
+        categories = {
+            401: "authentication",
+            403: "permission",
+            404: "missing",
+            429: "rate_limited",
+        }
+        raise StripeAPIError(categories.get(status, "unavailable")) from exc
+    with response:
         return strict_json_loads(response.read().decode("utf-8"))
 
 
@@ -424,12 +464,44 @@ def check_stripe_prices(
 
         try:
             payload = fetcher(price_id, api_key)
+        except StripeAPIError as exc:
+            if exc.category == "missing":
+                findings.append(
+                    Finding(
+                        f"stripe_{tier.lower()}_price_missing",
+                        f"Stripe could not find the configured production {tier.title()} Price in the authenticated account",
+                    )
+                )
+                continue
+            code_and_message = {
+                "authentication": (
+                    "stripe_api_authentication_failed",
+                    "Stripe rejected the production API key",
+                ),
+                "permission": (
+                    "stripe_api_permission_denied",
+                    "Stripe key permissions do not allow read-only Price verification",
+                ),
+                "rate_limited": (
+                    "stripe_api_rate_limited",
+                    "Stripe rate-limited production Price verification",
+                ),
+                "unavailable": (
+                    "stripe_api_unavailable",
+                    "Stripe returned an unavailable response during production Price verification",
+                ),
+            }
+            code, message = code_and_message.get(
+                exc.category,
+                code_and_message["unavailable"],
+            )
+            findings.append(Finding(code, message))
+            break
         except (
             OSError,
             TimeoutError,
             ValueError,
             json.JSONDecodeError,
-            urllib.error.HTTPError,
             urllib.error.URLError,
         ):
             findings.append(
@@ -973,6 +1045,66 @@ def check_dns(
     return findings
 
 
+def check_bootstrap_provider_state(path: Path | None) -> tuple[bool, list[Finding]]:
+    """Validate provider evidence and return whether first-deploy DNS may defer."""
+    if path is None:
+        return False, []
+    try:
+        payload = strict_json_loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return False, [
+            Finding(
+                "production_provider_state_unreadable",
+                f"bootstrap provider evidence could not be read: {exc}",
+            )
+        ]
+    valid_shape = (
+        isinstance(payload, dict)
+        and set(payload) == EXPECTED_PROVIDER_STATE_KEYS
+        and payload.get("schema_version") == 1
+        and payload.get("worker_name") == "agentpulse-control-plane-production"
+        and type(payload.get("worker_present")) is bool
+        and payload.get("pages_project") == "agentpulse-production-app"
+        and type(payload.get("production_pages_deployment_present")) is bool
+        and type(payload.get("bootstrap_allowed")) is bool
+    )
+    if not valid_shape:
+        return False, [
+            Finding(
+                "production_provider_state_invalid",
+                "bootstrap provider evidence has an unexpected schema or resource identity",
+            )
+        ]
+    computed_allowed = (
+        payload["worker_present"] is False
+        and payload["production_pages_deployment_present"] is False
+    )
+    if payload["bootstrap_allowed"] is not computed_allowed:
+        return False, [
+            Finding(
+                "production_provider_state_inconsistent",
+                "bootstrap provider evidence does not match the recorded resource state",
+            )
+        ]
+    return computed_allowed, []
+
+
+def apply_bootstrap_dns_policy(
+    dns_findings: Sequence[Finding],
+    *,
+    bootstrap_allowed: bool,
+) -> tuple[list[Finding], bool]:
+    """Defer only unresolved DNS backed by empty first-deploy provider state."""
+    findings = list(dns_findings)
+    if (
+        bootstrap_allowed
+        and findings
+        and all(finding.code.endswith("_unresolved") for finding in findings)
+    ):
+        return [], True
+    return findings, False
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
@@ -982,6 +1114,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--static-only",
         action="store_true",
         help="validate source intent and immutable ref only; never counts as live readiness",
+    )
+    parser.add_argument(
+        "--bootstrap-provider-state",
+        type=Path,
+        help="redacted Cloudflare state captured immediately before a protected deployment",
     )
     return parser.parse_args(argv)
 
@@ -994,13 +1131,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not release_ref_findings:
         findings.extend(check_release_ref_exists(args.release_ref))
     findings.extend(check_phase5a_artifacts())
+    dns_deferred = False
     if args.static_only:
         live_status = "SKIPPED_NON_GATING"
     else:
         findings.extend(
             check_github_environment(args.repository, release_ref=args.release_ref)
         )
-        findings.extend(check_dns())
+        bootstrap_allowed, provider_findings = check_bootstrap_provider_state(
+            args.bootstrap_provider_state
+        )
+        findings.extend(provider_findings)
+        gated_dns_findings, dns_deferred = apply_bootstrap_dns_policy(
+            check_dns(),
+            bootstrap_allowed=bootstrap_allowed,
+        )
+        findings.extend(gated_dns_findings)
         findings.extend(
             check_stripe_prices(
                 args.config,
@@ -1020,6 +1166,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"LIVE_CHECKS={live_status}")
     if not args.static_only:
         print("stripe_live_prices=verified")
+        print(
+            "dns_predeploy=deferred_first_deploy"
+            if dns_deferred
+            else "dns_predeploy=verified"
+        )
     print("No deployment, migration, DNS, billing, or secret mutation was performed.")
     if args.static_only:
         print("Static-only PASS is not production readiness or deployment authorization.")
