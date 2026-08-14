@@ -233,12 +233,14 @@ jobs:
           PY
           sha256sum "$BACKUP" > "$RUNNER_TEMP/d1-backup.sha256"
       - name: Apply production D1 migrations
+        id: apply_production_migrations
         working-directory: control-plane
         run: |
           set -euo pipefail
           npm exec --no -- wrangler d1 migrations apply DB --env production --remote
           npm exec --no -- wrangler d1 migrations list DB --env production --remote > "$RUNNER_TEMP/migrations-after.txt"
       - name: Deploy production Worker with external Stripe secrets
+        id: deploy_production_worker
         working-directory: control-plane
         shell: bash
         run: |
@@ -260,6 +262,7 @@ jobs:
             --message "git=$SOURCE_SHA release=$RELEASE_REF"
           npm exec --no -- wrangler deployments status --env production --json > "$RUNNER_TEMP/worker-after.json"
       - name: Deploy exact production dashboard artifact
+        id: deploy_production_dashboard
         working-directory: control-plane
         run: |
           set -euo pipefail
@@ -273,6 +276,7 @@ jobs:
             --environment production \
             --json > "$RUNNER_TEMP/pages-after.json"
       - name: Verify production identity and access boundaries
+        id: production_smoke
         shell: bash
         run: |
           set -euo pipefail
@@ -296,6 +300,57 @@ jobs:
           payload = json.load(open(sys.argv[1], encoding="utf-8"))
           assert payload == {"error": {"code": "not_found", "message": "Route not found"}}
           print("public_checkout=closed")
+          PY
+      - name: Capture failure-safe post-mutation state
+        if: ${{ always() }}
+        working-directory: control-plane
+        shell: bash
+        env:
+          SMOKE_OUTCOME: ${{ steps.production_smoke.outcome }}
+          D1_MIGRATION_OUTCOME: ${{ steps.apply_production_migrations.outcome }}
+          WORKER_DEPLOY_OUTCOME: ${{ steps.deploy_production_worker.outcome }}
+          PAGES_DEPLOY_OUTCOME: ${{ steps.deploy_production_dashboard.outcome }}
+        run: |
+          set -uo pipefail
+          cd ..
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          outcomes = {
+              "smoke": os.environ.get("SMOKE_OUTCOME", "unknown"),
+              "d1_migration": os.environ.get("D1_MIGRATION_OUTCOME", "unknown"),
+              "worker_deploy": os.environ.get("WORKER_DEPLOY_OUTCOME", "unknown"),
+              "pages_deploy": os.environ.get("PAGES_DEPLOY_OUTCOME", "unknown"),
+          }
+          mutated = any(
+              outcomes[key] in {"success", "failure"}
+              for key in ("d1_migration", "worker_deploy", "pages_deploy")
+          )
+          smoke_passed = outcomes["smoke"] == "success"
+          receipt = {
+              "schema_version": 1,
+              "release_ref": os.environ["RELEASE_REF"],
+              "source_sha": os.environ["SOURCE_SHA"],
+              "package_version": os.environ["PACKAGE_VERSION"],
+              "deployment_status": (
+                  "verified" if smoke_passed else
+                  "recovery_required" if mutated else
+                  "not_started"
+              ),
+              "mutation_detected": mutated,
+              "step_outcomes": outcomes,
+              "next_action": (
+                  "none" if smoke_passed else
+                  "owner_reconcile_live_state_before_retry_or_rollback"
+              ),
+          }
+          Path("production-failure-state.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(f"post_mutation_status={receipt['deployment_status']}")
           PY
       - name: Restore pre-migration export into disposable D1
         id: d1_restore_drill
@@ -377,6 +432,28 @@ jobs:
             --timeout 5
           printf '%s\n' '{"worker_saved_version":"pass","console_immutable_artifact":"pass","production_smoke":"pass"}' \
             > "$RUNNER_TEMP/rollback-rehearsal.json"
+      - name: Finalize deployment state after all post-deploy checks
+        if: ${{ always() }}
+        shell: bash
+        env:
+          ROLLBACK_OUTCOME: ${{ steps.rollback_rehearsal.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("production-failure-state.json")
+          receipt = json.loads(path.read_text(encoding="utf-8"))
+          rollback_outcome = os.environ.get("ROLLBACK_OUTCOME", "unknown")
+          receipt.setdefault("step_outcomes", {})["rollback_rehearsal"] = rollback_outcome
+          if receipt["deployment_status"] == "verified" and rollback_outcome != "success":
+              receipt["deployment_status"] = "recovery_required"
+              receipt["next_action"] = "owner_reconcile_live_state_before_retry_or_rollback"
+          path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(f"final_deployment_status={receipt['deployment_status']}")
+          PY
       - name: Write redacted deployment receipt
         shell: bash
         run: |
@@ -421,6 +498,7 @@ jobs:
         with:
           name: production-deployment-evidence-${{ github.sha }}
           path: |
+            production-failure-state.json
             production-deployment-receipt.json
             production-migrations-before.txt
             production-migrations-after.txt
@@ -434,7 +512,7 @@ jobs:
             production-d1-restore-drill.json
             production-rollback-rehearsal.json
             production-provider-state.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
       - name: Upload initial D1 recovery export
         if: ${{ !cancelled() && steps.d1_export.outcome == 'success' }}

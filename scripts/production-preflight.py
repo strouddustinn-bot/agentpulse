@@ -103,6 +103,18 @@ PHASE5A_ARTIFACTS = {
                 "production_deploy_workflow_missing_bounded_smoke_retry",
                 "--attempts 12",
             ),
+            (
+                "production_deploy_workflow_missing_failure_state_receipt",
+                "production-failure-state.json",
+            ),
+            (
+                "production_deploy_workflow_failure_state_capture_not_always_run",
+                "- name: Capture failure-safe post-mutation state\n        if: ${{ always() }}",
+            ),
+            (
+                "production_deploy_workflow_final_state_not_always_run",
+                "- name: Finalize deployment state after all post-deploy checks\n        if: ${{ always() }}",
+            ),
         ),
     ),
     ".github/workflows/release.yml": (
