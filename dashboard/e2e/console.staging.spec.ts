@@ -126,7 +126,7 @@ async function completeStripeTestCheckout(page: Page): Promise<void> {
   await page.waitForURL(
     (url) => {
       const expected = new URL(appBase)
-      return url.origin === expected.origin && !url.hostname.endsWith('stripe.com')
+      return url.origin === expected.origin && url.hostname !== 'stripe.com'
     },
     { timeout: 120_000 },
   )
