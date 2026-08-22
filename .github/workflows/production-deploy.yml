@@ -3,7 +3,7 @@ name: Controlled Pilot Production Deploy
 on:
   push:
     tags:
-      - 'v0.2.0-beta.5'
+      - 'v0.2.0-beta.6'
 
 permissions:
   contents: read
@@ -38,11 +38,11 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$GITHUB_REF_NAME" = v0.2.0-beta.5
+          test "$GITHUB_REF_NAME" = v0.2.0-beta.6
           test "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
           PACKAGE_VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
-          test "$PACKAGE_VERSION" = 0.2.0b5
+          test "$PACKAGE_VERSION" = 0.2.0b6
           echo "release_ref=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           echo "source_sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
           echo "package_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
@@ -91,7 +91,7 @@ jobs:
           npm --prefix dashboard run build
           python scripts/prepare-production-dashboard.py \
             --dist dashboard/dist \
-            --version 0.2.0b5 \
+            --version 0.2.0b6 \
             --source-sha "$GITHUB_SHA"
       - name: Verify repository hardening invariants
         run: |
@@ -112,7 +112,7 @@ jobs:
   deploy-production:
     name: Deploy controlled pilot
     needs: verify-release
-    if: ${{ github.ref == 'refs/tags/v0.2.0-beta.5' }}
+    if: ${{ github.ref == 'refs/tags/v0.2.0-beta.6' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: production
@@ -137,10 +137,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$RELEASE_REF" = v0.2.0-beta.5
+          test "$RELEASE_REF" = v0.2.0-beta.6
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse "${RELEASE_REF}^{commit}")" = "$SOURCE_SHA"
-          test "$PACKAGE_VERSION" = 0.2.0b5
+          test "$PACKAGE_VERSION" = 0.2.0b6
           test -z "$(git status --porcelain)"
           test -n "${CLOUDFLARE_API_TOKEN:-}"
           test -n "${CLOUDFLARE_ACCOUNT_ID:-}"
@@ -286,20 +286,57 @@ jobs:
             --attempts 12 \
             --retry-delay 20 \
             --timeout 5
-          STATUS="$(curl --silent --show-error --output "$RUNNER_TEMP/checkout-closed.json" \
-            --write-out '%{http_code}' \
-            --request POST \
-            --header 'Accept: application/json' \
-            --header 'Content-Type: application/json' \
-            --header 'Origin: https://app.agentpulse.ca' \
-            --data '{"plan":"starter"}' \
-            https://api.agentpulse.ca/v1/billing/checkout)"
-          test "$STATUS" = 404
-          python3 - "$RUNNER_TEMP/checkout-closed.json" <<'PY'
-          import json, sys
-          payload = json.load(open(sys.argv[1], encoding="utf-8"))
-          assert payload == {"error": {"code": "not_found", "message": "Route not found"}}
-          print("public_checkout=closed")
+          probe_checkout() {
+            local plan="$1"
+            local expected_status="$2"
+            local output="$RUNNER_TEMP/checkout-${plan}.json"
+            local status
+            status="$(curl --silent --show-error --output "$output" \
+              --write-out '%{http_code}' \
+              --request POST \
+              --header 'Accept: application/json' \
+              --header 'Content-Type: application/json' \
+              --header 'Origin: https://app.agentpulse.ca' \
+              --data "{\"plan\":\"${plan}\"}" \
+              https://api.agentpulse.ca/v1/billing/checkout)"
+            test "$status" = "$expected_status"
+          }
+
+          # Distinguish starter mode from both closed and public without
+          # creating a live Stripe Checkout Session or D1 checkout row.
+          probe_checkout enterprise 422
+          probe_checkout pro 404
+          probe_checkout business 404
+
+          python3 - \
+            "$RUNNER_TEMP/checkout-enterprise.json" \
+            "$RUNNER_TEMP/checkout-pro.json" \
+            "$RUNNER_TEMP/checkout-business.json" <<'PY'
+          import json
+          import sys
+
+          enterprise = json.load(open(sys.argv[1], encoding="utf-8"))
+          pro = json.load(open(sys.argv[2], encoding="utf-8"))
+          business = json.load(open(sys.argv[3], encoding="utf-8"))
+
+          assert enterprise == {
+              "error": {
+                  "code": "invalid_plan",
+                  "message": "plan must be starter, pro, or business",
+              }
+          }
+
+          blocked = {
+              "error": {
+                  "code": "not_found",
+                  "message": "Route not found",
+              }
+          }
+
+          assert pro == blocked
+          assert business == blocked
+
+          print("starter_checkout=bounded")
           PY
       - name: Capture failure-safe post-mutation state
         if: ${{ always() }}
@@ -481,7 +518,7 @@ jobs:
               "pages_branch": os.environ["PRODUCTION_PAGES_BRANCH"],
               "app_domain": "app.agentpulse.ca",
               "api_domain": "api.agentpulse.ca",
-              "checkout_mode": "closed",
+              "checkout_mode": "starter",
               "stripe_secrets": "external_and_present",
               "stripe_live_prices": "verified",
               "smoke": "pass",

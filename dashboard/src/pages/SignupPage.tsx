@@ -1,7 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useSearchParams } from 'react-router'
-
-type Plan = 'starter' | 'pro' | 'business'
 
 type CheckoutResponse = {
   checkout_url: string
@@ -12,14 +10,8 @@ type CheckoutResponse = {
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8787').replace(/\/+$/, '')
 
-const plans: Array<{ id: Plan; name: string; price: string; scope: string }> = [
-  { id: 'starter', name: 'Starter', price: 'C$29/month', scope: '1 host' },
-  { id: 'pro', name: 'Pro', price: 'C$99/month', scope: 'Up to 5 hosts' },
-  { id: 'business', name: 'Business', price: 'C$299/month', scope: 'Up to 20 hosts' },
-]
-
-function isPlan(value: string | null): value is Plan {
-  return value === 'starter' || value === 'pro' || value === 'business'
+export function isCheckoutPlan(value: string | null): value is 'starter' {
+  return value === 'starter'
 }
 
 export function isTrustedStripeCheckoutUrl(value: string): boolean {
@@ -37,12 +29,12 @@ export function isTrustedStripeCheckoutUrl(value: string): boolean {
   }
 }
 
-async function createCheckout(plan: Plan): Promise<CheckoutResponse> {
+async function createStarterCheckout(): Promise<CheckoutResponse> {
   const response = await fetch(`${API_BASE_URL}/v1/billing/checkout`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plan }),
+    body: JSON.stringify({ plan: 'starter' }),
   })
 
   if (!response.ok) {
@@ -67,29 +59,16 @@ async function createCheckout(plan: Plan): Promise<CheckoutResponse> {
 }
 
 export default function SignupPage() {
-  const [params, setParams] = useSearchParams()
-  const initialPlan = useMemo<Plan>(() => {
-    const requested = params.get('plan')
-    return isPlan(requested) ? requested : 'starter'
-  }, [params])
-  const [selectedPlan, setSelectedPlan] = useState<Plan>(initialPlan)
+  const [params] = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const canceled = params.get('canceled') === '1'
-
-  function selectPlan(plan: Plan) {
-    setSelectedPlan(plan)
-    const next = new URLSearchParams(params)
-    next.set('plan', plan)
-    next.delete('canceled')
-    setParams(next, { replace: true })
-  }
 
   async function startCheckout() {
     setLoading(true)
     setError(null)
     try {
-      const checkout = await createCheckout(selectedPlan)
+      const checkout = await createStarterCheckout()
       window.location.assign(checkout.checkout_url)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Checkout is unavailable')
@@ -100,12 +79,15 @@ export default function SignupPage() {
   return (
     <div className="max-w-4xl mx-auto py-12">
       <div className="mb-10">
-        <div className="text-xs uppercase tracking-[0.22em] text-[#7c6af7] mb-3">Bounded server recovery</div>
+        <div className="text-xs uppercase tracking-[0.22em] text-[#7c6af7] mb-3">
+          Bounded server recovery
+        </div>
         <h1 className="text-4xl md:text-5xl font-semibold tracking-[-2px] mb-4">
-          Choose the host scope you want protected.
+          Start with one protected host.
         </h1>
         <p className="text-[#94a3b8] text-lg max-w-2xl">
-          Detect supported repeat incidents, run only approved recovery actions, verify the result, and escalate when the evidence is not strong enough.
+          Detect supported repeat incidents, run only approved recovery actions,
+          verify the result, and escalate when the evidence is not strong enough.
         </p>
       </div>
 
@@ -115,34 +97,30 @@ export default function SignupPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3 mb-8">
-        {plans.map((plan) => {
-          const selected = selectedPlan === plan.id
-          return (
-            <button
-              type="button"
-              key={plan.id}
-              onClick={() => selectPlan(plan.id)}
-              className={`text-left rounded-2xl border p-5 transition-colors ${
-                selected
-                  ? 'border-[#7c6af7] bg-[#151424]'
-                  : 'border-[#293241] bg-[#111318] hover:border-[#475569]'
-              }`}
-              aria-pressed={selected}
-            >
-              <div className="text-sm text-[#94a3b8] mb-2">{plan.name}</div>
-              <div className="text-2xl font-semibold mb-1">{plan.price}</div>
-              <div className="text-sm text-[#64748b]">{plan.scope}</div>
-            </button>
-          )
-        })}
+      <div className="grid gap-4 max-w-md mb-6">
+        <div className="rounded-2xl border border-[#7c6af7] bg-[#151424] p-5">
+          <div className="text-sm text-[#94a3b8] mb-2">Starter</div>
+          <div className="text-2xl font-semibold mb-1">C$29/month</div>
+          <div className="text-sm text-[#64748b]">1 host</div>
+        </div>
       </div>
+
+      <p className="mb-8 max-w-2xl text-sm leading-6 text-[#94a3b8]">
+        Pro (C$99/month, up to 5 hosts) and Business (C$299/month, up to 20 hosts)
+        remain reservation-only during this bounded validation.{' '}
+        <a
+          className="text-[#a99cf8] underline"
+          href="https://agentpulse.ca/signup"
+        >
+          Reserve Pro or Business interest
+        </a>
+      </p>
 
       <div className="rounded-2xl border border-[#293241] bg-[#111318] p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-sm text-[#94a3b8]">Selected plan</div>
-            <div className="text-xl font-semibold">{plans.find((plan) => plan.id === selectedPlan)?.name}</div>
+            <div className="text-xl font-semibold">Starter</div>
           </div>
           <button
             type="button"
@@ -153,9 +131,14 @@ export default function SignupPage() {
             {loading ? 'Opening secure checkout…' : 'Continue to secure checkout'}
           </button>
         </div>
+
         {error ? <p className="mt-4 text-sm text-[#f87171]">{error}</p> : null}
+
         <p className="mt-5 text-xs leading-5 text-[#64748b]">
-          Checkout is currently provided under the product name AgentPulse. Payment is handled by Stripe. AgentPulse does not expose arbitrary remote shell access; host actions remain bounded by local policy and supported action types.
+          Starter checkout is currently provided under the product name AgentPulse.
+          Payment is handled by Stripe. Pro and Business remain reservation-only.
+          AgentPulse does not expose arbitrary remote shell access; host actions
+          remain bounded by local policy and supported action types.
         </p>
       </div>
     </div>

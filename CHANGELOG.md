@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Beta 6 bounded Starter validation candidate
+- Prepares immutable `v0.2.0-beta.6` / package `0.2.0b6` as the bounded one-host validation candidate.
+- Production configuration targets `CHECKOUT_MODE=starter`: Starter may enter checkout while Pro and Business fail closed before Stripe or D1 checkout work.
+- Protected production smoke distinguishes Starter-only mode from both `closed` and `public` using non-billable requests only.
+- Public acquisition remains contained until the tagged production deployment is separately approved and verified.
+
 ### Beta 5 recovery
 - The controlled production workflow now targets immutable `v0.2.0-beta.5` / package `0.2.0b5` after beta 4 uploaded the production Worker but failed to attach its route.
 - Pre-deploy Cloudflare state is captured through read-only Workers and Pages APIs; unresolved DNS may defer while no production Pages deployment exists. This permits the protected workflow to recover from a partial Worker upload without deleting provider state or weakening DNS enforcement after bootstrap completes.
