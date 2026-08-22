@@ -5,6 +5,7 @@
  *
  * Routes:
  *   /                    session landing
+ *   /signup              public checkout transition
  *   /connect /claim      checkout claim
  *   /account             subscription, enrollment, billing portal
  *   /servers             server inventory
@@ -24,6 +25,7 @@ import ServerDetailPage from './pages/ServerDetailPage'
 import IncidentListPage from './pages/IncidentListPage'
 import IncidentDetailPage from './pages/IncidentDetailPage'
 import ConnectPage from './pages/ConnectPage'
+import SignupPage from './pages/SignupPage'
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [logoutError, setLogoutError] = useState<string | null>(null)
@@ -122,6 +124,7 @@ export default function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/signup" element={<SignupPage />} />
           <Route path="/connect" element={<ConnectPage />} />
           <Route path="/claim" element={<ConnectPage />} />
           <Route
