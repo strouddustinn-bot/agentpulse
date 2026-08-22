@@ -63,7 +63,7 @@ class ProductionPreflightTests(unittest.TestCase):
                 "PUBLIC_BASE_URL": "https://api.agentpulse.ca",
                 "APP_BASE_URL": "https://app.agentpulse.ca",
                 "AGENTPULSE_VERSION": "0.3.0",
-                "CHECKOUT_MODE": "closed",
+                "CHECKOUT_MODE": "starter",
                 "STRIPE_PORTAL_URL": "https://billing.stripe.com/p/login/6oU28rbSBgPS8Qa5CB7N600",
                 "STRIPE_PRICE_STARTER": "price_1ProductionStarterABC",
                 "STRIPE_PRICE_PRO": "price_1ProductionProABCDE",
@@ -88,7 +88,7 @@ class ProductionPreflightTests(unittest.TestCase):
 
     def test_controlled_pilot_workflow_is_exact_tag_protected_and_fail_closed(self) -> None:
         text = DEPLOY_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("- 'v0.2.0-beta.5'", text)
+        self.assertIn("- 'v0.2.0-beta.6'", text)
         self.assertNotIn("workflow_dispatch:", text)
         self.assertIn("environment: production", text)
         self.assertIn("permissions:\n  contents: read", text)
@@ -100,7 +100,11 @@ class ProductionPreflightTests(unittest.TestCase):
         self.assertIn("--secrets-file \"$SECRETS_FILE\"", text)
         self.assertIn("wrangler pages deploy ../dashboard/dist", text)
         self.assertIn("python scripts/production-smoke.py", text)
-        self.assertIn("public_checkout=closed", text)
+        self.assertIn("starter_checkout=bounded", text)
+        self.assertIn("probe_checkout enterprise 422", text)
+        self.assertIn("probe_checkout pro 404", text)
+        self.assertIn("probe_checkout business 404", text)
+        self.assertNotIn('--data \'{"plan":"starter"}\'', text)
         self.assertIn("--only-verified --exclude-detectors=Lob", text)
         self.assertIn("python agent/tools/run_tests.py", text)
         self.assertIn("python scripts/validate-contracts.py", text)
@@ -318,11 +322,18 @@ jobs:
         path = self.write_config(self.valid_production_config())
         self.assertEqual(self.preflight.check_production_config(path), [])
 
-    def test_public_production_checkout_fails_closed(self) -> None:
-        production = self.valid_production_config()
-        production["vars"]["CHECKOUT_MODE"] = "public"
-        findings = self.preflight.check_production_config(self.write_config(production))
-        self.assertIn("production_checkout_mode_invalid", {finding.code for finding in findings})
+    def test_non_starter_production_checkout_modes_fail_closed(self) -> None:
+        for mode in ("closed", "public"):
+            with self.subTest(mode=mode):
+                production = self.valid_production_config()
+                production["vars"]["CHECKOUT_MODE"] = mode
+                findings = self.preflight.check_production_config(
+                    self.write_config(production)
+                )
+                self.assertIn(
+                    "production_checkout_mode_invalid",
+                    {finding.code for finding in findings},
+                )
 
     def test_shaped_resource_placeholders_fail_closed(self) -> None:
         production = self.valid_production_config()
