@@ -11,7 +11,7 @@ description: "Detect supported recurring server failures, run only approved reco
     <h1>Automatic recovery for the server incidents <em>you already know how to fix.</em></h1>
     <p class="hero-lede">Turn recurring incidents into approved recovery playbooks. When the evidence matches, a permitted recovery can run. When it does not, the system stops and escalates.</p>
     <div class="hero-actions">
-      <a class="button button-primary" href="https://app.agentpulse.ca/signup?plan=starter&source=home-hero"><span>Start with one host</span><span aria-hidden="true">↗</span></a>
+      <a class="button button-primary" href="https://agentpulse.ca/signup"><span>Request a one-host pilot</span><span aria-hidden="true">↗</span></a>
       <a class="button button-quiet" href="#how-it-works"><span class="play-icon" aria-hidden="true">▶</span> See how it works</a>
     </div>
     <div class="hero-proof">
@@ -101,9 +101,9 @@ description: "Detect supported recurring server failures, run only approved reco
   <div class="plans-copy">
     <div class="section-index">04 / PRICING</div>
     <h2>Pay for the host scope you actually run.</h2>
-    <p>Simple monthly pricing by host scope. Start with one host and move up only when the fleet size requires it.</p>
-    <a class="button button-primary" href="https://app.agentpulse.ca/signup?plan=starter&source=home-pricing"><span>Start Starter checkout</span><span>↗</span></a>
-    <small style="display:block;margin-top:14px;">Checkout is currently provided under the product name AgentPulse.</small>
+    <p>Simple monthly pricing by host scope. Start with a one-host pilot and move up only when the fleet size requires it.</p>
+    <a class="button button-primary" href="https://agentpulse.ca/signup"><span>Request pilot consideration</span><span>↗</span></a>
+    <small style="display:block;margin-top:14px;">Pilot requests are currently handled under the product name AgentPulse. No charge is made at request time.</small>
   </div>
   <div class="plan-ledger">
     <div class="plan-row"><div><span>STARTER</span><strong>One host</strong></div><div><strong>C$29</strong><span>/ month CAD</span></div><p>1 host</p></div>
@@ -132,8 +132,8 @@ description: "Detect supported recurring server failures, run only approved reco
   <h2>Stop being the remediation layer.</h2>
   <p>If you can name the failure and the first recovery step you already trust, that is the problem this product is built to test.</p>
   <div class="hero-actions centered">
-    <a class="button button-primary" href="https://app.agentpulse.ca/signup?plan=starter&source=home-final"><span>Start with one host</span><span>↗</span></a>
+    <a class="button button-primary" href="https://agentpulse.ca/signup"><span>Request a one-host pilot</span><span>↗</span></a>
     <a class="button button-quiet" href="mailto:support@agentpulse.ca">Ask a question</a>
   </div>
-  <p style="margin-top:18px;font-size:0.82rem;opacity:0.72;">Checkout is currently provided under the product name AgentPulse.</p>
+  <p style="margin-top:18px;font-size:0.82rem;opacity:0.72;">Pilot requests are currently handled under the product name AgentPulse. No charge is made at request time.</p>
 </section>

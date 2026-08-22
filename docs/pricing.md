@@ -19,23 +19,23 @@ Simple monthly pricing by host scope. Choose the smallest plan that fits the inf
     <div style="font-weight:700;font-size:1.1em;">Starter</div>
     <div style="font-size:1.6em;font-weight:700;margin:4px 0;">C$29<span style="font-size:0.5em;color:#888;">/month CAD</span></div>
     <div style="color:#999;font-size:0.9em;margin-bottom:12px;">One host.</div>
-    <a href="https://app.agentpulse.ca/signup?plan=starter&source=pricing" style="display:block;text-align:center;padding:11px;background:#0b5fff;color:#fff;border-radius:7px;text-decoration:none;font-weight:600;">Start Starter checkout</a>
+    <a href="https://agentpulse.ca/signup" style="display:block;text-align:center;padding:11px;background:#0b5fff;color:#fff;border-radius:7px;text-decoration:none;font-weight:600;">Request Starter pilot</a>
   </div>
   <div style="flex:1;min-width:200px;border:2px solid #0b5fff;border-radius:10px;padding:18px;">
     <div style="font-weight:700;font-size:1.1em;">Pro</div>
     <div style="font-size:1.6em;font-weight:700;margin:4px 0;">C$99<span style="font-size:0.5em;color:#888;">/month CAD</span></div>
     <div style="color:#999;font-size:0.9em;margin-bottom:12px;">Up to five hosts.</div>
-    <a href="https://app.agentpulse.ca/signup?plan=pro&source=pricing" style="display:block;text-align:center;padding:11px;background:#0b5fff;color:#fff;border-radius:7px;text-decoration:none;font-weight:700;">Start Pro checkout</a>
+    <a href="https://agentpulse.ca/signup" style="display:block;text-align:center;padding:11px;background:#0b5fff;color:#fff;border-radius:7px;text-decoration:none;font-weight:700;">Reserve Pro interest</a>
   </div>
   <div style="flex:1;min-width:200px;border:1px solid #333;border-radius:10px;padding:18px;">
     <div style="font-weight:700;font-size:1.1em;">Business</div>
     <div style="font-size:1.6em;font-weight:700;margin:4px 0;">C$299<span style="font-size:0.5em;color:#888;">/month CAD</span></div>
     <div style="color:#999;font-size:0.9em;margin-bottom:12px;">Up to 20 hosts, priority support, guided onboarding.</div>
-    <a href="https://app.agentpulse.ca/signup?plan=business&source=pricing" style="display:block;text-align:center;padding:11px;background:#1a1a1a;color:#fff;border-radius:7px;text-decoration:none;font-weight:600;">Start Business checkout</a>
+    <a href="https://agentpulse.ca/signup" style="display:block;text-align:center;padding:11px;background:#1a1a1a;color:#fff;border-radius:7px;text-decoration:none;font-weight:600;">Reserve Business interest</a>
   </div>
 </div>
 
-> Checkout is currently provided under the product name **AgentPulse**.
+> Pilot requests are currently handled under the product name **AgentPulse**. No charge is made at request time.
 
 ## What the product is for
 
