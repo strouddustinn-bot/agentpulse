@@ -44,6 +44,9 @@ Thumbs.db
 *.swo
 *~
 
+# Redacted production workflow evidence generated at runtime
+production-failure-state.json
+
 # Local credentials and certificates
 *.pem
 *.key
