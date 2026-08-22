@@ -5,6 +5,7 @@ on:
     tags:
       - 'v0.2.0-beta.6'
       - 'v0.2.0-beta.7'
+      - 'v0.2.0-beta.8'
 
 permissions:
   contents: read
@@ -39,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$GITHUB_REF_NAME" = v0.2.0-beta.7
+          test "$GITHUB_REF_NAME" = v0.2.0-beta.8
           test "$(git rev-parse "${GITHUB_REF_NAME}^{commit}")" = "$GITHUB_SHA"
           test -z "$(git status --porcelain)"
           PACKAGE_VERSION="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
@@ -70,6 +71,7 @@ jobs:
             tests.test_ensure_pages_project \
             tests.test_capture_production_provider_state \
             tests.test_production_preflight \
+            tests.test_production_recovery_workflow \
             tests.test_prepare_production_dashboard \
             tests.test_production_smoke \
             -v
@@ -113,7 +115,7 @@ jobs:
   deploy-production:
     name: Deploy controlled pilot
     needs: verify-release
-    if: ${{ github.ref == 'refs/tags/v0.2.0-beta.7' }}
+    if: ${{ github.ref == 'refs/tags/v0.2.0-beta.8' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: production
@@ -138,7 +140,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REF_TYPE" = tag
-          test "$RELEASE_REF" = v0.2.0-beta.7
+          test "$RELEASE_REF" = v0.2.0-beta.8
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse "${RELEASE_REF}^{commit}")" = "$SOURCE_SHA"
           test "$PACKAGE_VERSION" = 0.2.0b6
