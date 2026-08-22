@@ -1,4 +1,5 @@
-type WorkerEnv = Env & {
+type WorkerEnv = Omit<Env, "CHECKOUT_MODE"> & {
+  CHECKOUT_MODE: "closed" | "starter" | "public";
   STRIPE_WEBHOOK_SECRET: string;
   STRIPE_API_KEY: string;
   STRIPE_PORTAL_URL?: string;
@@ -543,14 +544,23 @@ async function stripeRequest(
 }
 
 async function createBillingCheckout(request: Request, env: WorkerEnv): Promise<Response> {
-  if (env.CHECKOUT_MODE === "closed") {
+  const checkoutMode = env.CHECKOUT_MODE;
+  if (checkoutMode === "closed") {
     throw new HttpError(404, "not_found", "Route not found");
   }
-  if (env.CHECKOUT_MODE !== "public") {
+  if (checkoutMode !== "starter" && checkoutMode !== "public") {
     throw new HttpError(500, "configuration_error", "Checkout mode is invalid");
   }
+
   const body = objectValue(parseJson(await readBody(request)));
   if (!isPlan(body.plan)) throw new HttpError(422, "invalid_plan", "plan must be starter, pro, or business");
+
+  // Starter-only mode is the bounded public-validation gate. Higher-capacity
+  // plans remain indistinguishable from a closed checkout route.
+  if (checkoutMode === "starter" && body.plan !== "starter") {
+    throw new HttpError(404, "not_found", "Route not found");
+  }
+
   const priceId = planPriceId(env, body.plan);
   if (!priceId) throw new HttpError(503, "price_unmapped", "Plan is not mapped to a Stripe Price ID");
   const claimNonce = secureToken("ap_claim_");

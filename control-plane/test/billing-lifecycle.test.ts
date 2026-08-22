@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const now = () => Math.floor(Date.now() / 1000);
 const originalFetch = globalThis.fetch;
 const originalEnvironment = env.ENVIRONMENT;
+const originalCheckoutMode = env.CHECKOUT_MODE;
+
+type CheckoutMode = "closed" | "starter" | "public";
+
+function setCheckoutMode(mode: CheckoutMode): void {
+  (env as unknown as { CHECKOUT_MODE: CheckoutMode }).CHECKOUT_MODE = mode;
+}
 
 async function sha256(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -63,11 +70,13 @@ async function workerFetch(input: string, init?: RequestInit): Promise<Response>
 beforeEach(() => {
   globalThis.fetch = originalFetch;
   env.ENVIRONMENT = originalEnvironment;
+  setCheckoutMode(originalCheckoutMode);
 });
 
 afterEach(async () => {
   globalThis.fetch = originalFetch;
   env.ENVIRONMENT = originalEnvironment;
+  setCheckoutMode(originalCheckoutMode);
   const tables = [
     "heartbeat_events",
     "incidents",
@@ -87,7 +96,7 @@ afterEach(async () => {
 
 describe("billing lifecycle", () => {
   it("keeps checkout unavailable when the production gate is closed", async () => {
-    env.CHECKOUT_MODE = "closed";
+    setCheckoutMode("closed");
     let stripeCalled = false;
     installStripeMock(() => {
       stripeCalled = true;
@@ -103,7 +112,56 @@ describe("billing lifecycle", () => {
     expect(response.status).toBe(404);
     expect(stripeCalled).toBe(false);
     expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM checkout_sessions").first()).toMatchObject({ count: 0 });
-    env.CHECKOUT_MODE = "public";
+  });
+
+  it("allows only Starter checkout when checkout mode is starter", async () => {
+    setCheckoutMode("starter");
+
+    let stripeCalls = 0;
+    installStripeMock((method, path, body) => {
+      stripeCalls += 1;
+      expect(method).toBe("POST");
+      expect(path).toBe("/checkout/sessions");
+
+      const form = formMap(body);
+      expect(form["line_items[0][price]"]).toBe("price_test_starter");
+
+      return jsonResponse({
+        id: "cs_test_starter_gate",
+        livemode: false,
+        url: "https://checkout.stripe.com/c/pay/cs_test_starter_gate",
+        expires_at: now() + 1800,
+      });
+    });
+
+    const starter = await workerFetch("https://agentpulse.test/v1/billing/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: "starter" }),
+    });
+
+    expect(starter.status).toBe(201);
+
+    for (const plan of ["pro", "business"]) {
+      const blocked = await workerFetch("https://agentpulse.test/v1/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+
+      expect(blocked.status).toBe(404);
+      expect(await blocked.json()).toEqual({
+        error: {
+          code: "not_found",
+          message: "Route not found",
+        },
+      });
+    }
+
+    expect(stripeCalls).toBe(1);
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS count FROM checkout_sessions").first(),
+    ).toMatchObject({ count: 1 });
   });
 
   it("creates an allowlisted checkout session and stores only the claim hash", async () => {
