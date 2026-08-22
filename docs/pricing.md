@@ -6,7 +6,7 @@ description: "Monthly pricing for bounded recovery of supported repeat server in
 
 # Pricing
 
-Use the smallest host scope that fits the infrastructure you actually operate. Pricing is intentionally unchanged for this demand test.
+Simple monthly pricing by host scope. Choose the smallest plan that fits the infrastructure you operate.
 
 | Plan | Price | Host scope |
 | --- | ---: | --- |

@@ -101,7 +101,7 @@ description: "Detect supported recurring server failures, run only approved reco
   <div class="plans-copy">
     <div class="section-index">04 / PRICING</div>
     <h2>Pay for the host scope you actually run.</h2>
-    <p>Current monthly pricing is preserved for this demand test. The point is to test whether the recovery model is worth paying for, not optimize pricing before there is buyer evidence.</p>
+    <p>Simple monthly pricing by host scope. Start with one host and move up only when the fleet size requires it.</p>
     <a class="button button-primary" href="https://app.agentpulse.ca/signup?plan=starter&source=home-pricing"><span>Start Starter checkout</span><span>↗</span></a>
     <small style="display:block;margin-top:14px;">Checkout is currently provided under the product name AgentPulse.</small>
   </div>
