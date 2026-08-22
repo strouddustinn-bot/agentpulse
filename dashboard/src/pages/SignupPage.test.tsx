@@ -48,10 +48,7 @@ describe('bounded Starter checkout', () => {
       screen.queryByRole('button', { name: /^Business\b/i }),
     ).toBeNull()
 
-    const reservation = screen.getByRole('link', {
-      name: /Reserve Pro or Business interest/i,
-    })
-
-    expect(reservation.getAttribute('href')).toBe('https://agentpulse.ca/signup')
+    expect(screen.getByText('agentpulse.ca/signup')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /agentpulse\.ca\/signup/i })).toBeNull()
   })
 })
