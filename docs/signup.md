@@ -1,26 +1,26 @@
 ---
 layout: default
 title: Request AgentPulse pilot consideration
-description: "Request consideration for a post-staging one-host AgentPulse pilot or reserve Pro and Business founding pricing. Reservations are free and do not expose server credentials."
+description: "Request consideration for a controlled one-host AgentPulse pilot or reserve Pro and Business pricing. Requests are free and do not expose server credentials."
 ---
 
 # Request AgentPulse pilot consideration
 
-AgentPulse is accepting fit requests from founders and small teams who already monitor their servers but still handle the same incidents by hand; pilot onboarding has not started.
+AgentPulse is accepting fit requests from founders and small teams who already monitor their servers but still handle the same incidents by hand.
 
-You can request consideration for the post-staging controlled Starter pilot on one non-critical host or reserve Pro or Business founding pricing. Reservations are free. We confirm fit, availability, and billing before anything is installed or charged; sending a request does not mean the pilot is accepted.
+You can request consideration for a controlled Starter pilot on one non-critical host or reserve interest in Pro or Business. Reservations are free. We confirm fit, availability, and billing before anything is installed or charged; sending a request does not mean the pilot is accepted.
 
 <p>
   <a id="reserve"
      class="btn"
-     href="mailto:support@agentpulse.ca?subject=AgentPulse%20pilot%20consideration%20request&body=Plan%20interest%3A%20Starter%20pilot%20(C%2429)%20%2F%20Pro%20founding%20(C%2499)%20%2F%20Business%20founding%20(C%24299)%0AHost%20count%3A%20%0AOperating%20system%3A%20%0AHosting%20provider%3A%20%0AStack%20(web%20server%2Fprocess%20manager%2Fdatabase)%3A%20%0ARepeat%20incident%20to%20reduce%3A%20%0APreferred%20start%3A%20reserve%20only%20%2F%20post-staging%20one-host%20pilot%20consideration%0A"
+     href="mailto:support@agentpulse.ca?subject=AgentPulse%20pilot%20consideration%20request&body=Plan%20interest%3A%20Starter%20pilot%20(C%2429)%20%2F%20Pro%20founding%20(C%2499)%20%2F%20Business%20founding%20(C%24299)%0AHost%20count%3A%20%0AOperating%20system%3A%20%0AHosting%20provider%3A%20%0AStack%20(web%20server%2Fprocess%20manager%2Fdatabase)%3A%20%0ARepeat%20incident%20to%20reduce%3A%20%0APreferred%20start%3A%20reserve%20only%20%2F%20one-host%20pilot%20consideration%0A"
      style="display:inline-block;padding:14px 26px;background:#0b5fff;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:1.05em;">
      Open the pilot request email
   </a>
 </p>
 
 <p style="font-size:0.95em;color:#555;margin-top:-6px;">
-  Starter: <strong>C$29/month CAD</strong> for an invited post-staging one-host controlled pilot.<br>
+  Starter: <strong>C$29/month CAD</strong> for an invited one-host controlled pilot.<br>
   Pro: <strong>C$99/month CAD</strong> for up to five hosts when fleet access ships.<br>
   Business: <strong>C$299/month CAD</strong> for up to 20 hosts, priority support, and guided onboarding when fleet access ships.<br>
   <strong>No charge at reservation.</strong>
@@ -30,7 +30,7 @@ You can request consideration for the post-staging controlled Starter pilot on o
 
 ## What to include
 
-Reply with enough information to decide whether the planned post-staging pilot matches your problem:
+Reply with enough information to decide whether the controlled pilot matches your problem:
 
 - the plan you are interested in;
 - how many hosts you expect to manage;
@@ -55,11 +55,11 @@ Do not send an IP address, hostname, password, SSH key, API token, recovery code
 
 1. We check whether AgentPulse supports the incident you named.
 2. We confirm that the proposed host is non-critical and appropriate for beta acceptance.
-3. We install the accepted `v0.2.0-beta.2` prerelease on one approved non-critical host.
+3. If accepted, we install the exact prerelease artifact approved for that pilot on one approved non-critical host.
 4. Installation begins in alert-only mode.
 5. You review detected incidents and simulations before granting any remediation authority.
 
-The published prerelease is not an invitation to run an unreviewed installer on a production host. `v0.2.0-beta.2` passed the exact-artifact Linux lifecycle run, but pilots still use controlled onboarding while the paid account and fleet lifecycle is completed.
+Pilot installation uses the exact approved prerelease artifact and its integrity checks. Do not run an unreviewed installer on a production host; pilots remain controlled and begin on an approved non-critical host.
 
 ## Good beta fit
 
@@ -96,13 +96,12 @@ Accepted capabilities intended for explicitly approved controlled pilots:
 - simulation, verification, evidence, and escalation;
 - a versioned prerelease with checksums.
 
-Still behind release gates:
+Public access boundary:
 
-- public self-serve installation;
-- secure browser account sessions;
-- public fleet and incident console deployment;
-- automated checkout, account claim, and billing portal;
-- enforced self-serve plan capacity and public checkout.
+- public self-serve checkout remains closed;
+- unrestricted fleet onboarding remains closed;
+- pilot installation is controlled and begins on one approved non-critical host;
+- broader host scope or billing activation requires the applicable release gate and explicit approval.
 
 ## Questions before reserving
 
