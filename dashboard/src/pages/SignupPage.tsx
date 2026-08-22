@@ -107,13 +107,8 @@ export default function SignupPage() {
 
       <p className="mb-8 max-w-2xl text-sm leading-6 text-[#94a3b8]">
         Pro (C$99/month, up to 5 hosts) and Business (C$299/month, up to 20 hosts)
-        remain reservation-only during this bounded validation.{' '}
-        <a
-          className="text-[#a99cf8] underline"
-          href="https://agentpulse.ca/signup"
-        >
-          Reserve Pro or Business interest
-        </a>
+        remain reservation-only during this bounded validation. Reserve Pro or Business
+        interest at <span className="text-[#a99cf8]">agentpulse.ca/signup</span>.
       </p>
 
       <div className="rounded-2xl border border-[#293241] bg-[#111318] p-6">
