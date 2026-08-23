@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-      - name: Production preflight, artifact, recovery, and smoke tests
+      - name: Production preflight, artifact, recovery, watch, and smoke tests
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
@@ -27,6 +27,7 @@ jobs:
             tests.test_ensure_pages_project \
             tests.test_production_preflight \
             tests.test_production_recovery_workflow \
+            tests.test_production_watch_workflow \
             tests.test_prepare_production_dashboard \
             tests.test_production_smoke \
             -v
