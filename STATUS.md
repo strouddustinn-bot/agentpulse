@@ -1,5 +1,40 @@
 # AgentPulse Status
 
+## Working execution record — 2026-09-28
+
+- CURRENT VERIFIED STATE: Base master/origin/master is
+  `44e61e7fb4e8b50e64de2084d60c8623a28ea6a8`; local branch
+  `fix/worker-dependency-audit` contains the scoped dependency candidate.
+  Latest release remains `v0.2.0-beta.8` at
+  `9d128c054ba9c5c6e985610fe725e7b8069f3e1b`. Production evidence below is historical.
+- ACTIVE PHASE: 0 — establish verified state and address the Worker audit gate.
+- ACTIVE BLOCKER: Candidate needs Linux CI and merge; master remains unchanged.
+- EVIDENCE: Security run `36289847049` failed Worker audit. Local baseline audit
+  reproduced Sharp high and Vitest mocker moderate advisories. Synthetic run
+  `36511660659` succeeded at base master; no live deployment revalidation here.
+- DECISIONS MADE: Upgrade Vitest 4.1.10 to 4.1.11 and existing Sharp override
+  0.35.3 to 0.35.4. Preserve Vite, bundler, application code, and release gates.
+  PR #48 overlaps but also changes dashboard and unrelated Worker dependencies;
+  this candidate is deliberately narrower. No new dependencies or vendors.
+- FILES CHANGED: control-plane/package.json, control-plane/package-lock.json,
+  STATUS.md. Scope excludes dashboard, billing behavior, deployment, and rebrand.
+- TESTS ALREADY RUN: Node 22.23.3; `npm ci --no-fund`, `npm run typecheck`,
+  `npm run types:check`, `npm test` (82 tests across 8 suites),
+  `npm audit --audit-level=high`, `npm ls vitest @vitest/mocker sharp --all`,
+  and `git diff --check`: all PASS on macOS. Clone connectivity previously passed.
+- RESULTS: Worker high-severity audit gate passes locally; both targeted
+  advisories disappear from audit, with installed Vitest/mocker 4.1.11 and
+  Sharp 0.35.4. This is dependency-resolution evidence, not an exploit replay.
+  Existing billing, claims, concurrency, lifecycle, API and migration tests pass.
+- OPEN QUESTIONS: Moderate Undici GHSA-3wwx-pv8p-q78v remains (four affected
+  dependency entries); separate follow-up required. Linux CI and the complete
+  Security workflow are not yet verified. Unpushed failed-machine work is unknown.
+- REQUIRED HUMAN APPROVAL: Existing production, billing, final-brand, destructive
+  recovery, and launch gates remain. Recovery: revert this scoped change; no data
+  migration or production mutation occurs in this work unit.
+- NEXT ACTION: Review the candidate and obtain Linux CI evidence before merge;
+  reconcile overlap with PR #48. Do not describe the full Security gate as cleared.
+
 **Status date:** 2026-08-22  
 **Canonical GitHub branch:** `master`  
 **Canonical source commit:** `9d128c054ba9c5c6e985610fe725e7b8069f3e1b`  
