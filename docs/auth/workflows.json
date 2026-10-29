@@ -1,0 +1,106 @@
+{
+  "project": "AgentPulse",
+  "status": "design_only",
+  "version": "2026-10-28",
+  "roles": [
+    "customer_viewer",
+    "customer_operator",
+    "customer_billing",
+    "org_admin",
+    "platform_admin"
+  ],
+  "routes": {
+    "public": [
+      "/sign-in",
+      "/sign-up",
+      "/pricing",
+      "/checkout-return",
+      "/onboarding/claim"
+    ],
+    "customer": [
+      "/servers",
+      "/incidents",
+      "/account",
+      "/team"
+    ],
+    "platform_admin": [
+      "/admin",
+      "/admin/tenants",
+      "/admin/audit"
+    ]
+  },
+  "workflows": [
+    {
+      "id": "AP-USER-NEW",
+      "actor": "customer",
+      "steps": [
+        "choose_starter_plan",
+        "stripe_checkout",
+        "await_verified_webhook",
+        "clerk_register_or_signin",
+        "verify_identity",
+        "claim_paid_tenant_once",
+        "create_or_link_org",
+        "onboard_first_host",
+        "view_fleet"
+      ]
+    },
+    {
+      "id": "AP-USER-RETURN",
+      "actor": "customer",
+      "steps": [
+        "clerk_signin",
+        "select_active_org",
+        "verify_tenant_membership",
+        "verify_entitlement",
+        "view_fleet_or_billing_recovery"
+      ]
+    },
+    {
+      "id": "AP-ORG-ADMIN",
+      "actor": "customer_org_admin",
+      "steps": [
+        "clerk_signin",
+        "select_org",
+        "verify_team_manage",
+        "invite_and_assign_role",
+        "audit_change",
+        "revoke_member_if_needed"
+      ]
+    },
+    {
+      "id": "AP-PLATFORM-ADMIN",
+      "actor": "platform_admin",
+      "steps": [
+        "clerk_signin_with_mfa",
+        "verify_server_side_platform_grant",
+        "open_support_case",
+        "request_time_bounded_tenant_scope",
+        "view_redacted_diagnostics",
+        "audit_each_action"
+      ]
+    }
+  ],
+  "security_gates": [
+    "verified_signed_jwt",
+    "no_self_assigned_platform_admin",
+    "org_to_tenant_link",
+    "tenant_member_active",
+    "stripe_entitlement_for_paid_features",
+    "agent_auth_separate",
+    "strict_cors_origin",
+    "webhook_signature_and_replay_protection"
+  ],
+  "acceptance_tests": [
+    "AP-C01",
+    "AP-C02",
+    "AP-C03",
+    "AP-C04",
+    "AP-C05",
+    "AP-C06",
+    "AP-C07",
+    "AP-C08",
+    "AP-C09",
+    "AP-C10"
+  ]
+}
