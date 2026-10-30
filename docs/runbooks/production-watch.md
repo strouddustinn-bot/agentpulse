@@ -20,6 +20,11 @@ agent, change billing, or execute host remediation.
 - Expected deployed source: `9d128c054ba9c5c6e985610fe725e7b8069f3e1b`
 - Expected API/package identity: `0.2.0b6`
 
+`Public Site Probe` runs the same website check on probe-related pull requests
+and by manual dispatch. It has only `contents: read` permission, never writes
+incident issues, and cannot deploy or change provider settings. A red result is
+an observed website health failure, separate from the offline verifier tests.
+
 The expected identity is deliberately fixed to the last recovery-verified
 production release. A later production release must update these values through
 reviewed source rather than silently following `master`.
@@ -39,7 +44,8 @@ The watch reuses `scripts/production-smoke.py` to verify:
 It additionally verifies:
 
 - `https://agentpulse.ca/` returns HTTP 200 at the canonical URL and contains the
-  current public product marker;
+  current public product marker (via `scripts/public-site-smoke.py`, with three
+  bounded attempts and HTTP status diagnostics that omit response bodies);
 - an invalid `enterprise` plan returns the exact `422 invalid_plan` boundary;
 - Pro checkout returns the exact `404 not_found` boundary;
 - Business checkout returns the exact `404 not_found` boundary.
