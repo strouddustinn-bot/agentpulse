@@ -23,9 +23,18 @@ def check_response(response) -> str | None:
         return f"expected HTTP 200, got {response.getcode()}"
     if response.geturl() != URL:
         return "response URL differs from canonical URL"
+    length = response.headers.get("Content-Length")
+    if length is not None:
+        if not length.isascii() or not length.isdecimal() or len(length) > 9:
+            return "invalid Content-Length"
+        length = int(length)
+        if length > MAX_BODY_BYTES:
+            return "response exceeded the 512 KiB safety limit"
     body = response.read(MAX_BODY_BYTES + 1)
     if len(body) > MAX_BODY_BYTES:
         return "response exceeded the 512 KiB safety limit"
+    if length is not None and len(body) != length:
+        return "response body does not match Content-Length"
     if MARKER not in body:
         return "expected public product marker missing"
     return None

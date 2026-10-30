@@ -13,11 +13,12 @@ smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
 
 
-def response(status=200, body=smoke.MARKER, url=smoke.URL):
+def response(status=200, body=smoke.MARKER, url=smoke.URL, headers=None):
     result = Mock()
     result.getcode.return_value = status
     result.geturl.return_value = url
     result.read.return_value = body
+    result.headers = headers or {}
     result.__enter__ = Mock(return_value=result)
     result.__exit__ = Mock(return_value=False)
     return result
@@ -26,6 +27,16 @@ def response(status=200, body=smoke.MARKER, url=smoke.URL):
 class PublicSiteSmokeTests(unittest.TestCase):
     def test_success(self):
         self.assertIsNone(smoke.check_response(response()))
+        self.assertIsNone(smoke.check_response(response(
+            headers={"Content-Length": str(len(smoke.MARKER))},
+        )))
+
+    def test_truncated_response_and_invalid_lengths_fail_closed(self):
+        for length in (str(len(smoke.MARKER) + 5), "-1", "invalid", "9" * 100):
+            with self.subTest(length=length):
+                self.assertIsNotNone(smoke.check_response(response(
+                    headers={"Content-Length": length},
+                )))
 
     def test_status_canonical_identity_marker_and_size_fail_closed(self):
         for item in (

@@ -53,7 +53,7 @@ jobs:
             --timeout 8 || FAILED=1
 
           # Canonical public website: https://agentpulse.ca/
-          python3 scripts/public-site-smoke.py || FAILED=1
+          timeout --kill-after=5s 45s python3 scripts/public-site-smoke.py || FAILED=1
 
           probe_checkout() {
             local plan="$1"

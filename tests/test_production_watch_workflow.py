@@ -25,6 +25,12 @@ class ProductionWatchWorkflowTests(unittest.TestCase):
         self.assertIn("RELEASE_REF: v0.2.0-beta.8", workflow)
         self.assertIn("python scripts/production-smoke.py", workflow)
         self.assertIn("https://agentpulse.ca/", workflow)
+        # Reserve time for incident recording even if a server drips bytes
+        # frequently enough to evade the socket inactivity timeout.
+        self.assertIn(
+            "timeout --kill-after=5s 45s python3 scripts/public-site-smoke.py || FAILED=1",
+            workflow,
+        )
 
         for probe in (
             "probe_checkout enterprise 422",

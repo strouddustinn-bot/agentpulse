@@ -22,4 +22,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Probe canonical website without provider credentials
-        run: python3 scripts/public-site-smoke.py
+        run: timeout --kill-after=5s 45s python3 scripts/public-site-smoke.py
