@@ -52,28 +52,8 @@ jobs:
             --retry-delay 15 \
             --timeout 8 || FAILED=1
 
-          python3 - <<'PY' || FAILED=1
-          import ssl
-          import urllib.error
-          import urllib.request
-
-          url = "https://agentpulse.ca/"
-          expected = b"Automatic recovery for the server incidents"
-          request = urllib.request.Request(
-              url,
-              headers={"Accept": "text/html", "User-Agent": "AgentPulse-production-watch/1"},
-          )
-          try:
-              with urllib.request.urlopen(request, timeout=8, context=ssl.create_default_context()) as response:
-                  body = response.read(524289)
-                  assert response.status == 200, f"unexpected website status {response.status}"
-                  assert response.geturl() == url, "website redirected away from canonical URL"
-                  assert len(body) <= 524288, "website response exceeded watch safety limit"
-                  assert expected in body, "expected public product marker missing"
-          except (urllib.error.URLError, TimeoutError, OSError) as exc:
-              raise SystemExit(f"website transport failed: {type(exc).__name__}") from exc
-          print("public_site=pass")
-          PY
+          # Canonical public website: https://agentpulse.ca/
+          timeout --kill-after=5s 45s python3 scripts/public-site-smoke.py || FAILED=1
 
           probe_checkout() {
             local plan="$1"

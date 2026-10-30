@@ -28,6 +28,7 @@ jobs:
             tests.test_production_preflight \
             tests.test_production_recovery_workflow \
             tests.test_production_watch_workflow \
+            tests.test_public_site_smoke \
             tests.test_prepare_production_dashboard \
             tests.test_production_smoke \
             -v

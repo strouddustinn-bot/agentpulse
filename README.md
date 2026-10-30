@@ -37,7 +37,7 @@ The cloud can narrow a host's policy but cannot increase the immutable local aut
 
 ## Local development
 
-Prerequisites: Python 3.10+ and Node.js 22+.
+Prerequisites: Python 3.10+ and Node.js 22.12.0 or newer (required by the Worker test tooling).
 
 ```bash
 ./scripts/bootstrap-dev.sh

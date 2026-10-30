@@ -20,6 +20,11 @@ agent, change billing, or execute host remediation.
 - Expected deployed source: `9d128c054ba9c5c6e985610fe725e7b8069f3e1b`
 - Expected API/package identity: `0.2.0b6`
 
+`Public Site Probe` runs the same website check on probe-related pull requests
+and by manual dispatch. It has only `contents: read` permission, never writes
+incident issues, and cannot deploy or change provider settings. A red result is
+an observed website health failure, separate from the offline verifier tests.
+
 The expected identity is deliberately fixed to the last recovery-verified
 production release. A later production release must update these values through
 reviewed source rather than silently following `master`.
@@ -39,7 +44,11 @@ The watch reuses `scripts/production-smoke.py` to verify:
 It additionally verifies:
 
 - `https://agentpulse.ca/` returns HTTP 200 at the canonical URL and contains the
-  current public product marker;
+  current public product marker (via `scripts/public-site-smoke.py`, with three
+  bounded attempts and HTTP status diagnostics that omit response bodies).
+  Both workflow entry points enforce a 45-second overall deadline with a
+  five-second kill grace, so slow response bodies cannot consume the watch's
+  incident-recording window. Advertised Content-Length must match the body;
 - an invalid `enterprise` plan returns the exact `422 invalid_plan` boundary;
 - Pro checkout returns the exact `404 not_found` boundary;
 - Business checkout returns the exact `404 not_found` boundary.
@@ -96,6 +105,22 @@ When `[ops] AgentPulse production synthetic alert` opens:
 A later green watch will close the GitHub incident automatically, but the root
 cause and any corrective work should still be recorded in the relevant issue or
 PR.
+
+### Confirmed website failure — 2026-10-30
+
+The [read-only GitHub-runner probe](https://github.com/strouddustinn-bot/agentpulse/actions/runs/41013393233)
+returned HTTP 526 on all three attempts. The earlier scheduled watch passed
+the console/API integrity checks before failing on the website request.
+Cloudflare documents 526 as an origin certificate validation failure:
+https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/error-526/
+
+The exact origin certificate defect has not been inspected. The next provider
+action is to inspect the GitHub repository's Settings > Pages custom domain and
+HTTPS certificate status, then compare the Cloudflare DNS origin with that
+configuration. Repair or reissue the origin certificate for `agentpulse.ca`
+if its validity, hostname, or chain is wrong; retain Full (strict) validation.
+Access to those provider settings is required to identify and apply the exact
+repair. Keep incident #54 open until the complete production watch passes.
 
 ## Safe alert-path drill
 
