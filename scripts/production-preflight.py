@@ -554,6 +554,112 @@ def check_stripe_prices(
     return findings
 
 
+def _fetch_stripe_portal_configurations(api_key: str) -> object:
+    query = urllib.parse.urlencode({"active": "true", "limit": 100})
+    request = urllib.request.Request(
+        f"https://api.stripe.com/v1/billing_portal/configurations?{query}",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Stripe-Version": "2026-10-28.endive",
+            "User-Agent": "AgentPulse-production-preflight/1",
+        },
+        method="GET",
+    )
+    try:
+        response = urllib.request.urlopen(request, timeout=15)
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        exc.close()
+        categories = {401: "authentication", 403: "permission", 429: "rate_limited"}
+        raise StripeAPIError(categories.get(status, "unavailable")) from exc
+    with response:
+        body = response.read(1_048_577)
+        if len(body) > 1_048_576:
+            raise ValueError("portal configuration response exceeds the evidence limit")
+        return strict_json_loads(body.decode("utf-8"))
+
+
+def check_stripe_portal_configuration(
+    path: Path,
+    api_key: str,
+    *,
+    fetcher: Callable[[str], object] = _fetch_stripe_portal_configurations,
+) -> list[Finding]:
+    """Verify the exact hosted login portal against the bounded Starter policy."""
+    if not api_key:
+        return [Finding("stripe_portal_key_missing", "Stripe portal configuration requires read-only live account access")]
+    try:
+        variables = load_jsonc(path)["env"]["production"]["vars"]
+        login_url = variables["STRIPE_PORTAL_URL"]
+        if not isinstance(login_url, str) or not re.fullmatch(
+            r"https://billing\.stripe\.com/p/login/[A-Za-z0-9]+", login_url
+        ):
+            raise ValueError("invalid portal login URL")
+    except (OSError, ValueError, KeyError, TypeError):
+        return [Finding("stripe_portal_config_unreadable", "The configured production portal login URL could not be verified")]
+
+    try:
+        payload = fetcher(api_key)
+    except StripeAPIError as exc:
+        category = exc.category if exc.category in {"authentication", "permission", "rate_limited"} else "unavailable"
+        return [Finding(f"stripe_portal_api_{category}", "Stripe portal configuration could not be read; response details are withheld")]
+    except (OSError, TimeoutError, ValueError, urllib.error.URLError):
+        return [Finding("stripe_portal_unverified", "Stripe did not return usable portal configuration evidence")]
+
+    if not (
+        isinstance(payload, dict)
+        and payload.get("object") == "list"
+        and payload.get("url") == "/v1/billing_portal/configurations"
+        and payload.get("has_more") is False
+        and isinstance(payload.get("data"), list)
+        and all(isinstance(item, dict) for item in payload["data"])
+    ):
+        return [Finding("stripe_portal_list_incomplete", "A complete, well-formed portal configuration list is required")]
+
+    matches = [
+        item for item in payload["data"]
+        if isinstance(item.get("login_page"), dict)
+        and item["login_page"].get("url") == login_url
+    ]
+    if len(matches) != 1:
+        return [Finding("stripe_portal_login_unmatched", "Exactly one Stripe configuration must match the configured portal login URL")]
+    portal = matches[0]
+    if not (
+        portal.get("object") == "billing_portal.configuration"
+        and isinstance(portal.get("id"), str)
+        and re.fullmatch(r"bpc_[A-Za-z0-9]+", portal["id"])
+        and portal.get("active") is True
+        and portal.get("livemode") is True
+        and portal["login_page"].get("enabled") is True
+    ):
+        return [Finding("stripe_portal_configuration_invalid", "The matching portal must be active, live, and enabled for hosted login")]
+
+    features = portal.get("features")
+    if not isinstance(features, dict):
+        return [Finding("stripe_portal_features_unverified", "Stripe portal feature settings are missing")]
+
+    def feature(name: str) -> dict:
+        value = features.get(name)
+        return value if isinstance(value, dict) else {}
+
+    cancellation = feature("subscription_cancel")
+    checks = (
+        ("return_url", portal.get("default_return_url") == "https://app.agentpulse.ca/account",
+         "Portal return URL must be the production account page"),
+        ("plan_changes", feature("subscription_update").get("enabled") is False,
+         "Portal plan changes must remain disabled during Starter-only operation"),
+        ("cancellation", cancellation.get("enabled") is True
+         and cancellation.get("mode") == "at_period_end"
+         and cancellation.get("proration_behavior") == "none",
+         "Portal must allow cancellation at period end without proration"),
+        ("payment_method", feature("payment_method_update").get("enabled") is True,
+         "Portal must allow payment method updates"),
+        ("invoice_history", feature("invoice_history").get("enabled") is True,
+         "Portal must provide invoice history"),
+    )
+    return [Finding(f"stripe_portal_{name}_invalid", message) for name, passed, message in checks if not passed]
+
+
 def check_phase5a_artifacts(repository_root: Path = ROOT) -> list[Finding]:
     findings: list[Finding] = []
     for relative_path, (unreadable_code, markers) in PHASE5A_ARTIFACTS.items():
@@ -1165,6 +1271,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 os.environ.get("STRIPE_API_KEY", ""),
             )
         )
+        findings.extend(
+            check_stripe_portal_configuration(
+                args.config,
+                os.environ.get("STRIPE_API_KEY", ""),
+            )
+        )
         live_status = "CHECKED"
 
     if findings:
@@ -1178,6 +1290,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"LIVE_CHECKS={live_status}")
     if not args.static_only:
         print("stripe_live_prices=verified")
+        print("stripe_live_portal=verified")
         print(
             "dns_predeploy=deferred_first_deploy"
             if dns_deferred
