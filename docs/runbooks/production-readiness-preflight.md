@@ -16,6 +16,7 @@ The preflight aggregates blockers instead of stopping at the first one:
 4. All configured Stripe Prices are retrieved read-only from the authenticated live account and match active live Products, CAD monthly recurrence, and exact approved amounts. Authentication, permission, missing object, rate-limit, and availability failures remain distinct blockers without logging Stripe response bodies.
 5. `app.agentpulse.ca` and `api.agentpulse.ca` resolve through a public DNS-over-HTTPS resolver to globally routable IP addresses. The protected bootstrap may defer unresolved DNS only while `capture-production-provider-state.py` proves that the production Pages project has no production deployment. The workflow uploads the Worker before Pages, so a Worker left by a failed route attachment remains an incomplete-bootstrap recovery state. After the first production Pages deployment, every later deployment requires DNS to resolve.
 6. The release workflow remains immutable-tag and artifact-only, contains the Phase 5A verifier suite, and rejects production mutation markers before Owner Gate 5. The Phase 5A runbooks retain the migration, rollback, and smoke sequence for the separately reviewed production workflow that may be added only after the gate.
+7. The configured Stripe-hosted login URL matches exactly one active live Customer Portal configuration. It returns to `https://app.agentpulse.ca/account`, permits payment-method updates and invoice history, and allows cancellation only at period end without proration. Subscription updates remain disabled so the portal cannot offer upgrades into Pro or Business while production checkout is Starter-only. Missing permissions, malformed or incomplete pagination, and a URL from another account fail closed.
 
 This first checkpoint does not yet prove that structurally valid resource IDs exist in Cloudflare/Stripe, migrations have executed, secret-name compatibility is complete, TLS/application health is proven, immutable Worker/Pages identity is live, smoke tests/rollback/D1 export are executed, or observability is operational. Those remain later Phase 5A/5B checks.
 
@@ -53,6 +54,7 @@ Passing example:
 PRODUCTION_PREFLIGHT=PASS
 LIVE_CHECKS=CHECKED
 stripe_live_prices=verified
+stripe_live_portal=verified
 dns_predeploy=verified
 No deployment, migration, DNS, billing, or secret mutation was performed.
 ```
@@ -70,6 +72,29 @@ PYTHONDONTWRITEBYTECODE=1 python3 -m unittest \
 ```
 
 The suites cover provider/API/schema failures, incomplete-bootstrap recovery after a partial Worker upload, post-Pages DNS enforcement, malformed configuration, immutable-reference binding, GitHub environment controls, Stripe failure categories, unresolved/non-public DNS, and bounded full-gate smoke retries.
+
+## Customer Portal evidence
+
+The live preflight issues only `GET /v1/billing_portal/configurations` using the
+existing protected `STRIPE_API_KEY` binding. Its restricted key needs Customer
+Portal configuration read permission in addition to the existing Price/Product
+read permissions. Never print or paste the key or provider response bodies.
+
+Use the existing AgentPulse Stripe account; a separately connected business or
+test-mode account cannot prove production portal readiness. The current
+implementation requires a complete list of at most 100 active configurations;
+`has_more=true` blocks verification rather than accepting partial evidence.
+
+`stripe_live_portal=verified` is emitted only after all live preflight checks
+pass. An offline test or `--static-only` run cannot produce that receipt. This
+read-only check does not change Stripe settings, create a customer or session,
+charge a payment method, authorize a paid pilot, or open public checkout.
+
+Configuration proof is separate from the authenticated session, CSRF, and
+test-mode commercial lifecycle checks. A production payment test still needs
+its approved customer, host, payment method, and expected charge. Confirm the
+applicable tax registration and tax setup separately before paid activation;
+this check does not enable automatic tax or infer a registration.
 
 ## Resume sequence
 

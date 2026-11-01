@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import copy
 import importlib.util
+import io
 import json
 import subprocess
 import tempfile
 import unittest
+from contextlib import ExitStack, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "production-preflight.py"
@@ -82,6 +86,161 @@ class ProductionPreflightTests(unittest.TestCase):
     def test_current_production_configuration_passes_static_checks(self) -> None:
         findings = self.preflight.check_production_config(ROOT / "control-plane" / "wrangler.jsonc")
         self.assertEqual(findings, [])
+
+    def portal_evidence(self) -> dict:
+        return {
+            "object": "list",
+            "url": "/v1/billing_portal/configurations",
+            "has_more": False,
+            "data": [{
+                "id": "bpc_fixture",
+                "object": "billing_portal.configuration",
+                "active": True,
+                "livemode": True,
+                "login_page": {
+                    "enabled": True,
+                    "url": self.valid_production_config()["vars"]["STRIPE_PORTAL_URL"],
+                },
+                "default_return_url": "https://app.agentpulse.ca/account",
+                "features": {
+                    "subscription_update": {"enabled": False},
+                    "subscription_cancel": {
+                        "enabled": True,
+                        "mode": "at_period_end",
+                        "proration_behavior": "none",
+                    },
+                    "payment_method_update": {"enabled": True},
+                    "invoice_history": {"enabled": True},
+                },
+            }],
+        }
+
+    def portal_codes(self, evidence: object) -> set[str]:
+        findings = self.preflight.check_stripe_portal_configuration(
+            self.write_config(self.valid_production_config()),
+            "fixture-key",
+            fetcher=lambda _key: evidence,
+        )
+        return {finding.code for finding in findings}
+
+    def test_portal_requires_the_exact_configured_live_login_not_the_default(self) -> None:
+        evidence = self.portal_evidence()
+        unrelated = copy.deepcopy(evidence["data"][0])
+        unrelated["id"] = "bpc_unrelated"
+        unrelated["is_default"] = True
+        unrelated["login_page"]["url"] = "https://billing.stripe.com/p/login/otherbusiness"
+        unrelated["features"]["subscription_update"]["enabled"] = True
+        evidence["data"].insert(0, unrelated)
+        self.assertEqual(self.portal_codes(evidence), set())
+        evidence["data"].pop()
+        self.assertEqual(self.portal_codes(evidence), {"stripe_portal_login_unmatched"})
+
+    def test_portal_rejects_unsafe_or_missing_customer_controls(self) -> None:
+        cases = [
+            (("features", "subscription_update", "enabled"), True, "plan_changes"),
+            (("features", "subscription_update", "enabled"), "false", "plan_changes"),
+            (("features", "subscription_update"), {}, "plan_changes"),
+            (("features", "subscription_cancel", "enabled"), False, "cancellation"),
+            (("features", "subscription_cancel", "mode"), "immediately", "cancellation"),
+            (("features", "subscription_cancel", "proration_behavior"), "always_invoice", "cancellation"),
+            (("features", "payment_method_update", "enabled"), False, "payment_method"),
+            (("features", "invoice_history", "enabled"), False, "invoice_history"),
+            (("default_return_url",), "https://untrusted.example/account", "return_url"),
+            (("default_return_url",), None, "return_url"),
+        ]
+        for fields, value, code in cases:
+            with self.subTest(fields=fields, value=value):
+                evidence = self.portal_evidence()
+                target = evidence["data"][0]
+                for field in fields[:-1]:
+                    target = target[field]
+                target[fields[-1]] = value
+                self.assertIn(f"stripe_portal_{code}_invalid", self.portal_codes(evidence))
+
+    def test_portal_rejects_test_disabled_or_malformed_configuration(self) -> None:
+        for field, value in [("active", False), ("livemode", False), ("id", "wrong_object"), ("object", "customer")]:
+            with self.subTest(field=field):
+                evidence = self.portal_evidence()
+                evidence["data"][0][field] = value
+                self.assertEqual(self.portal_codes(evidence), {"stripe_portal_configuration_invalid"})
+        evidence = self.portal_evidence()
+        evidence["data"][0]["login_page"]["enabled"] = False
+        self.assertEqual(self.portal_codes(evidence), {"stripe_portal_configuration_invalid"})
+        evidence = self.portal_evidence()
+        evidence["data"][0]["features"] = None
+        self.assertEqual(self.portal_codes(evidence), {"stripe_portal_features_unverified"})
+
+    def test_portal_requires_complete_unambiguous_provider_evidence(self) -> None:
+        for field, value in [("has_more", True), ("has_more", 0), ("object", "configuration"), ("data", [None])]:
+            with self.subTest(field=field, value=value):
+                evidence = self.portal_evidence()
+                evidence[field] = value
+                self.assertEqual(self.portal_codes(evidence), {"stripe_portal_list_incomplete"})
+        evidence = self.portal_evidence()
+        evidence["data"].append(copy.deepcopy(evidence["data"][0]))
+        self.assertEqual(self.portal_codes(evidence), {"stripe_portal_login_unmatched"})
+        self.assertEqual(self.portal_codes(None), {"stripe_portal_list_incomplete"})
+
+    def test_portal_access_failures_are_sanitized_and_fail_closed(self) -> None:
+        config = self.write_config(self.valid_production_config())
+        self.assertEqual(
+            [item.code for item in self.preflight.check_stripe_portal_configuration(config, "")],
+            ["stripe_portal_key_missing"],
+        )
+        for error in [
+            self.preflight.StripeAPIError("permission"),
+            self.preflight.StripeAPIError("sensitive-provider-response"),
+            ValueError("sensitive-provider-response"),
+        ]:
+            with self.subTest(error=type(error).__name__):
+                findings = self.preflight.check_stripe_portal_configuration(
+                    config, "private-fixture-key", fetcher=mock.Mock(side_effect=error)
+                )
+                self.assertTrue(findings)
+                self.assertNotIn("sensitive-provider-response", str(findings))
+                self.assertNotIn("private-fixture-key", str(findings))
+
+    def test_portal_provider_transport_is_read_only_and_bounded(self) -> None:
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = json.dumps(self.portal_evidence()).encode()
+        with mock.patch.object(self.preflight.urllib.request, "urlopen", return_value=response) as fetch:
+            self.preflight._fetch_stripe_portal_configurations("fixture-key")
+        request = fetch.call_args.args[0]
+        self.assertEqual(request.get_method(), "GET")
+        self.assertEqual(request.full_url, "https://api.stripe.com/v1/billing_portal/configurations?active=true&limit=100")
+        self.assertEqual(fetch.call_args.kwargs["timeout"], 15)
+        response.read.assert_called_once_with(1_048_577)
+        response.read.return_value = b"x" * 1_048_577
+        with mock.patch.object(self.preflight.urllib.request, "urlopen", return_value=response):
+            with self.assertRaises(ValueError):
+                self.preflight._fetch_stripe_portal_configurations("fixture-key")
+
+    def test_live_preflight_cannot_skip_portal_evidence_or_claim_it_from_static_checks(self) -> None:
+        for static_only, blocked in [(False, True), (False, False), (True, False)]:
+            with self.subTest(static_only=static_only, blocked=blocked), ExitStack() as stack:
+                for name in [
+                    "check_production_config", "check_release_ref", "check_release_ref_exists",
+                    "check_phase5a_artifacts", "check_github_environment", "check_dns", "check_stripe_prices",
+                ]:
+                    stack.enter_context(mock.patch.object(self.preflight, name, return_value=[]))
+                stack.enter_context(mock.patch.object(self.preflight, "check_bootstrap_provider_state", return_value=(False, [])))
+                portal = stack.enter_context(mock.patch.object(
+                    self.preflight, "check_stripe_portal_configuration",
+                    return_value=[self.preflight.Finding("portal_fixture_block", "unverified")] if blocked else [],
+                ))
+                output = io.StringIO()
+                stack.enter_context(redirect_stdout(output))
+                args = ["--release-ref", "4c716664c40891971e9e6277e58f092523bf98d2"]
+                if static_only:
+                    args.append("--static-only")
+                result = self.preflight.main(args)
+                self.assertEqual(result, 1 if blocked else 0)
+                self.assertEqual("stripe_live_portal=verified" in output.getvalue(), not static_only and not blocked)
+                if static_only:
+                    portal.assert_not_called()
+                else:
+                    portal.assert_called_once()
 
     def test_phase5a_artifacts_pass_static_checks(self) -> None:
         self.assertEqual(self.preflight.check_phase5a_artifacts(ROOT), [])
