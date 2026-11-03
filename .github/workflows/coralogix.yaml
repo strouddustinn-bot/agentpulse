@@ -1,0 +1,51 @@
+name: Export GitHub Actions telemetry to Coralogix
+
+# Completion events include failed and cancelled runs, across all workflows.
+on:
+  workflow_run:
+    workflows: ['*']
+    types: [completed]
+
+permissions:
+  actions: read
+
+jobs:
+  coralogix-exporter:
+    # The wildcard also matches this workflow; never export the exporter itself.
+    if: ${{ github.event.workflow_run.name != 'Export GitHub Actions telemetry to Coralogix' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check required Coralogix configuration
+        env:
+          CORALOGIX_OTLP_ENDPOINT: ${{ vars.CORALOGIX_OTLP_ENDPOINT }}
+          CORALOGIX_SEND_YOUR_DATA_API_KEY: ${{ secrets.CORALOGIX_SEND_YOUR_DATA_API_KEY }}
+        run: |
+          if [ -z "$CORALOGIX_OTLP_ENDPOINT" ]; then
+            echo '::error::Configure the CORALOGIX_OTLP_ENDPOINT repository variable.'
+            exit 1
+          fi
+          if [ -z "$CORALOGIX_SEND_YOUR_DATA_API_KEY" ]; then
+            echo '::error::Configure the CORALOGIX_SEND_YOUR_DATA_API_KEY Actions secret.'
+            exit 1
+          fi
+      - name: Export completed workflow telemetry
+        uses: coralogix/OTLP-GitHubAction-Exporter@v3
+        env:
+          GITHUB_DEBUG: 'false'
+          ACTION_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
+          OTLP_PROTOCOL: HTTP
+          # Configure the base endpoint in repository Variables and the key in Actions Secrets.
+          OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.CORALOGIX_OTLP_ENDPOINT }}
+          OTEL_EXPORTER_OTLP_HEADERS: ${{ format('Authorization=Bearer {0}', secrets.CORALOGIX_SEND_YOUR_DATA_API_KEY) }}
+          GITHUB_CUSTOM_ATTS: >-
+            {"service.name":"github","cx.application.name":"github-actions","cx.subsystem.name":"agentpulse",
+            "github.repository":${{ toJSON(github.repository) }},
+            "github.workflow.name":${{ toJSON(github.event.workflow_run.name) }},
+            "github.workflow.run.id":${{ toJSON(github.event.workflow_run.id) }},
+            "github.workflow.run.url":${{ toJSON(github.event.workflow_run.html_url) }},
+            "github.workflow.run.attempt":${{ toJSON(github.event.workflow_run.run_attempt) }},
+            "github.head_branch":${{ toJSON(github.event.workflow_run.head_branch) }},
+            "github.head_sha":${{ toJSON(github.event.workflow_run.head_sha) }}}

@@ -65,6 +65,9 @@ The local agent is the authority for host actions. Every remediation must be sim
 
 ## Verification and archives
 
+For CI telemetry and repository-event correlation, see the
+[Coralogix Actions and webhook setup runbook](docs/runbooks/coralogix-github-webhooks.md).
+
 Current verification receipts and explicit production release gates are summarized in `STATUS.md`. Historical source retention follows `ARCHIVES.md`; operational storage details remain private, and deletion is blocked until the owner approves the retention gate.
 
 ```bash
